@@ -1,0 +1,14 @@
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { buscarProductosAvanzado, type ProductoFiltroDTO, type PageResp, type Producto } from "./productos.api";
+
+export function useAdvancedProducts(
+  filtro: ProductoFiltroDTO,
+  page: number,
+  size: number
+) {
+  return useQuery<PageResp<Producto>>({
+    queryKey: ["advanced-products", filtro, page, size],        // 🔁 refetch auto al cambiar filtros
+    queryFn: () => buscarProductosAvanzado(filtro, { page, size }), // ✅ la API recibe (filtro, {page,size})
+    placeholderData: keepPreviousData,                           // ✅ v5
+  });
+}

@@ -1,0 +1,52 @@
+# ===============================
+# Logs
+# ===============================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===============================
+# Node modules / builds
+# ===============================
+node_modules/
+dist/
+dist-ssr/
+.ignored_node_modules/
+
+# ===============================
+# Environment files (React + API)
+# ===============================
+.env
+.env.*
+!.env.example
+
+# ===============================
+# OS / Editor / Misc
+# ===============================
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# ===============================
+# Backend (Spring Boot)
+# Solo si en este repo tienes el backend también
+# ===============================
+target/
+*.iml
+
+# Archivos sensibles del backend
+application-prod.properties
+application-prod.yml
+application-dev.yml
+secrets/
