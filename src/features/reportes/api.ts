@@ -16,6 +16,10 @@ export interface ReporteGananciasDTO {
   semana: number;
   mes: number;
 }
+export interface GananciaDiaDTO {
+  fecha: string;
+  ganancia: number;
+}
 
 export const reportesApi = {
 
@@ -64,23 +68,11 @@ export const reportesApi = {
       totalQuantity: Number(p.totalQuantity),
     }));
   },
-
-  // 🔵 Ganancia por venta
-  getGananciaPorVenta: async (
-    ventaId: number,
-    branchId: number | null
-  ): Promise<number> => {
-    const { data } = await api.get(`/ventas/ganancia/${ventaId}`, {
-      params: { branchId }
-    });
-    return Number(data);
-  },
-
   // 🔵 Ventas brutas
   getVentasBrutasPorRango: async (
     payload: GananciaPorFechaDTO
   ): Promise<number> => {
-    const { data } = await api.post(`/ventas/brutas`, payload);
+    const { data } = await api.post(`/reportes/brutas`, payload);
     return Number(data);
   },
 
@@ -88,8 +80,83 @@ export const reportesApi = {
   getVentasNetasPorRango: async (
     payload: GananciaPorFechaDTO
   ): Promise<number> => {
-    const { data } = await api.post(`/ventas/netas`, payload);
+    const { data } = await api.post(`/reportes/netas`, payload);
     return Number(data);
+  },
+    // =========================================================
+  // 🔵 3) GANANCIA POR DÍA
+  // =========================================================
+  getGananciaDia: async (
+    fecha: string,
+    branchId: number
+  ): Promise<GananciaDiaDTO> => {
+    const { data } = await api.get(`/reportes/ganancia-dia`, {
+      params: { fecha, branchId }
+    });
+
+    return {
+      fecha: data.fecha,
+      ganancia: Number(data.ganancia),
+    };
+  },
+    // =========================================================
+  // 🔵 5) GANANCIA TOTAL POR RANGO
+  // =========================================================
+  getGananciaPorRango: async (
+    payload: GananciaPorFechaDTO
+  ): Promise<number> => {
+    const { data } = await api.post(`/reportes/ganancia-rango`, payload);
+    return Number(data);
+  },
+ // =========================================================
+  // 🔵 9) GANANCIA POR VENTA
+  // =========================================================
+  getGananciaPorVenta: async (
+    ventaId: number,
+    branchId: number | null
+  ): Promise<number> => {
+    const { data } = await api.get(`/reportes/ganancia/${ventaId}`, {
+      params: { branchId }
+    });
+
+    return Number(data);
+  },
+    // =========================================================
+  // 🔵 2) RESUMEN GANANCIAS (hoy/semana/mes)
+  // =========================================================
+  getGananciasResumen: async (
+    branchId: number | null
+  ): Promise<ReporteGananciasDTO> => {
+    const { data } = await api.get(`/reportes/ganancias`, {
+      params: { branchId }
+    });
+    return data as ReporteGananciasDTO;
+  },
+    // =========================================================
+  // 🔵 4) GANANCIA DIARIA POR RANGO (para gráficas por día/semana/mes)
+  // =========================================================
+  getGananciaDiariaRango: async (
+    payload: GananciaPorFechaDTO
+  ): Promise<GananciaDiaDTO[]> => {
+
+    const { data } = await api.post<GananciaDiaDTO[]>(
+      `/reportes/ganancia-diaria-rango`,
+      payload
+    );
+
+    return data.map((d): GananciaDiaDTO => ({
+      fecha: d.fecha,
+      ganancia: Number(d.ganancia),
+    }));
+  },
+    // ==========================
+  // 🔵 RESUMEN DE GANANCIAS (Hoy, Semana, Mes)
+  // ==========================
+  getResumenGanancias: async (branchId: number | null) => {
+    const { data } = await api.get(`/reportes/ganancias`, {
+      params: { branchId }
+    });
+    return data as ReporteGananciasDTO;
   },
 
 };

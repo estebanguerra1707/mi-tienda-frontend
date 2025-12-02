@@ -1,4 +1,4 @@
-import http from "@/lib/http";
+import { api } from "@/lib/api";
 import {
   Proveedor,
   CreateProveedorDto,
@@ -6,30 +6,30 @@ import {
 } from "./types";
 
 export async function fetchProveedores(): Promise<Proveedor[]> {
-  const { data } = await http.get<Proveedor[]>("/proveedores");
+  const { data } = await api.get<Proveedor[]>("/proveedores");
   return data;
 }
 
 export async function fetchProveedorById(id: number): Promise<Proveedor> {
-  const { data } = await http.get<Proveedor>(`/proveedores/${id}`);
+  const { data } = await api.get<Proveedor>(`/proveedores/${id}`);
   return data;
 }
 
 export async function createProveedor(payload: CreateProveedorDto): Promise<Proveedor> {
-  const { data } = await http.post<Proveedor>("/proveedores", payload);
+  const { data } = await api.post<Proveedor>("/proveedores", payload);
   return data;
 }
 
 export async function updateProveedor(id: number, payload: UpdateProveedorDto): Promise<Proveedor> {
-  const { data } = await http.put<Proveedor>(`/proveedores/${id}`, payload);
+  const { data } = await api.put<Proveedor>(`/proveedores/${id}`, payload);
   return data;
 }
 
 export async function deleteProveedor(id: number): Promise<void> {
-  await http.delete(`/proveedores/${id}`);
+  await api.delete(`/proveedores/${id}`);
 }
 
 export async function fetchProveedoresBySucursal(sucursalId: number): Promise<Proveedor[]> {
-  const { data } = await http.get<Proveedor[]>(`/proveedores/proveedor-sucursal/${sucursalId}`);
+  const { data } = await api.get<Proveedor[]>(`/proveedores/proveedor-sucursal/${sucursalId}`);
   return data;
 }

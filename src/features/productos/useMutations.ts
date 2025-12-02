@@ -26,8 +26,6 @@ export function useUpdateProduct(paramsActuales?: ProductsQuery) {
         });
       }
       qc.invalidateQueries({ queryKey: productKeys.lists() });
-      // si luego defines productKeys.item, podrías invalidarlo aquí
-      // qc.invalidateQueries({ queryKey: productKeys.item(updated.id) });
     },
   });
 }

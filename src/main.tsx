@@ -11,10 +11,18 @@ import { Toaster } from 'react-hot-toast'
 
 import './index.css'
 import RegisterUser from './features/auth/pages/RegisterUser'
+import ResetPasswordPage from './features/auth/pages/ResetPasswordPage'
+import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
+import TokenExpiredPage from "@/features/auth/pages/TokenExpiredPage";
+
+
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterUser /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+    { path: '/reset-password', element: <ResetPasswordPage /> },
+    { path: '/token-expired', element: <TokenExpiredPage /> },
   
   {
     element: <ProtectedRoute />,

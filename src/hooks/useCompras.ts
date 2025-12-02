@@ -18,6 +18,7 @@ import {
 export type CompraParams = {
   page?: number;
   size?: number;
+  sort?: string, 
   [key: string]: string | number | boolean | undefined;
 };
 
@@ -61,6 +62,7 @@ export function useCompras(params?: CompraParams, filtros?: CompraSearchFiltro) 
 export function useSearchComprasPaginadas(filters?: {
   page?: number;
   size?: number;
+  sort?: string;
 } & CompraSearchFiltro) {
   return useQuery<CompraPage, Error>({
     queryKey: compraKeys.search(filters),

@@ -123,7 +123,13 @@ function Toast({
 
 
 /* ---------- componente ---------- */
-export default function AddProductButton({ onCreated }: { onCreated?: () => void }) {
+export default function AddProductButton({
+  onCreated,
+  className,
+}: {
+  onCreated?: () => void;
+  className?: string;
+}) {
   const { user, hasRole, token } = useAuth() as unknown as {
     user?: { role?: string };
     hasRole?: (r: string) => boolean;
@@ -274,9 +280,12 @@ const branches = useBranches({
   return (
     <>
      {(isSuper || isAdmin) && (
-      <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={() => setOpen(true)}>
-        Agregar producto
-      </button>
+     <button
+        className={`px-3 py-2 rounded bg-blue-600 text-white ${className ?? ""}`}
+        onClick={() => setOpen(true)}
+        >
+          Agregar producto
+        </button>
      )}
       <Toast toast={toast} onClose={() => setToast(null)} />
 

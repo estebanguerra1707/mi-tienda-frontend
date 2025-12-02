@@ -97,72 +97,149 @@ export default function AddCategoriaButton({ onCreated }: { onCreated?: () => vo
     }
   };
 
-  return (
-    <>
-      <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={() => setOpen(true)}>
-        Agregar categoría
-      </button>
+ return (
+  <>
+    {/* Botón principal */}
+    <button
+      onClick={() => setOpen(true)}
+      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md 
+                 transition-all duration-200 active:scale-[0.97]"
+    >
+      ➕ Nueva categoría
+    </button>
 
-      {toast &&
-        createPortal(
-          <div className="fixed bottom-4 right-4 z-[11000]">
-            <div className={`px-3 py-2 rounded text-white shadow ${toast.type === "success" ? "bg-green-600" : "bg-red-600"}`}>
-              {toast.message}
+    {/* TOAST flotante */}
+    {toast &&
+      createPortal(
+        <div className="fixed bottom-6 right-6 z-[11000]">
+          <div
+            className={`px-4 py-3 rounded-xl shadow-xl text-white text-sm font-medium
+            ${toast.type === "success" ? "bg-green-600" : "bg-red-600"}`}
+          >
+            {toast.message}
+          </div>
+        </div>,
+        document.body
+      )}
+
+    {/* MODAL */}
+    {open &&
+      createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          {/* Fondo oscuro */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm
+                       animate-fadeIn"
+            onClick={onClose}
+          />
+
+          {/* Contenedor del modal */}
+          <div
+            className="relative z-10 w-[min(95vw,42rem)] max-h-[90vh]
+                       bg-white rounded-2xl shadow-2xl overflow-hidden
+                       animate-scaleIn flex flex-col"
+          >
+            {/* HEADER */}
+            <div className="px-6 py-4 border-b bg-white/90 backdrop-blur-md flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Crear nueva categoría
+              </h2>
+              <button
+                onClick={onClose}
+                className="text-gray-500 hover:text-gray-700 transition"
+              >
+                ✕
+              </button>
             </div>
-          </div>,
-          document.body
-        )}
 
-      {open &&
-        createPortal(
-          <div className="fixed inset-0 z-[10000] isolate">
-            <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-            <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-                            w-[min(100vw-1rem,40rem)] max-h-[85vh] rounded-xl bg-white shadow-2xl flex flex-col">
-              <div className="px-5 py-4 border-b sticky top-0 bg-white/95 backdrop-blur z-10">
-                <h2 className="text-lg font-semibold">Nueva categoría</h2>
+            {/* FORM */}
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="px-6 py-5 overflow-y-auto space-y-5"
+            >
+              {/* Nombre */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700">
+                  Nombre de la categoría
+                </label>
+                <input
+                  className="border rounded-lg px-3 py-2 w-full shadow-sm focus:ring-2 focus:ring-blue-500 
+                             focus:outline-none transition"
+                  {...register("name")}
+                />
+                {errors.name && (
+                  <p className="text-xs text-red-600">
+                    {errors.name.message}
+                  </p>
+                )}
               </div>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="px-5 py-4 overflow-y-auto space-y-3">
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm">Nombre</span>
-                  <input className="border rounded px-3 py-2" {...register("name")} />
-                  {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+              {/* Descripción */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700">
+                  Descripción (opcional)
                 </label>
+                <textarea
+                  rows={3}
+                  className="border rounded-lg px-3 py-2 w-full shadow-sm resize-y
+                             focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                  {...register("description")}
+                />
+              </div>
 
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm">Descripción</span>
-                  <textarea className="border rounded px-3 py-2 resize-y" rows={3} {...register("description")} />
-                </label>
-
-                {isSuper ? (
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm">Tipo de negocio</span>
-                    <select className="border rounded px-3 py-2" {...register("businessTypeId", { valueAsNumber: true })}>
-                      <option value="">Selecciona…</option>
-                      {businessTypes.map(bt => (
-                        <option key={bt.id} value={bt.id}>{bt.name}</option>
-                      ))}
-                    </select>
-                    {errors.businessTypeId && <p className="text-xs text-red-600">{errors.businessTypeId.message as string}</p>}
+              {/* Tipo de negocio (solo super admin) */}
+              {isSuper ? (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Tipo de negocio
                   </label>
-                ) : (
-                  <input type="hidden" {...register("businessTypeId", { valueAsNumber: true })} />
-                )}
-
-                <div className="sticky bottom-0 -mx-5 mt-4 bg-white/95 backdrop-blur border-t px-5 py-3">
-                  <div className="flex justify-end gap-2">
-                    <button type="button" className="px-4 py-2 rounded border" onClick={onClose}>Cancelar</button>
-                    <button type="submit" disabled={isSubmitting} className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-60">
-                      {isSubmitting ? "Guardando…" : "Guardar"}
-                    </button>
-                  </div>
+                  <select
+                    className="border rounded-lg px-3 py-2 w-full shadow-sm focus:ring-blue-500"
+                    {...register("businessTypeId", { valueAsNumber: true })}
+                  >
+                    <option value="">Selecciona…</option>
+                    {businessTypes.map((bt) => (
+                      <option key={bt.id} value={bt.id}>
+                        {bt.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.businessTypeId && (
+                    <p className="text-xs text-red-600">
+                      {errors.businessTypeId.message as string}
+                    </p>
+                  )}
                 </div>
-              </form>
-            </div>
-          </div>,
-          document.body
-        )}
-    </>
-  );
+              ) : (
+                <input type="hidden" {...register("businessTypeId")} />
+              )}
+
+              {/* FOOTER */}
+              <div className="sticky bottom-0 left-0 right-0 -mx-6 mt-6 px-6 py-4 border-t
+                              bg-white/95 backdrop-blur-md flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg border shadow-sm hover:bg-gray-50 
+                             text-gray-700 transition"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow 
+                             disabled:opacity-60 transition"
+                >
+                  {isSubmitting ? "Guardando…" : "Guardar categoría"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+  </>
+);
 }

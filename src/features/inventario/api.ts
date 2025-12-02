@@ -1,4 +1,4 @@
-import http from "@/lib/http";
+import { api } from "@/lib/api";
 
 /* ===== Tipos ===== */
 export type InventoryItem = {
@@ -53,7 +53,7 @@ export async function fetchInventory(filter: {
   size?: number;
 }): Promise<InventoryPage> {
   const { page = 0, size = 20, ...rest } = filter;
-  const response = await http.post(`/inventario/search`, {
+  const response = await api.post(`/inventario/search`, {
     ...rest,
     page,
     size,
@@ -62,25 +62,25 @@ export async function fetchInventory(filter: {
 }
 /** GET /inventario/sucursal/{branchId} */
 export async function fetchInventoryByBranch(branchId: number): Promise<InventoryItem[]> {
-  const { data } = await http.get<InventoryItem[]>(`/inventario/sucursal/${branchId}`);
+  const { data } = await api.get<InventoryItem[]>(`/inventario/sucursal/${branchId}`);
   return data;
 }
 
 /** GET /inventario/producto/{productId} */
 export async function fetchInventoryByProduct(productId: number): Promise<InventoryItem[]> {
-  const { data } = await http.get<InventoryItem[]>(`/inventario/producto/${productId}`);
+  const { data } = await api.get<InventoryItem[]>(`/inventario/producto/${productId}`);
   return data;
 }
 
 /** POST /inventario */
 export async function createInventory(payload: InventoryCreate): Promise<InventoryItem> {
-  const { data } = await http.post<InventoryItem>("/inventario", payload);
+  const { data } = await api.post<InventoryItem>("/inventario", payload);
   return data;
 }
 
 /** PUT /inventario/{id} */
 export async function updateInventory(id: number | string, payload: InventoryUpdate): Promise<InventoryItem> {
-  const { data } = await http.put<InventoryItem>(`/inventario/${id}`, payload);
+  const { data } = await api.put<InventoryItem>(`/inventario/${id}`, payload);
   return data;
 }
 

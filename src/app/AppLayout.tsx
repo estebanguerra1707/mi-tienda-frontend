@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import LogoutButton from "@/components/LogoutButton";
-import { hasAnyRole } from "@/features/auth/roles";
+import { useHasAnyRole } from "@/features/auth/roles";
 
 type NavItem = { to: string; label: string; show: boolean };
 
 export default function AppLayout() {
   const userName = localStorage.getItem("username") || "Usuario";
 
-  const canInventory = hasAnyRole(["ADMIN", "SUPER_ADMIN"]);
-  const canUsers = hasAnyRole(["ADMIN", "SUPER_ADMIN"]);
-  const canBranches = hasAnyRole(["ADMIN", "SUPER_ADMIN"]);
-  const canCategories = hasAnyRole(["ADMIN", "SUPER_ADMIN"]);
+  const canInventory = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
+  const canUsers = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
+  const canBranches = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
+  const canCategories = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
 
   const [open, setOpen] = useState(false);
 
@@ -74,8 +74,8 @@ export default function AppLayout() {
           className="
             hidden md:flex
             items-center
-            flex-nowrap       /* 🔥 evita que bajen de línea */
-            overflow-x-auto   /* 🔥 permite scroll si no caben */
+            flex-nowrap
+            overflow-x-auto
             scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent
             gap-6
             text-sm lg:text-base xl:text-lg
@@ -88,7 +88,7 @@ export default function AppLayout() {
               to={item.to}
               className={({ isActive }) =>
                 `
-                  whitespace-nowrap     /* 🔥 evita que el texto se parta */
+                  whitespace-nowrap
                   px-3 py-2
                   rounded-lg transition
                   ${isActive ? "bg-brand-gold text-black" : "hover:bg-white/20"}

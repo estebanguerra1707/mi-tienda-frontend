@@ -1,5 +1,4 @@
-// src/features/usuarios/catalogs.service.ts
-import http from "@/lib/http";
+import { api } from "@/lib/api";
 
 export interface Sucursal {
   id: number;
@@ -7,6 +6,6 @@ export interface Sucursal {
 }
 
 export async function fetchSucursales(): Promise<Sucursal[]> {
-  const { data } = await http.get<Sucursal[]>("/sucursales");
+  const { data } = await api.get<Sucursal[]>("/sucursales");
   return data;
 }

@@ -8,6 +8,8 @@ import {useAdvancedProducts} from "@/features/productos/useAdvancedProducts";
 import { buildFiltro, type ProductoFiltroDTO } from "@/features/productos/productos.api";
 import type { Product } from "@/features/productos/api";
 import AdvancedFilters from "@/features/productos/components/AdvancedFilters";
+import { ServerPagination } from "@/components/pagination/ServerPagination";
+
 
 type SortKey =
   | "sku"
@@ -168,247 +170,226 @@ const sortedItems = useMemo(() => {
   if (isPending) return <p className="p-4">Cargando…</p>;
   if (error) return <p className="p-4 text-red-600">{(error as Error).message}</p>;
 
-  return (
-    <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-6 space-y-4">
-      {/* Header + acción */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold">Productos</h1>
-        <div className="flex gap-2 sm:order-2">
-          <AddProductButton onCreated={() => refetch()} />
-        </div>
-      </div>
+ return (
+  <div className="mx-auto w-full max-w-7xl p-6 space-y-6">
 
-      {/* Buscador rapido */}
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-        <input
-          className="border rounded px-3 py-2 w-full"
-          placeholder="Busca por nombre o código de barras"
-          defaultValue={params.get("barcodeName") ?? ""}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button className="border rounded px-3 py-2 w-full sm:w-auto" onClick={() => refetch()}>
-          Buscar
+    {/* ---------- HEADER ---------- */}
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <h1 className="text-2xl font-bold text-slate-800">Productos</h1>
+
+      <div className="flex gap-2 sm:order-2">
+        <AddProductButton onCreated={() => refetch()} />
+      </div>
+    </div>
+
+    {/* ---------- BUSCADOR RÁPIDO ---------- */}
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center bg-white p-4 rounded-lg shadow-sm border">
+
+      <input
+        className="
+          border rounded-lg px-3 py-2 w-full
+          focus:ring-2 focus:ring-blue-500 focus:outline-none
+        "
+        placeholder="Busca por nombre o código de barras…"
+        defaultValue={params.get("barcodeName") ?? ""}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      <button
+        className="
+          border rounded-lg px-4 py-2 w-full sm:w-auto
+          bg-blue-600 text-white font-medium
+          hover:bg-blue-700 transition
+        "
+        onClick={() => refetch()}
+      >
+        Buscar
+      </button>
+
+      {!showAdvanced && (
+        <button
+          type="button"
+          className="
+            border rounded-lg px-4 py-2 w-full sm:w-auto
+            bg-slate-100 hover:bg-slate-200
+            transition font-medium
+          "
+          onClick={() => setShowAdvanced(true)}
+        >
+          Búsqueda avanzada
         </button>
-
-        {/* 🔹 Este botón ahora solo abre el panel */}
-        {!showAdvanced && (
-          <button
-            type="button"
-            className="border rounded px-3 py-2 w-full sm:w-auto"
-            onClick={() => setShowAdvanced(true)}
-          >
-            Búsqueda avanzada
-          </button>
-        )}
-      </div>
-
-      {/* Panel de filtros avanzados */}
-      {showAdvanced && (
-         <AdvancedFilters
-          params={params}
-          onApply={(next) => {
-            const sp = new URLSearchParams(params);
-          sp.delete("");
-          Object.entries(next).forEach(([k, v]) => {
-            if (v == null || v === "") sp.delete(k);
-            else sp.set(k, v);
-          });
-          setParams(sp); 
-          }}        />
       )}
-      {showAdvanced && (
-        <div className="flex justify-end mb-2">
+    </div>
+
+    {/* ---------- FILTROS AVANZADOS ---------- */}
+    {showAdvanced && (
+      <>
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <AdvancedFilters
+            params={params}
+            onApply={(next) => {
+              const sp = new URLSearchParams(params);
+              Object.entries(next).forEach(([k, v]) => {
+                if (!v) sp.delete(k);
+                else sp.set(k, v);
+              });
+              setParams(sp);
+            }}
+          />
+        </div>
+
+        <div className="flex justify-end">
           <button
-            type="button"
-            className="border rounded px-3 py-2 w-full sm:w-auto"
+            className="
+              mt-3 px-4 py-2 rounded-lg
+              bg-slate-200 hover:bg-slate-300
+              transition
+            "
             onClick={() => setShowAdvanced(false)}
           >
             Ocultar filtros
           </button>
         </div>
-      )}
+      </>
+    )}
 
-
-      {/* ====== Móvil: cards ====== */}
-      <ul className="grid gap-3 md:hidden">
-        {items.map((p) => (
-          <li key={p.id} className="rounded-lg border bg-white p-3 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{p.name}</p>
-                <p className="mt-0.5 text-xs text-slate-500">SKU: {p.sku}</p>
-                <p className="mt-0.5 text-xs text-slate-500">Código: {p.codigoBarras ?? "-"}</p>
-              </div>
-              <span className="shrink-0 text-sm font-medium">
-                {p.purchasePrice != null ? `$${p.purchasePrice.toFixed(2)}` : "-"}
-              </span>
+    {/* ---------- LISTA MÓVIL (CARDS) ---------- */}
+    <ul className="grid gap-3 md:hidden">
+      {items.map((p) => (
+        <li key={p.id} className="rounded-lg border bg-white p-4 shadow-sm">
+          <div className="flex justify-between items-start">
+            <div className="min-w-0">
+              <p className="text-base font-semibold truncate">{p.name}</p>
+              <p className="text-xs text-slate-500 mt-1">SKU: {p.sku}</p>
+              <p className="text-xs text-slate-500">Código: {p.codigoBarras ?? "-"}</p>
             </div>
 
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
-              <span><b>Cat.</b> {p.categoryName ?? "-"}</span>
-              <span><b>Prov.</b> {p.providerName ?? "-"}</span>
+            <span className="font-semibold text-sm">
+              {p.purchasePrice ? `$${p.purchasePrice.toFixed(2)}` : "-"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mt-3">
+            <span><b>Cat:</b> {p.categoryName ?? "-"}</span>
+            <span><b>Prov:</b> {p.providerName ?? "-"}</span>
+
+            <span className="col-span-2">
+              <b>Alta:</b>{" "}
+              {p.creationDate
+                ? new Date(p.creationDate).toLocaleDateString("es-MX")
+                : "-"}
+            </span>
+
+            {isSuper && (
               <span className="col-span-2">
-                <b>Alta:</b>{" "}
-               {p.creationDate
-              ? (isSuper
-                  ? new Date(p.creationDate).toLocaleString("es-MX", {
-                      day: "2-digit", month: "2-digit", year: "numeric",
-                      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true,
-                    })
-                  : new Date(p.creationDate).toLocaleDateString("es-MX", {
-                      day: "2-digit", month: "2-digit", year: "numeric",
-                    }))
-              : "-"}
+                <b>Tipo:</b> {p.businessTypeName ?? "-"}
               </span>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+
+    {/* ---------- TABLA DESKTOP ---------- */}
+    <div className="hidden md:block">
+      <div className="rounded-lg border bg-white shadow-sm overflow-x-auto">
+        <table className="min-w-[1000px] w-full text-sm">
+          <thead className="bg-slate-100 border-b">
+            <tr>
+              {[
+                ["sku", "SKU"],
+                ["codigoBarras", "Código de barras"],
+                ["name", "Nombre"],
+                ["purchasePrice", "Precio compra"],
+                ["categoryName", "Categoría"],
+                ["providerName", "Proveedor"],
+                ["creationDate", "Fecha alta"],
+              ].map(([key, label]) => (
+                <th key={key} className="px-3 py-2 font-medium text-slate-700">
+                  <button
+                    onClick={() => toggleSort(key as SortKey)}
+                    className="flex items-center gap-1 hover:text-blue-600 transition"
+                  >
+                    {label} <Arrow k={key as SortKey} />
+                  </button>
+                </th>
+              ))}
+
               {isSuper && (
-                <span className="col-span-2">
-                  <b>Tipo de negocio:</b> {p.businessTypeName ?? "-"}
-                </span>
-              )}
-            </div>
-          </li>
-        ))}
-
-        {items.length === 0 && (
-          <li className="rounded-lg border bg-white p-6 text-center text-slate-500">
-            Sin resultados
-          </li>
-        )}
-      </ul>
-
-      {/* ====== Desktop: tabla ====== */}
-      <div className="relative hidden md:block">
-        <div className="overflow-x-auto rounded-lg border bg-white">
-          <table className="min-w-[900px] w-full text-sm border-collapse">
-            <thead className="sticky top-0 bg-slate-50 z-10">
-               <tr className="[&>th]:text-left [&>th]:px-3 [&>th]:py-2">
-                <th>
-                  <button onClick={() => toggleSort("sku")} className="flex items-center gap-1">
-                    SKU <Arrow k="sku" />
-                  </button>
-                </th>
-                <th>
-                  <button onClick={() => toggleSort("codigoBarras")} className="flex items-center gap-1">
-                    Código de barras <Arrow k="codigoBarras" />
-                  </button>
-                </th>
-                <th>
-                  <button onClick={() => toggleSort("name")} className="flex items-center gap-1">
-                    Nombre <Arrow k="name" />
-                  </button>
-                </th>
-                <th>
-                  <button onClick={() => toggleSort("purchasePrice")} className="flex items-center gap-1">
-                    Precio compra <Arrow k="purchasePrice" />
-                  </button>
-                </th>
-                <th>
-                  <button onClick={() => toggleSort("categoryName")} className="flex items-center gap-1">
-                    Categoría <Arrow k="categoryName" />
-                  </button>
-                </th>
-                <th>
-                  <button onClick={() => toggleSort("providerName")} className="flex items-center gap-1">
-                    Nombre Proveedor <Arrow k="providerName" />
-                  </button>
-                </th>
-                <th>
-                  <button onClick={() => toggleSort("creationDate")} className="flex items-center gap-1">
-                    Fecha de alta <Arrow k="creationDate" />
-                  </button>
-                </th>
-                {isSuper && (
-                  <th>
+                <>
+                  <th className="px-3 py-2">
                     <button onClick={() => toggleSort("businessTypeName")} className="flex items-center gap-1">
-                      Tipo de negocio <Arrow k="businessTypeName" />
+                      Negocio <Arrow k="businessTypeName" />
                     </button>
                   </th>
-                )}
-                {isSuper && (
-                  <th>
+
+                  <th className="px-3 py-2">
                     <button onClick={() => toggleSort("active")} className="flex items-center gap-1">
                       Activo <Arrow k="active" />
                     </button>
                   </th>
-                )}
-                <th className="w-40">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedItems.map((p) => (
-                <tr key={p.id} className="border-t [&>td]:px-3 [&>td]:py-2 hover:bg-slate-50">
-                  <td className="whitespace-nowrap">{p.sku}</td>
-                  <td className="whitespace-nowrap">{p.codigoBarras ?? "-"}</td>
-                  <td className="max-w-[260px] truncate">{p.name}</td>
-                  <td className="whitespace-nowrap">
-                    {p.purchasePrice != null ? `$${p.purchasePrice.toFixed(2)}` : "-"}
-                  </td>
-                  <td className="truncate">{p.categoryName ?? "-"}</td>
-                  <td className="truncate">{p.providerName ?? "-"}</td>
-                  <td className="whitespace-nowrap">
-                    {p.creationDate
-                      ? (
-                          isSuper
-                            ? new Date(p.creationDate).toLocaleString("es-MX", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                                hour12: true,
-                              })
-                            : new Date(p.creationDate).toLocaleDateString("es-MX", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                              })
-                        )
-                      : "-"}
-                  </td>
-                  {isSuper && <td className="truncate">{p.businessTypeName ?? "-"}</td>}
-                  {isSuper && <td className="truncate">{p.active ? "Sí" : "No"}</td>}
-                  <td className="whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <EditProductButton
-                        product={p}
-                        paramsActuales={{
-                          barcodeName: params.get("barcodeName") ?? "",
-                          page: pageUI,
-                          pageSize: size,
-                        }}
-                        onUpdated={() => refetch()}
-                      />
-
-                      <DeleteProductButton
-                        id={p.id}
-                        name={p.name}
-                        onDeleted={() => refetch()}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {sortedItems.length === 0 && (
-                <tr>
-                  <td colSpan={isSuper ? 9 : 8} className="px-3 py-6 text-center text-slate-500">
-                    Sin resultados
-                  </td>
-                </tr>
+                </>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center gap-2 justify-end">
-          <span className="text-sm">
-             Página {(data?.number ?? 0) + 1} / {totalPages}
-          </span>
-        </div>
-      )}
+              <th className="px-3 py-2 w-40 text-slate-700">Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {sortedItems.map((p) => (
+              <tr key={p.id} className="border-t hover:bg-slate-50">
+                <td className="px-3 py-2">{p.sku}</td>
+                <td className="px-3 py-2">{p.codigoBarras ?? "-"}</td>
+                <td className="px-3 py-2 truncate max-w-[260px]">{p.name}</td>
+                <td className="px-3 py-2">{p.purchasePrice ? `$${p.purchasePrice.toFixed(2)}` : "-"}</td>
+                <td className="px-3 py-2">{p.categoryName ?? "-"}</td>
+                <td className="px-3 py-2">{p.providerName ?? "-"}</td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {p.creationDate
+                    ? new Date(p.creationDate).toLocaleDateString("es-MX")
+                    : "-"}
+                </td>
+
+                {isSuper && (
+                  <>
+                    <td className="px-3 py-2">{p.businessTypeName ?? "-"}</td>
+                    <td className="px-3 py-2">{p.active ? "Sí" : "No"}</td>
+                  </>
+                )}
+
+                <td className="px-3 py-2">
+                  <div className="flex gap-2">
+                    <EditProductButton
+                      product={p}
+                      paramsActuales={{
+                        barcodeName: params.get("barcodeName") ?? "",
+                        page: pageUI,
+                        pageSize: size,
+                      }}
+                      onUpdated={() => refetch()}
+                    />
+                    <DeleteProductButton id={p.id} name={p.name} onDeleted={() => refetch()} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
-  );
+
+    {/* ---------- PAGINACIÓN ---------- */}
+    <div className="pt-2">
+      <ServerPagination
+        page={pageUI}
+        totalPages={totalPages}
+        onChange={(nextPage) => {
+          const sp = new URLSearchParams(params);
+          sp.set("page", String(nextPage));
+          setParams(sp);
+        }}
+      />
+    </div>
+  </div>
+)
 }

@@ -1,17 +1,15 @@
-
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { Role } from "@/context/AuthContext";
 
 type Props = {
-  roles?: string[]; // <-- acepta roles opcionales
+  roles?: Role[];
 };
 
 export default function ProtectedRoute({ roles }: Props) {
-  const token = localStorage.getItem("jwt");
-  const role  = localStorage.getItem("rol");
-
+  const { token, user } = useAuth();
   const location = useLocation();
 
-  // sin token -> login
   if (!token) {
     return (
       <Navigate
@@ -22,9 +20,11 @@ export default function ProtectedRoute({ roles }: Props) {
     );
   }
 
-  // si se pasaron roles y el rol del usuario no está permitido -> redirige
-  if (roles && roles.length > 0 && (!role || !roles.includes(role))) {
-    return <Navigate to="/" replace />;
+  if (roles && roles.length > 0) {
+    const role = user?.role ?? null;
+    if (!role || !roles.includes(role)) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return <Outlet />;

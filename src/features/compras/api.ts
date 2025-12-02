@@ -106,14 +106,16 @@ export async function deleteCompra(id: number) {
 export async function searchComprasPaginadas(params: {
   page?: number;
   size?: number;
+  sort?: string;
 } & CompraSearchFiltro): Promise<CompraPage> {
-  const { page = 0, size = 10, ...filtro } = params;
+  
+  const { page = 0, size = 10, sort, ...filtro } = params;
 
-  // --- OJO: el backend espera CompraFiltroDTO en el body
-  const res = await api.post(
-    `/compras/search?page=${page}&size=${size}`,
-    filtro
-  );
+  const url = sort
+    ? `/compras/search?page=${page}&size=${size}&sort=${sort}`
+    : `/compras/search?page=${page}&size=${size}`;
+
+  const res = await api.post(url, filtro);
   return res.data as CompraPage;
 }
 

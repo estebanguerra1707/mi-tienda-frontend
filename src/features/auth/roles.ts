@@ -1,11 +1,9 @@
-// src/auth/roles.ts
-export type Role = 'ADMIN' | 'SUPER_ADMIN' | 'VENDOR' | string;
+import { Role } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
-export function getRole(): Role | null {
-  return (localStorage.getItem('rol')) as Role | null;
-}
+export function useHasAnyRole(roles: Role[]): boolean {
+  const { user } = useAuth();
 
-export function hasAnyRole(roles: Role[]): boolean {
-  const r = getRole();
-  return !!r && roles.includes(r);
+  if (!user || !user.role) return false;
+  return roles.includes(user.role);
 }

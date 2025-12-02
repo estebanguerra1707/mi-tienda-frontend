@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBusinessTypes, type BusinessType } from "@/features/productos/api";
 import { api } from "@/lib/api";
-import http from "@/lib/http";
 /* ==== Tipos comunes ==== */
 export type CatalogItem = { id: number; name: string };
 
@@ -244,7 +243,7 @@ export function useSucursales() {
   return useQuery<Sucursal[], Error>({
     queryKey: ["sucursales", "v1"],
     queryFn: async () => {
-      const { data } = await http.get<Sucursal[]>("/sucursales");
+      const { data } = await api.get<Sucursal[]>("/sucursales");
       return data;
     },
     initialData: [],

@@ -212,13 +212,23 @@ export default function UserEditPage() {
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-60"
-        >
-          {isPending ? "Guardando..." : "Guardar cambios"}
-        </button>
+        <div className="flex gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={isPending}
+            className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-60"
+          >
+            {isPending ? "Guardando..." : "Guardar cambios"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/usuarios")}
+            className="px-4 py-2 rounded bg-gray-300 text-gray-800 hover:bg-gray-400 transition"
+          >
+            Cancelar
+          </button>
+</div>
       </form>
     </div>
   );

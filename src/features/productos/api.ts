@@ -1,5 +1,4 @@
-// src/features/productos/api.ts
-import http from '@/lib/http';
+import { api } from '@/lib/api';
 import { cleanParams } from '@/lib/http-params';
 
 export type Product = {
@@ -61,7 +60,7 @@ export async function fetchProducts(params: ProductsQuery): Promise<ProductsPage
     sort: 'name,asc',
   });
 
-  const { data } = await http.get<MaybePaged<Product>>('/productos', { params: springParams });
+  const { data } = await api.get<MaybePaged<Product>>('/productos', { params: springParams });
 
   // ¿Backend devuelve array plano?
   if (Array.isArray(data)) {
@@ -83,20 +82,20 @@ export async function fetchProducts(params: ProductsQuery): Promise<ProductsPage
 }
 
 export async function createProduct(payload: Omit<Product, 'id'>): Promise<Product> {
-  const { data } = await http.post<Product>('/productos', payload);
+  const { data } = await api.post<Product>('/productos', payload);
   return data;
 }
 
 export async function updateProduct(id: number | string, payload: Partial<Product>): Promise<Product> {
-  const { data } = await http.put<Product>(`/productos/${id}`, payload);
+  const { data } = await api.put<Product>(`/productos/${id}`, payload);
   return data;
 }
 
 export async function deleteProduct(id: number | string): Promise<void> {
-  await http.delete(`/productos/${id}`);
+  await api.delete(`/productos/${id}`);
 }
 
 export async function fetchBusinessTypes(): Promise<BusinessType[]> {
-  const { data } = await http.get<BusinessType[]>("/business-types");
+  const { data } = await api.get<BusinessType[]>("/business-types");
   return data;
 }
