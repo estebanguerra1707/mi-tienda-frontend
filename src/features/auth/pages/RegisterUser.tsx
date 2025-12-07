@@ -247,14 +247,6 @@ export default function RegisterUser() {
             {result.message}
           </div>
         )}
-
-        {/* ---------------------- FOOTER ---------------------- */}
-        <footer className="pt-2 text-xs text-slate-500">
-          Base URL:{" "}
-          <code className="px-1 py-0.5 rounded bg-slate-100">
-            {API_BASE || "No definida"}
-          </code>
-        </footer>
       </div>
     </div>
   );

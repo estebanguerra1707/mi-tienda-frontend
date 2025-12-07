@@ -15,9 +15,15 @@ import ResetPasswordPage from './features/auth/pages/ResetPasswordPage'
 import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
 import TokenExpiredPage from "@/features/auth/pages/TokenExpiredPage";
 
+localStorage.removeItem('jwt');
+localStorage.removeItem('role');
+localStorage.removeItem('branchId');
+localStorage.removeItem('businessType');
+localStorage.removeItem('username');
 
 
 const router = createBrowserRouter([
+  
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterUser /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
@@ -118,6 +124,7 @@ const router = createBrowserRouter([
       },
     ],
   },
+  
 ])
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

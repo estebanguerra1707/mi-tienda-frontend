@@ -13,7 +13,6 @@ export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalP
 
   if (!venta) return null;
 
-  console.log("Venta recibida en modal:", venta);
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">

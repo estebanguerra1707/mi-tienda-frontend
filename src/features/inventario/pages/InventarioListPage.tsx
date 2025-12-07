@@ -64,8 +64,11 @@ const Arrow = ({ k }: { k: SortKey }) =>
 
   // Cargar catálogos
   const btHook = useBusinessTypes();
-  const branchesHook = useBranches({ businessTypeId: isSuper ? btId : (user?.businessTypeId ?? undefined) });
-
+  const branchesHook = useBranches({
+    isSuper,
+    businessTypeId: isSuper ? (btId ?? user?.businessTypeId ?? null) : null,
+    oneBranchId: !isSuper ? (user?.branchId ?? null) : null,
+  });
   // ==== Data ====
   // SUPER usa la lista paginada; (si aplicas filtros de BT/Sucursal en server, añade params y endpoints)
 const filtro = useMemo(() => ({

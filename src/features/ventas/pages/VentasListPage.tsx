@@ -35,7 +35,6 @@ export default function VentasListPage() {
   const [openDetalle, setOpenDetalle] = useState(false);
 
   const handleRowClick = (venta: VentaItem) => {
-  console.log("Venta seleccionada:", venta);
   setSelectedVenta(venta);
   setOpenDetalle(true);
 };
@@ -104,7 +103,6 @@ export default function VentasListPage() {
     };
 
     setFiltros(newFiltros);
-    console.log("Filtros aplicados:", newFiltros);
     setParams((p) => ({ ...p, page: 0 }));
   };
 

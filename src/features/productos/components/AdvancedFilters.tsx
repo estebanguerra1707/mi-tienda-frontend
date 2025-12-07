@@ -77,9 +77,13 @@ const categoriesHook = useCategories({
 });
 
 const branchesHook = useBranches({
+  isSuper,
   businessTypeId: isSuper
     ? (businessTypeId ? Number(businessTypeId) : undefined)
-    : (user?.businessTypeId ?? undefined),
+    : null,
+  oneBranchId: !isSuper
+    ? (user?.branchId ?? null)
+    : null,
 });
 
 

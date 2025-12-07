@@ -18,8 +18,6 @@ import {
   fetchBranchInfo,
 } from "@/hooks/useCatalogs";
 
-type Role = "ADMIN" | "VENDOR" | "SUPER_ADMIN";
-
 const baseSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
   sku: z.string().min(1, "SKU requerido"),
@@ -84,14 +82,8 @@ function getErrorMessage(err: unknown): string {
 
  }) {
  const { mutateAsync, isPending } = useUpdateProduct(paramsActuales);
-  const auth = useAuth() as {
-    user?: { role?: Role };
-    hasRole?: (r: Role) => boolean;
-    businessTypeId?: number | null;
-    branchId?: number | null;
-    token?: string;
-  };
-console.log("PRODUCT EN TABLA", product);
+ const auth = useAuth();
+ 
   const isSuper = auth.hasRole ? auth.hasRole("SUPER_ADMIN") : auth.user?.role === "SUPER_ADMIN";
 
   // Derivado de la sucursal elegida
@@ -128,7 +120,7 @@ console.log("PRODUCT EN TABLA", product);
       salePrice: product.salePrice ?? 0,
       categoryId: product.categoryId ?? 0,
       providerId: product.providerId ?? 0,
-      branchId: (auth.branchId ?? product.branchId) ?? undefined,
+      branchId: (auth.user?.branchId ?? product.branchId) ?? undefined,
       minStock: 0,
       maxStock: 0, 
     },
@@ -139,14 +131,19 @@ console.log("PRODUCT EN TABLA", product);
   // Observa la sucursal elegida en el form (o la inicial del producto)
   const watchedBranchId = watch("branchId"); // number | undefined
 const branches = useBranches({
-  // Los hooks infieren rol. Solo pasamos BT si hace falta.
-  businessTypeId: isSuper ? undefined : (auth.businessTypeId ?? undefined),
+  isSuper,
+  businessTypeId: isSuper
+    ? undefined                // SUPER_ADMIN ve todas
+    : auth.user?.businessType ?? undefined,  // ADMIN / VENDOR
+  oneBranchId: isSuper
+    ? null                     // super no filtra por sucursal específica
+    : auth.user?.branchId ?? product.branchId ?? null,
 });
 
 const effectiveBranchId = useMemo<number | undefined>(() => {
   if (isSuper) return watchedBranchId ?? undefined;
-  return (auth.branchId ?? product.branchId) ?? undefined;
-}, [isSuper, watchedBranchId, auth.branchId, product.branchId]);
+  return (auth.user?.branchId ?? product.branchId) ?? undefined;
+}, [isSuper, watchedBranchId, auth.user?.branchId, product.branchId]);
 
 // Nombre legible para mostrar cuando NO es super
 const branchName = useMemo(() => {
@@ -166,8 +163,8 @@ const defaultFormValues = useMemo(() => ({
   salePrice: product.salePrice ?? 0,
   categoryId: product.categoryId ?? 0,
   providerId: product.providerId ?? 0,
-  branchId: (auth.branchId ?? product.branchId) ?? undefined,
-}), [product, auth.branchId]);
+  branchId: (auth.user?.branchId ?? product.branchId) ?? undefined,
+}), [product, auth.user?.branchId]);
 
 
 
@@ -242,11 +239,11 @@ useEffect(() => {
 
   // Catálogos (filtrados por BT derivado cuando aplica)
 const cats = useCategories({
-  businessTypeId: isSuper ? (derivedBT ?? undefined) : (auth.businessTypeId ?? undefined),
+  businessTypeId: isSuper ? (derivedBT ?? undefined) : (auth.user?.businessType ?? undefined),
   // branchId: no lo pases; el hook lo resuelve con el auth si no eres super
 });
 const provs = useProviders({
-  businessTypeId: isSuper ? (derivedBT ?? undefined) : (auth.businessTypeId ?? undefined),
+  businessTypeId: isSuper ? (derivedBT ?? undefined) : (auth.user?.businessType ?? undefined),
 });
 
 const onClose = useCallback(() => {
@@ -287,12 +284,12 @@ const onSubmit = async (values: FormValues) => {
       // 👇 SIEMPRE MANDAR branchId (super o no)
       branchId: isSuper
         ? Number(values.branchId)
-        : Number(auth.branchId ?? product.branchId),
+        : Number(auth.user?.branchId ?? product.branchId),
     };
     await mutateAsync({ id: product.id, payload });
 
     // 2) upsert inventario para la sucursal actual
-    const branchId = isSuper ? values.branchId : (auth.branchId ?? product.branchId);
+    const branchId = isSuper ? values.branchId : (auth.user?.branchId ?? product.branchId);
     if (branchId) {
       await upsertInventory({
       productId: product.id,

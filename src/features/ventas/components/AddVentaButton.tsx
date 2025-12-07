@@ -64,9 +64,9 @@ const makeZodResolver = <T extends object>(schema: ZodSchema<T>): Resolver<T> =>
 /* ---------- Componente ---------- */
 export default function AddVentaButton({ onCreated }: { onCreated: () => void }) {
   const { mutateAsync, isPending } = useCreateVenta();
-  const { user } = useAuth();
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const userBranchId = user?.branchId ?? null;
+  const auth = useAuth();
+  const isSuper = auth.hasRole?.("SUPER_ADMIN");
+  const userBranchId = auth.user?.branchId ?? null;
 
   const [open, setOpen] = useState(false);
   const [isCash, setIsCash] = useState(false);
@@ -95,11 +95,16 @@ export default function AddVentaButton({ onCreated }: { onCreated: () => void })
 
   
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(
-  isSuperAdmin ? null : userBranchId
-);
-const { data: branches } = useBranches({
-  businessTypeId: isSuperAdmin ? undefined : user?.businessType,
+    isSuper ? null : userBranchId
+  );
+const branchesHook = useBranches({
+  isSuper,
+  businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
+  oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
 });
+
+const branches = branchesHook.data ?? [];
+
 const [isConfirming] = useState(false);
 
 
@@ -236,7 +241,6 @@ const list: ProductItem[] = normalizeProducts(products);
   }, [isCash, cashGiven, totalVenta, setValue]);
   
   useEffect(() => {
-  console.log("Productos recibidos:", products);
 }, [products])
 
 
@@ -367,14 +371,14 @@ const resetAll = useCallback(() => {
     emailList: [],
     details: [],
   });
-setSelectedBranchId(isSuperAdmin ? null : userBranchId);
+setSelectedBranchId(isSuper ? null : userBranchId);
 
   setSearchTerm("");
   setFilteredProducts([]);
   setIsCash(false);
   setLocalCash("");
   setTotalVenta(0);
-}, [reset, isSuperAdmin, userBranchId]);
+}, [reset, isSuper, userBranchId]);
 
 
 
@@ -432,7 +436,7 @@ useEffect(() => {
                     </div>
                   )}
 
-                  {isSuperAdmin && (
+                  {isSuper && (
                       <div className="flex flex-col gap-1 w-64">
                         <Label>Sucursal</Label>
                         <select
@@ -448,7 +452,7 @@ useEffect(() => {
                           }}
                         >
                           <option value="0">Seleccione sucursal</option>
-                          {branches?.map((b) => (
+                          {branches.map((b) => (
                             <option key={b.id} value={b.id}>
                               {b.name}
                             </option>

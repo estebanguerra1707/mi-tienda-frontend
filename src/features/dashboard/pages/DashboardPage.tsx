@@ -12,9 +12,12 @@ export default function DashboardPage() {
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
 
-  const branchesHook = useBranches({
-    businessTypeId: isSuper ? undefined : auth.user?.businessType ?? undefined,
+const branchesHook = useBranches({
+    isSuper,
+    businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
+    oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
   });
+
 
   const [branchId, setBranchId] = useState<number | null>(
     isSuper ? null : auth.user?.branchId ?? null

@@ -1,14 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- SEO Básico -->
+    <title>Mi Inventario</title>
+    <meta name="description" content="Mi Inventario — Sistema profesional de control de stock, ventas, compras y sucursales.">
+
+    <!-- Mobile / UX -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <meta name="theme-color" content="#4f46e5" />
+
+    <!-- Seguridad -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- Iconos -->
+    <link rel="icon" type="image/png" href="/logo001.png" />
+    <link rel="apple-touch-icon" href="/logo001.png" sizes="180x180" />
+
+    <!-- Preload estilos (opcional) -->
+    <link rel="preload" href="/src/styles/global.css" as="style" />
+
   </head>
-  <body>
+
+  <body class="bg-slate-100">
     <div id="root"></div>
-     <script src="https://localhost:8181/qz-tray.js"></script>
+
+    <!-- Cargar QZ Tray solo en modo desarrollo -->
+    <script>
+      if (location.hostname === "localhost") {
+        const script = document.createElement("script");
+        script.src = "https://localhost:8181/qz-tray.js";
+        document.body.appendChild(script);
+      }
+    </script>
+
+    <!-- App -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

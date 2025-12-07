@@ -171,63 +171,83 @@ export function useProviders(opts: { businessTypeId?: number | null; isSuper?: b
   return st;
 }
 
-/** Sucursales
- * - oneBranchId: si lo pasas, trae UNA sucursal por id (/sucursales/{id})
- * - SUPER_ADMIN + businessTypeId: lista por tipo de negocio (/sucursales/tipo-negocio/{id})
- * - default: sucursales del usuario (/sucursales/actual)
- */
-// src/hooks/useCatalogs.ts  (fragmento clave)
+/** Sucursales**/
 export function useBranches(opts: {
   businessTypeId?: number | null;
   oneBranchId?: number | null;
   isSuper?: boolean;
 }): StatusCatalog {
-  const { token, hasRole } = useAuth() as unknown as {
-    token: string;
-    hasRole: (r: string) => boolean;
-  };
+  
+  const { token, user, hasRole } = useAuth();
 
-  const [st, setSt] = useState<StatusCatalog>({ data: [], loading: true });
+  const [st, setSt] = useState<StatusCatalog>({
+    data: [],
+    loading: true,
+  });
+
   const { oneBranchId, businessTypeId } = opts;
 
-  // ✅ Evalúa isSuper automáticamente
-  const isSuper = opts.isSuper ?? hasRole?.("SUPER_ADMIN") ?? false;
+  // Esperamos a que user esté listo antes de decidir si es super
+  const isSuper = useMemo(() => {
+    if (!user) return undefined; // auth no cargado todavía
+    return opts.isSuper ?? hasRole("SUPER_ADMIN");
+  }, [user, opts.isSuper, hasRole]);
 
+  // Construimos la URL
   const url = useMemo(() => {
-    if (oneBranchId != null) return `${BASE}/sucursales/${oneBranchId}`;
-    if (isSuper) {
-      if (businessTypeId != null) return `${BASE}/sucursales/tipo-negocio/${businessTypeId}`;
-      return `${BASE}/sucursales`;
-    }
-    return `${BASE}/sucursales/actual`;
-  }, [oneBranchId, businessTypeId, isSuper]);
+    if (isSuper === undefined) return null; // Esperar auth
 
+    // ⭐ SUPER ADMIN
+    if (isSuper) {
+      if (businessTypeId != null) {
+        return `${BASE}/sucursales/tipo-negocio/${businessTypeId}`;
+      }
+      return `${BASE}/sucursales`; // todas
+    }
+    if (oneBranchId != null) {
+      return `${BASE}/sucursales/${oneBranchId}`;
+    }
+    console.error("ERROR: Usuario normal sin oneBranchId. Esto no debe ocurrir.");
+    return null;
+  }, [isSuper, oneBranchId, businessTypeId]);
+
+  // Fetch
   useEffect(() => {
+    if (!url || !token) return;
+
     let alive = true;
+
     (async () => {
       try {
-        setSt((s) => ({ ...s, loading: true, error: undefined }));
-        const raw = await getJsonUnknown<unknown>(url, token);
+        setSt({ data: [], loading: true });
 
-        const payload: unknown[] = Array.isArray(raw)
+        const raw = await getJsonUnknown(url, token);
+
+        const arr = Array.isArray(raw)
           ? raw
-          : isPageResponse<unknown>(raw)
-          ? (raw as PageResponse<unknown>).content
+          : isPageResponse(raw)
+          ? raw.content
           : [];
 
-        const data = toCatalogArray(payload);
-        if (alive)
-          setSt({ data, loading: false, error: data.length ? undefined : "No hay sucursales" });
+        const data = toCatalogArray(arr);
+
+        if (alive) setSt({ data, loading: false });
       } catch (e) {
-        if (alive) setSt({ data: [], loading: false, error: (e as Error).message });
+        if (alive)
+          setSt({
+            data: [],
+            loading: false,
+            error: String(e),
+          });
       }
     })();
+
     return () => {
       alive = false;
     };
   }, [url, token]);
 
-  return st; // ✅ asegúrate de tener este return
+  return st;
 }
 
 /** Detalle de sucursal para derivar su businessTypeId */

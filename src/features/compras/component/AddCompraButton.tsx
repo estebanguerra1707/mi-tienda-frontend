@@ -100,7 +100,13 @@ export default function AddCompraButton({ onCreated }: { onCreated?: () => void 
   const [fechaCompraLocal, setFechaCompraLocal] = useState("");
 
   const branches = useBranches({
-    businessTypeId: isSuperAdmin ? undefined : user?.businessType ?? undefined,
+    isSuper: isSuperAdmin,
+    businessTypeId: isSuperAdmin
+      ? undefined
+      : (user?.businessType ?? null),
+    oneBranchId: isSuperAdmin
+      ? null
+      : (user?.branchId ?? null),
   });
   const providers = useProviders({});
   const paymentMethods = usePaymentMethods();

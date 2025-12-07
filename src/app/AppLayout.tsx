@@ -6,12 +6,17 @@ import { useHasAnyRole } from "@/features/auth/roles";
 type NavItem = { to: string; label: string; show: boolean };
 
 export default function AppLayout() {
-  const userName = localStorage.getItem("username") || "Usuario";
+  const stored = localStorage.getItem("user");
+  const user = stored ? JSON.parse(stored) : null;
+
+  const userName = user?.username || "Usuario";
 
   const canInventory = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
-  const canUsers = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
-  const canBranches = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
+  const canUsers = useHasAnyRole(["SUPER_ADMIN"]);
+  const canBranches = useHasAnyRole(["SUPER_ADMIN"]);
   const canCategories = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
+  const canReports = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
+
 
   const [open, setOpen] = useState(false);
 
@@ -27,7 +32,7 @@ export default function AppLayout() {
     { to: "/compras", label: "Compras", show: true },
     { to: "/ventas", label: "Ventas", show: true },
     { to: "/devoluciones", label: "Devoluciones", show: true },
-    { to: "/reportes", label: "Reportes", show: true },
+    { to: "/reportes", label: "Reportes", show: canReports },
     { to: "/categorias", label: "Categorías", show: canCategories },
     { to: "/usuarios", label: "Usuarios", show: canUsers },
     { to: "/sucursales", label: "Sucursales", show: canBranches },
@@ -65,7 +70,7 @@ export default function AppLayout() {
                 whitespace-nowrap
               "
             >
-              Mi Tienda
+              Mi Inventario
             </div>
           </div>
 

@@ -130,11 +130,18 @@ export default function AddProductButton({
   onCreated?: () => void;
   className?: string;
 }) {
-  const { user, hasRole, token } = useAuth() as unknown as {
-    user?: { role?: string };
-    hasRole?: (r: string) => boolean;
-    token: string;
+const { user, hasRole, token } = useAuth() as unknown as {
+  user?: {
+    id: number;
+    username: string;
+    role: string;
+    businessType: number;
+    businessTypeId?: number;
+    branchId: number;
   };
+  hasRole?: (r: string) => boolean;
+  token: string;
+};
 
   const isSuper = hasRole ? hasRole("SUPER_ADMIN") : user?.role === "SUPER_ADMIN";
     const isAdmin = hasRole ? hasRole("ADMIN") : user?.role === "ADMIN";
@@ -179,7 +186,9 @@ const providers = useProviders({
   businessTypeId: isSuper ? (derivedBT ?? undefined) : undefined,
 });
 const branches = useBranches({
-  businessTypeId: isSuper ? (derivedBT ?? undefined) : undefined,
+  isSuper,
+  businessTypeId: isSuper ? (derivedBT ?? undefined) : user?.businessTypeId ?? undefined,
+  oneBranchId: !isSuper ? user?.branchId ?? null : null,
 });
 
   // formulario
@@ -247,7 +256,6 @@ const branches = useBranches({
   type CreateArg = Parameters<typeof mutateAsync>[0];
 
   const onSubmit = async (values: FormValues) => {
-    console.log(values);
     if (isSuper && !values.branchId) {
       setToast({ type: "error", message: "Selecciona una sucursal primero." });
       return;

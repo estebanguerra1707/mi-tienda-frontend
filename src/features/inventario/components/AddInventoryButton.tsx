@@ -48,8 +48,9 @@ export default function AddInventoryButton({ onCreated }: { onCreated?: () => vo
 
   // ------- Branches (catálogo) -------
   const branchesHook = useBranches({
-    // si tu hook ya resuelve por rol, puedes omitir businessTypeId
-    businessTypeId: isSuper ? undefined : (auth.user?.businessType ?? undefined),
+    isSuper,
+    businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
+    oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
   });
 
   // branch seleccionado en UI (para SUPER). Para ADMIN/VENDOR usamos el de sesión.
