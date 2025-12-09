@@ -9,6 +9,8 @@ import { buildFiltro, type ProductoFiltroDTO } from "@/features/productos/produc
 import type { Product } from "@/features/productos/api";
 import AdvancedFilters from "@/features/productos/components/AdvancedFilters";
 import { ServerPagination } from "@/components/pagination/ServerPagination";
+import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
+
 
 type SortKey =
   | "sku"
@@ -105,6 +107,38 @@ export default function ListPage() {
 
   const { data, isPending, error, refetch } = useAdvancedProducts(filtro, pageUI - 1, size);
 
+   const [showScanner, setShowScanner] = useState(false);
+
+  useEffect(() => {
+    let buffer = "";
+    let timeout: ReturnType<typeof setTimeout>;
+
+    const handleKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Enter") {
+        const barcode = buffer.trim();
+        buffer = "";
+
+        if (barcode.length > 2) {
+          setSearch(barcode);
+          refetch();
+        }
+        return;
+      }
+
+      if (ev.key.length === 1) {
+        buffer += ev.key;
+      }
+
+      clearTimeout(timeout);
+      timeout = setTimeout(() => (buffer = ""), 100);
+    };
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [setSearch, refetch]);
+
+
+
   type BackendProduct = Omit<Product, "codigoBarras"> & {
     codigoBarras?: string;
     active?: boolean;
@@ -164,6 +198,12 @@ export default function ListPage() {
   if (isPending) return <p className="p-4">Cargando…</p>;
   if (error) return <p className="p-4 text-red-600">{(error as Error).message}</p>;
 
+ 
+
+// 🔹 luego los returns condicionales
+if (isPending) return <p className="p-4">Cargando…</p>;
+if (error) return <p className="p-4 text-red-600">{(error as Error).message}</p>;
+
   return (
     <div className="mx-auto w-full max-w-7xl p-6 space-y-8">
 
@@ -194,7 +234,15 @@ export default function ListPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-
+        <button
+          className="
+            rounded-xl px-5 py-2 bg-green-600 text-white font-semibold
+            hover:bg-green-700 transition shadow
+          "
+          onClick={() => setShowScanner(true)}
+        >
+          📷 Escanear
+        </button>
         <button
           className="
             rounded-xl px-5 py-2 bg-blue-600 text-white font-semibold
@@ -381,6 +429,37 @@ export default function ListPage() {
           }}
         />
       </div>
+
+      {showScanner && (
+        <div className="
+          fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center
+        ">
+          <div className="bg-white rounded-xl p-4 w-[95%] max-w-md shadow-xl">
+            <h2 className="text-xl font-semibold mb-3">Escanear código de barras</h2>
+
+            <BarcodeCameraScanner
+              onResult={(code) => {
+                // Cerrar el scanner
+                setShowScanner(false);
+
+                // Aplicar búsqueda
+                setSearch(code);
+
+                // Forzar recarga
+                refetch();
+              }}
+              onError={(e) => console.error("Error escáner:", e)}
+            />
+
+            <button
+              onClick={() => setShowScanner(false)}
+              className="mt-4 w-full bg-red-600 text-white py-2 rounded-xl"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

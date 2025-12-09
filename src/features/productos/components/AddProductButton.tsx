@@ -14,6 +14,8 @@ import {
   CatalogItem,
 } from "@/hooks/useCatalogs";
 import type { FieldErrors } from "react-hook-form";
+import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
+
 
 interface NumberFieldMessages {
   required: string;
@@ -148,6 +150,8 @@ const { user, hasRole, token } = useAuth() as unknown as {
 
   const { mutateAsync, isPending } = useCreateProduct();
   const [open, setOpen] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // SUPER_ADMIN: sucursal elegida y BT derivado
@@ -336,7 +340,23 @@ const branches = useBranches({
                   {/* Código de barras */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Código de barras</span>
-                    <input className="border rounded px-3 py-2" {...register("codigoBarras")} />
+
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 border rounded px-3 py-2"
+                        {...register("codigoBarras")}
+                      />
+
+                      {/* botón que abre el scanner */}
+                      <button
+                        type="button"
+                        className="px-3 py-2 rounded bg-green-600 text-white"
+                        onClick={() => setShowScanner(true)}
+                      >
+                        📷
+                      </button>
+                    </div>
+
                     {errors.codigoBarras && (
                       <p className="text-red-600 text-xs">{errors.codigoBarras.message}</p>
                     )}
@@ -460,6 +480,33 @@ const branches = useBranches({
                     </button>
                   </div>
                 </div>
+                {showScanner && (
+                  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[12000] flex items-center justify-center">
+                    <div className="bg-white rounded-xl p-4 w-[95%] max-w-md shadow-xl">
+                      <h2 className="text-xl font-semibold mb-3">Escanear código de barras</h2>
+
+                      <BarcodeCameraScanner
+                        onResult={(code) => {
+                          setShowScanner(false);
+
+                          // llenar código de barras
+                          reset({
+                            ...watch(),
+                            codigoBarras: code,
+                          });
+                        }}
+                        onError={(e) => console.error("Error escáner:", e)}
+                      />
+
+                      <button
+                        onClick={() => setShowScanner(false)}
+                        className="mt-4 w-full bg-red-600 text-white py-2 rounded-xl"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </form>
             </div>
           </div>,

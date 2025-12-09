@@ -43,6 +43,37 @@ export type ProductoFiltroDTO = {
   barcodeName?: string;
 };
 
+export interface ProductoDetailResponseDTO {
+  id?: number;
+  stock?: number;
+  minStock?: number;
+  maxStock?: number;
+  // agrega aquí los campos reales que tengas en tu DTO de detalle
+}
+
+export interface ProductoResponseDTO {
+  id: number;
+  name: string;
+  sku: string;
+  description: string;
+  purchasePrice: number;
+  salePrice: number;
+  categoryId: number;
+  categoryName: string;
+  providerId: number;
+  providerName: string;
+  businessTypeId: number;
+  businessTypeName: string;
+  creationDate: string; // LocalDateTime → string en JSON
+  productDetail?: ProductoDetailResponseDTO | null;
+  codigoBarras: string;
+  branchId: number;
+  branchName: string;
+  active: boolean;
+}
+
+
+
 export function buildFiltro(raw: ProductoFiltroDTO): ProductoFiltroDTO {
   // Creamos un objeto mutable con todas las claves de ProductoFiltroDTO
   const out = {} as Record<keyof ProductoFiltroDTO, ProductoFiltroDTO[keyof ProductoFiltroDTO]>;

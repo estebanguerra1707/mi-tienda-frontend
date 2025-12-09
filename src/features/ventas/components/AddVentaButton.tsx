@@ -21,6 +21,7 @@ import EnviarTicketModal from "@/features/ventas/components/EnviarTicketModal";
 import ConfirmarVentaModal from "@/features/ventas/components/ConfirmarVentaModal";
 import {ResumenVenta} from "@/types/catalogs";
 import { toastError } from "@/lib/toast";
+import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
 
 
 
@@ -152,6 +153,7 @@ const products = useMemo(() => {
   const [lastKeyTime, setLastKeyTime] = useState<number>(0);
   const [formError, setFormError] = useState("");
 
+const [showScanner, setShowScanner] = useState(false);
 
   /* ---------- Fecha automática ---------- */
   useEffect(() => {
@@ -256,7 +258,6 @@ const onSubmit = async (values: VentaForm) => {
     return;
   }
 
-  // 👇 guarda el snapshot en el ref
   ventaFormSnapshot.current = values;
 
   const productosResumen = (values.details || []).map((d) => {
@@ -281,39 +282,76 @@ const onSubmit = async (values: VentaForm) => {
   setShowResumenModal(true);
 };
 
-  const handleBarcodeScan = (code: string) => {
-    const list = normalizeProducts(products);
+const handleBarcodeScan = async (code: string) => {
+  const cleanCode = code.trim();
 
-    const prod = list.find(
-      (p) => 
-        p.codigoBarras?.toString().trim() === code ||
-        p.barcode?.toString().trim() === code
-    );
+  let list: ProductItem[] = normalizeProducts(products);
+  let prod: ProductItem | null = null;
+  prod =
+    list.find(
+      (p) =>
+        p.codigoBarras?.toString().trim() === cleanCode ||
+        p.barcode?.toString().trim() === cleanCode
+    ) ?? null;
 
-    if (!prod) {
-      console.warn("Código no encontrado:", code);
+  if (!prod) {
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_API_URL}/productos/barcode/${cleanCode}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+
+      if (!resp.ok) {
+        console.warn("Código no encontrado en backend:", cleanCode);
+        return;
+      }
+
+      const data = (await resp.json()) as ProductItem;
+
+      if (!data?.id) {
+        console.warn("Backend devolvió un producto inválido:", data);
+        return;
+      }
+
+      prod = data;
+
+      list = [...list, data];
+
+    } catch (error) {
+      console.error("Error consultando backend:", error);
       return;
     }
+  }
 
-    const exists = details.find((d) => d.productId === prod.id);
+  if (!prod) return;
 
-    if (exists) {
-      // actualizar cantidad en el formulario
-      const newDetails = details.map((d) =>
-        d.productId === prod.id ? { ...d, quantity: d.quantity + 1 } : d
-      );
-      setValue("details", newDetails);
-      trigger("details");
-    } else {
-      // agregar fila usando useFieldArray
-      append({ productId: prod.id, quantity: 1 });
-      trigger("details");
+  const exists = details.find((d) => d.productId === prod!.id);
+
+  if (exists) {
+    const newDetails = details.map((d) =>
+      d.productId === prod!.id
+        ? { ...d, quantity: (d.quantity ?? 0) + 1 }
+        : d
+    );
+
+    setValue("details", newDetails, { shouldValidate: true });
+  } else {
+     append({ productId: prod.id, quantity: 1 });
+    await trigger("details");
     }
 
-    // limpiar
-    setFilteredProducts([]);
-    setSearchTerm("");
-  };
+  await trigger("details");
+
+  // 5️⃣ Limpieza
+  setFilteredProducts([]);
+  setSearchTerm("");
+  setScanBuffer("");
+};
+
 
 
 const confirmarVentaFinal = async () => {
@@ -460,81 +498,86 @@ useEffect(() => {
                         </select>
                       </div>
                     )}
-              <div className="relative">
-                <Label>Buscar producto</Label>
-                <Input
-                  type="text"
-                  placeholder="Escribe o escanea el código..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSearchTerm(value);
+                  <div className="relative">
+                    <Label>Buscar producto</Label>
 
-                    // ---- detector de escáner ----
-                    const now = Date.now();
-                    if (now - lastKeyTime < 200) {
-                      // se está escribiendo muy rápido → es un escaneo
-                      setScanBuffer((prev) => prev + value.slice(-1));
-                    } else {
-                      // escritura normal → reinicia buffer
-                      setScanBuffer(value.slice(-1));
-                    }
-                    setLastKeyTime(now);
-                  }}
-                  onKeyDown={(e) => {
-                    // Enter después de un escaneo
-                    if (e.key === "Enter" && scanBuffer.length >= 6) {
-                      handleBarcodeScan(scanBuffer.trim());
-                      setScanBuffer("");
-                      setSearchTerm("");
-                    }
-                  }}
-                  className="w-full"
-                />
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        placeholder="Escribe o escanea el código..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSearchTerm(value);
 
-                {filteredProducts.length > 0 && (
-                  <div className="absolute z-20 bg-white border rounded shadow-md w-full mt-1 max-h-56 overflow-y-auto">
-                    {filteredProducts.map((p) => (
-                      <div
-                        key={p.id}
-                      onClick={async () => {
-                        const exists = details.find((d) => d.productId === p.id);
+                          // --- Buffer para escáner físico ---
+                          const now = Date.now();
+                          if (now - lastKeyTime < 200) {
+                            setScanBuffer((prev) => prev + value.slice(-1));
+                          } else {
+                            setScanBuffer(value.slice(-1));
+                          }
+                          setLastKeyTime(now);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && scanBuffer.length >= 6) {
+                            handleBarcodeScan(scanBuffer.trim());
+                            setScanBuffer("");
+                            setSearchTerm("");
+                          }
+                        }}
+                        className="w-full"
+                      />
 
-                        if (exists) {
-                          setValue(
-                            "details",
-                            details.map((d) =>
-                              d.productId === p.id
-                                ? { ...d, quantity: (d.quantity || 0) + 1 }
-                                : d
-                            ),
-                            { shouldValidate: true }
-                          );
-                        } else {
-                          setValue(
-                            "details",
-                            [...details, { productId: p.id, quantity: 1 }],
-                            { shouldValidate: true }
-                          );
-                        }
-
-                        // 🔥 Esto elimina la alerta inmediatamente
-                        await trigger("details");
-
-                        setSearchTerm("");
-                        setFilteredProducts([]);
-                      }}
-                        className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      {/* 📷 botón de cámara */}
+                      <button
+                        type="button"
+                        onClick={() => setShowScanner(true)}
+                        className="px-3 py-2 bg-green-600 text-white rounded-lg shadow"
                       >
-                        <div className="font-medium">{p.name}</div>
-                        <div className="text-xs text-gray-500">
-                          C.Barras: {p.codigoBarras ?? "N/A"} — SKU: {p.sku} - ${p.salePrice?.toFixed(2)}
-                        </div>
+                        📷
+                      </button>
+                    </div>
+
+                    {/* dropdown de resultados */}
+                    {filteredProducts.length > 0 && (
+                      <div className="absolute z-20 bg-white border rounded shadow-md w-full mt-1 max-h-56 overflow-y-auto">
+                        {filteredProducts.map((p) => (
+                          <div
+                            key={p.id}
+                            className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                            onClick={() => {
+                              const exists = details.find((d) => d.productId === p.id);
+
+                              if (exists) {
+                                setValue(
+                                  "details",
+                                  details.map((d) =>
+                                    d.productId === p.id
+                                      ? { ...d, quantity: (d.quantity ?? 0) + 1 }
+                                      : d
+                                  )
+                                );
+                              } else {
+                                append({ productId: p.id, quantity: 1 });
+                              }
+
+                              trigger("details");
+
+                              setSearchTerm("");
+                              setFilteredProducts([]);
+                            }}
+                          >
+                            <div className="font-medium">{p.name}</div>
+                            <div className="text-xs text-gray-500">
+                              C.Barras: {p.codigoBarras ?? "N/A"} — SKU: {p.sku} – $
+                              {p.salePrice?.toFixed(2)}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
               {errors.details && (
                 <p className="text-red-600 text-sm">
                   {errors.details.message as string}
@@ -742,6 +785,30 @@ useEffect(() => {
         open={showSendEmailModal}
         onClose={() => setShowSendEmailModal(false)}
       />
+      {showScanner && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[20000] flex items-center justify-center">
+            <div className="bg-white rounded-xl p-4 w-[95%] max-w-md shadow-xl relative">
+
+              <h2 className="text-xl font-semibold mb-3 text-center">
+                Escanear código de barras
+              </h2>
+              <BarcodeCameraScanner
+                onResult={(code) => {
+                  setShowScanner(false);
+                  handleBarcodeScan(code); // ⬅ se integra directo con ventas
+                }}
+                onError={(e) => console.error("Error escáner:", e)}
+              />
+
+              <button
+                onClick={() => setShowScanner(false)}
+                className="mt-4 w-full bg-red-600 text-white py-2 rounded-xl"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
     </>
 );
   

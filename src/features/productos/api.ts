@@ -1,5 +1,6 @@
 import { api } from '@/lib/api';
 import { cleanParams } from '@/lib/http-params';
+import { ProductoResponseDTO } from './productos.api';
 
 export type Product = {
   id: number;
@@ -97,5 +98,10 @@ export async function deleteProduct(id: number | string): Promise<void> {
 
 export async function fetchBusinessTypes(): Promise<BusinessType[]> {
   const { data } = await api.get<BusinessType[]>("/business-types");
+  return data;
+}
+
+export async function getProductByBarcode(codigoBarras: string): Promise<ProductoResponseDTO> {
+  const { data } = await api.get(`/productos/codigo-barras/${codigoBarras}`);
   return data;
 }

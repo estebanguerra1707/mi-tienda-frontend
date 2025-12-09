@@ -22,6 +22,7 @@ import EnviarTicketCompraModal from "@/features/compras/component/EnviarTicketCo
 import { ProductItem } from "@/types/product";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormSelect } from "@/components/ui/FormSelect";
+import BarcodeScannerModal from "@/components/BarcodeScannerModal";
 
 /* ---------- Schema ---------- */
 const schema = z.object({
@@ -392,41 +393,72 @@ useEffect(() => {
     }
   };
 
-const handleBarcodeScan = async (code: string) => {
-  const list = normalizeProducts(products);
-  const prod = list.find(
-    (p) =>
-      p.barcode?.toString().trim() === code.trim() ||
-      p.codigoBarras?.toString().trim() === code.trim()
-  );
+    const handleBarcodeScan = async (code: string) => {
+      let list: ProductItem[] = normalizeProducts(products);
+      let prod: ProductItem | null = null;
 
-  if (!prod) {
-    console.warn("Código no encontrado:", code);
-    return;
-  }
+      const cleanCode = code.trim();
 
-  const exists = details.find((d) => d.productId === prod.id);
+      // 1️⃣ Buscar local
+      prod = list.find(
+        (p) =>
+          p.barcode?.toString().trim() === cleanCode ||
+          p.codigoBarras?.toString().trim() === cleanCode
+      ) ?? null;
 
-  if (exists) {
-    setValue(
-      "details",
-      details.map((d) =>
-        d.productId === prod.id ? { ...d, quantity: d.quantity + 1 } : d
-      ),
-      { shouldValidate: true }
-    );
-  } else {
-    setValue(
-      "details",
-      [...details, { productId: prod.id, quantity: 1 }],
-      { shouldValidate: true }
-    );
-  }
+      if (!prod) {
+        try {
+          const resp = await fetch(
+            `${import.meta.env.VITE_API_URL}/productos/barcode/${cleanCode}`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+              },
+            }
+          );
+          if (!resp.ok) {
+            console.warn("Código no encontrado en backend:", cleanCode);
+            return;
+          }
+          const data = await resp.json() as ProductItem;
+          if (!data?.id) {
+            console.warn("Respuesta inválida del backend para:", cleanCode);
+            return;
+          }
+          prod = data;
+          list = [...list, data];
 
-  await trigger("details");
-  setFilteredProducts([]);
-  setSearchTerm("");
-};
+        } catch (error) {
+          console.error("Error consultando backend:", error);
+          return;
+        }
+      }
+      if (!prod) return;
+      const exists = details.find((d) => d.productId === prod!.id);
+      if (exists) {
+        setValue(
+          "details",
+          details.map((d) =>
+            d.productId === prod!.id
+              ? { ...d, quantity: d.quantity + 1 }
+              : d
+          ),
+          { shouldValidate: true }
+        );
+      } else {
+        setValue(
+          "details",
+          [...details, { productId: prod!.id, quantity: 1 }],
+          { shouldValidate: true }
+        );
+      }
+      await trigger("details");
+      setFilteredProducts([]);
+      setSearchTerm("");
+      setScanBuffer("");
+    };
+
+
 
 const resetearFormularioCompra = () => {
   reset({
@@ -466,6 +498,8 @@ const resetearFormularioCompra = () => {
       setShowWarning(false);
     }
   }, [errors]);
+
+  const [showScanner, setShowScanner] = useState(false);
 
   /* ---------- Render ---------- */
   return (
@@ -513,10 +547,19 @@ const resetearFormularioCompra = () => {
           ⚠️ Revisa los campos obligatorios antes de continuar.
         </div>
       )}
+      
                 {/* Búsqueda por nombre/código */}
               <div className="relative">
                 <label className="text-sm font-medium">Buscar producto</label>
-
+                <div className="flex justify-end mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowScanner(true)}
+                    className="px-3 py-2 rounded bg-green-600 text-white shadow hover:bg-green-700"
+                  >
+                    📷 Escanear código
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={searchTerm}
@@ -543,6 +586,7 @@ const resetearFormularioCompra = () => {
                     }
                   }}
                 />
+
                 {errors.details && (
                   <p className="text-red-600 text-xs mt-1">
                     {errors.details.message as string}
@@ -853,6 +897,11 @@ const resetearFormularioCompra = () => {
         open={showTicketModal}
         compraId={compraIdCreada}
         onClose={() => setShowTicketModal(false)}
+      />
+      <BarcodeScannerModal
+        open={showScanner}
+        onClose={() => setShowScanner(false)}
+        onDetected={(code) => handleBarcodeScan(code)}
       />
     </>
   );
