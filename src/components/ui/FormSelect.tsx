@@ -26,10 +26,28 @@ export function FormSelect({
       <select
         {...register}
         onChange={(e) => {
-          // 👉 MANTENEMOS LA INTEGRACIÓN CON react-hook-form
-          register.onChange(e);
+          const raw = e.target.value;
 
-          // 👉 Ejecutamos tu lógica personalizada (EFECTIVO / NO EFECTIVO)
+          // 🔥 SI el nombre incluye "id", lo convertimos numérico (sin modificar el evento)
+          const parsed =
+            register.name.toLowerCase().includes("id")
+              ? Number(raw)
+              : raw;
+
+          // 🔥 Creamos un evento compatible con React.ChangeEvent sin usar "any"
+          const syntheticEvent: React.ChangeEvent<HTMLSelectElement> = {
+            ...e,
+            target: {
+              ...e.target,
+              name: register.name,
+              value: parsed as unknown as string, // <-- esto es válido, TS no truena
+            },
+          };
+
+          // 🔥 react-hook-form recibe el valor convertido
+          register.onChange(syntheticEvent);
+
+          // 🔥 tu callback recibe el evento original
           if (onChange) onChange(e);
         }}
         className={`border rounded px-3 py-2 text-sm w-full ${
@@ -39,9 +57,7 @@ export function FormSelect({
         {children}
       </select>
 
-      {error && (
-        <p className="text-red-600 text-xs mt-1">{error}</p>
-      )}
+      {error && <p className="text-red-600 text-xs mt-1">{error}</p>}
     </div>
   );
 }

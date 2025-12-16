@@ -1,8 +1,7 @@
 import { createPortal } from "react-dom";
 import type { CompraItem, DetalleCompraResponseDTO } from "@/features/compras/api";
 import { useAuth } from "@/hooks/useAuth";
-
-
+import { printTicketUniversal } from "@/lib/printTicket";
 
 interface CompraDetalleModalProps {
   compra: CompraItem;
@@ -79,25 +78,31 @@ export default function CompraDetalleModal({ compra, onClose }: CompraDetalleMod
                 <p className="mt-1 text-xs italic tracking-tight leading-tight">
                     {compra.amountInWords}
                 </p>
-                {/* SOLO EFECTIVO */}
                 {compra.paymentName === "EFECTIVO" && (
                     <>
                     <p>Total pagado: ${compra.amountPaid.toFixed(2)}</p>
                     <p>Cambio: ${compra.changeAmount.toFixed(2)}</p>
                     </>
                 )}
-
                
             </div>
 
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded bg-blue-600 text-white"
-          >
-            Cerrar
-          </button>
-        </div>
+       <div className="mt-6 flex justify-end gap-3">
+        <button
+          onClick={() => printTicketUniversal(compra.id, "compra")}
+            className="px-4 py-2 rounded bg-green-600 text-white"
+        >
+          🖨️ Reimprimir ticket
+        </button>
+
+        <button
+          onClick={onClose}
+          className="px-4 py-2 rounded bg-blue-600 text-white"
+        >
+          Cerrar
+        </button>
+
+      </div>
 
       </div>
     </div>,

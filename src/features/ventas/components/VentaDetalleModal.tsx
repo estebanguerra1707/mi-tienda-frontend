@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import type { VentaItem, VentaDetalleItem } from "@/features/ventas/api";
 import { useAuth } from "@/hooks/useAuth";
+import { printTicketUniversal } from "@/lib/printTicket";
 
 interface VentaDetalleModalProps {
   venta: VentaItem;
@@ -18,7 +19,7 @@ export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalP
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl w-[95%] max-w-3xl p-4 sm:p-6 shadow-xl 
                       max-h-[85vh] overflow-y-auto">
-
+ 
         <h2 className="text-xl font-semibold mb-4 text-center">
           DETALLE DE VENTA #{venta.id}
         </h2>
@@ -103,13 +104,20 @@ export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalP
           )}
         </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={() => printTicketUniversal(venta.id, "venta")}
+            className="px-4 py-2 rounded bg-green-600 text-white"
+          >
+            🖨️ Reimprimir ticket
+          </button>
           <button
             onClick={onClose}
             className="px-4 py-2 rounded bg-blue-600 text-white"
           >
             Cerrar
           </button>
+
         </div>
       </div>
     </div>,

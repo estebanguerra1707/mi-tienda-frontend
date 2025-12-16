@@ -61,31 +61,24 @@ export default function AdvancedFiltersVentas({ onApply, showId = false }: Props
     setFiltros((prev) => ({ ...prev, [key]: formatted }));
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
-    // Si el usuario selecciona "Todos", dejar el valor en undefined
     if (value === "" || value === "NaN") {
       setFiltros((prev) => ({ ...prev, [name]: undefined }));
       return;
     }
 
-    // Si es un ID numérico (clientId o paymentMethodId), convertir a string correcta
     if (name === "clientId" || name === "paymentMethodId") {
       setFiltros((prev) => ({ ...prev, [name]: String(value) }));
       return;
     }
 
-    // Valor normal
     setFiltros((prev) => ({ ...prev, [name]: value }));
   };
 
   const apply = () => {
-    const clean = Object.fromEntries(
-      Object.entries(filtros).filter(([, v]) => v != null && v !== "")
-    );
+    const clean = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v != null && v !== ""));
     onApply({ ...clean, page: "1" });
   };
 
@@ -94,148 +87,145 @@ export default function AdvancedFiltersVentas({ onApply, showId = false }: Props
     onApply({});
   };
 
-  const inputCls = "w-full border rounded px-3 py-2";
+  const inputCls =
+    "w-full border rounded-lg px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition bg-white";
 
   return (
-    <div className="p-4 border rounded-lg bg-white shadow-sm space-y-4">
-      <h3 className="text-lg font-semibold">Filtros de ventas</h3>
+    <div className="p-4 sm:p-6 rounded-2xl bg-white shadow-md border space-y-6 
+                    max-w-full mx-auto 
+                    [&>*]:text-gray-900">
 
-{/* 🔹 Filtros principales en 4 columnas (misma fila) */}
-<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
+      <h3 className="text-xl font-semibold tracking-tight text-gray-800">
+        Filtros de ventas
+      </h3>
 
-    {showId && (
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Folio (ID)</span>
-        <input
-          name="id"
-          value={filtros.id ?? ""}
-          onChange={handleChange}
-          placeholder="Ej: 21"
-          className={inputCls}
-        />
-      </label>
-    )}
-    {/* Cliente */}
-    <label className="flex flex-col gap-1">
-      <span className="text-sm">Cliente</span>
-      <select
-        name="clientId"
-        value={filtros.clientId ?? ""}
-        onChange={handleChange}
-        className={inputCls}
-      >
-        <option value="">Todos</option>
-        {clients.map((c) => (
-          <option key={c.id} value={String(c.id)}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-    </label>
+      {/* Filtros principales */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
 
-    {/* Método de pago */}
-    <label className="flex flex-col gap-1">
-      <span className="text-sm">Método de pago</span>
-      <select
-        name="paymentMethodId"
-        value={filtros.paymentMethodId ?? ""}
-        onChange={handleChange}
-        className={inputCls}
-      >
-        <option value="">Todos</option>
-        {paymentMethods.map((m) => (
-          <option key={m.id} value={String(m.id)}>
-            {m.name}
-          </option>
-        ))}
-      </select>
-    </label>
-
-    <div className="flex gap-4 col-span-4">
-      {/* Desde */}
-      <div className="flex flex-col gap-1 w-full">
-        <span className="text-sm">Desde</span>
-        <Popover open={openStart} onOpenChange={setOpenStart}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={inputCls}>
-              {startDate
-                ? format(startDate, "dd 'de' MMMM 'de' yyyy", { locale: es })
-                : "Seleccionar fecha"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="p-0">
-            <Calendar
-              mode="single"
-              selected={startDate}
-              onSelect={(d) => {
-                setDate("startDate", d);
-                setOpenStart(false);
-              }}
-              initialFocus
-              locale={es}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Hasta */}
-      <div className="flex flex-col gap-1 w-full">
-        <span className="text-sm">Hasta</span>
-        <Popover open={openEnd} onOpenChange={setOpenEnd}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={inputCls}>
-              {endDate
-                ? format(endDate, "dd 'de' MMMM 'de' yyyy", { locale: es })
-                : "Seleccionar fecha"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="p-0">
-            <Calendar
-              mode="single"
-              selected={endDate}
-              onSelect={(d) => {
-                setDate("endDate", d);
-                setOpenEnd(false);
-              }}
-              initialFocus
-              locale={es}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-    </div>
-  </div>
-
-  {/* 🔹 Botones BUSCAR y LIMPIAR en otra fila */}
-  <div className="flex justify-end gap-2 col-span-4 mt-2">
-    <Button
-      onClick={apply}
-      className="bg-blue-600 text-white hover:bg-blue-700"
-    >
-      Buscar
-    </Button>
-
-    <Button variant="outline" onClick={clear}>
-      Limpiar
-    </Button>
-
-    {!showAdvanced && (
-      <Button variant="outline" onClick={() => setShowAdvanced(true)}>
-        Búsqueda avanzada
-      </Button>
-    )}
-  </div>
-      {/* 🔹 Filtros avanzados */}
-      {showAdvanced && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end pt-4 border-t">
-          {/* Monto mínimo */}
+        {showId && (
           <label className="flex flex-col gap-1">
-            <span className="text-sm">Monto mínimo</span>
+            <span className="text-sm font-medium">Folio (ID)</span>
+            <input
+              name="id"
+              value={filtros.id ?? ""}
+              onChange={handleChange}
+              placeholder="Ej: 21"
+              className={inputCls}
+            />
+          </label>
+        )}
+
+        {/* Cliente */}
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium">Cliente</span>
+          <select name="clientId" value={filtros.clientId ?? ""} onChange={handleChange} className={inputCls}>
+            <option value="">Todos</option>
+            {clients.map((c) => (
+              <option key={c.id} value={String(c.id)}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* Método de pago */}
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium">Método de pago</span>
+          <select
+            name="paymentMethodId"
+            value={filtros.paymentMethodId ?? ""}
+            onChange={handleChange}
+            className={inputCls}
+          >
+            <option value="">Todos</option>
+            {paymentMethods.map((m) => (
+              <option key={m.id} value={String(m.id)}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* Fechas */}
+        <div className="flex flex-col sm:flex-row lg:col-span-4 gap-4">
+
+          {/* Desde */}
+          <div className="flex flex-col gap-1 w-full">
+            <span className="text-sm font-medium">Desde</span>
+            <Popover open={openStart} onOpenChange={setOpenStart}>
+              <PopoverTrigger asChild>
+                <button className={`${inputCls} text-left`}>
+                  {startDate ? format(startDate, "dd 'de' MMMM yyyy", { locale: es }) : "Seleccionar fecha"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 shadow-lg rounded-xl">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={(d) => {
+                    setDate("startDate", d);
+                    setOpenStart(false);
+                  }}
+                  initialFocus
+                  locale={es}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Hasta */}
+          <div className="flex flex-col gap-1 w-full">
+            <span className="text-sm font-medium">Hasta</span>
+            <Popover open={openEnd} onOpenChange={setOpenEnd}>
+              <PopoverTrigger asChild>
+                <button className={`${inputCls} text-left`}>
+                  {endDate ? format(endDate, "dd 'de' MMMM yyyy", { locale: es }) : "Seleccionar fecha"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 shadow-lg rounded-xl">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={(d) => {
+                    setDate("endDate", d);
+                    setOpenEnd(false);
+                  }}
+                  initialFocus
+                  locale={es}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      </div>
+
+      {/* Botones principales */}
+      <div className="flex flex-wrap justify-end gap-3">
+        <Button onClick={apply} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm sm:text-base">
+          Buscar
+        </Button>
+
+        <Button variant="outline" onClick={clear} className="px-5 py-2 rounded-lg text-sm sm:text-base">
+          Limpiar
+        </Button>
+
+        {!showAdvanced && (
+          <Button variant="outline" onClick={() => setShowAdvanced(true)} className="px-5 py-2 rounded-lg">
+            Búsqueda avanzada
+          </Button>
+        )}
+      </div>
+
+      {/* Filtros avanzados */}
+      {showAdvanced && (
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t pt-6">
+
+          {/* Min */}
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium">Monto mínimo</span>
             <input
               name="min"
               type="number"
-              step="0.01"
-              inputMode="decimal"
               value={filtros.min ?? ""}
               onChange={handleChange}
               className={inputCls}
@@ -243,14 +233,12 @@ export default function AdvancedFiltersVentas({ onApply, showId = false }: Props
             />
           </label>
 
-          {/* Monto máximo */}
+          {/* Max */}
           <label className="flex flex-col gap-1">
-            <span className="text-sm">Monto máximo</span>
+            <span className="text-sm font-medium">Monto máximo</span>
             <input
               name="max"
               type="number"
-              step="0.01"
-              inputMode="decimal"
               value={filtros.max ?? ""}
               onChange={handleChange}
               className={inputCls}
@@ -261,73 +249,42 @@ export default function AdvancedFiltersVentas({ onApply, showId = false }: Props
           {/* Día / Mes / Año */}
           <div className="grid grid-cols-3 gap-2">
             <label className="flex flex-col gap-1">
-              <span className="text-sm">Día</span>
-              <input
-                name="day"
-                type="number"
-                min={1}
-                max={31}
-                value={filtros.day ?? ""}
-                onChange={handleChange}
-                className={inputCls}
-                placeholder="dd"
-              />
+              <span className="text-sm font-medium">Día</span>
+              <input name="day" type="number" value={filtros.day ?? ""} onChange={handleChange} className={inputCls} placeholder="dd" />
             </label>
+
             <label className="flex flex-col gap-1">
-              <span className="text-sm">Mes</span>
-              <input
-                name="month"
-                type="number"
-                min={1}
-                max={12}
-                value={filtros.month ?? ""}
-                onChange={handleChange}
-                className={inputCls}
-                placeholder="mm"
-              />
+              <span className="text-sm font-medium">Mes</span>
+              <input name="month" type="number" value={filtros.month ?? ""} onChange={handleChange} className={inputCls} placeholder="mm" />
             </label>
+
             <label className="flex flex-col gap-1">
-              <span className="text-sm">Año</span>
-              <input
-                name="year"
-                type="number"
-                min={2000}
-                max={2100}
-                value={filtros.year ?? ""}
-                onChange={handleChange}
-                className={inputCls}
-                placeholder="yyyy"
-              />
+              <span className="text-sm font-medium">Año</span>
+              <input name="year" type="number" value={filtros.year ?? ""} onChange={handleChange} className={inputCls} placeholder="yyyy" />
             </label>
           </div>
 
-          {/* Activo + botones */}
-          <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3 justify-between items-end">
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <span className="text-sm">Activo</span>
-              <select
-                name="active"
-                value={filtros.active ?? ""}
-                onChange={handleChange}
-                className={inputCls}
-              >
-                <option value="">Todos</option>
-                <option value="true">Sólo activos</option>
-                <option value="false">Sólo inactivos</option>
-              </select>
-            </div>
+          {/* Activo */}
+          <div className="flex flex-col gap-1 lg:col-span-3">
+            <span className="text-sm font-medium">Activo</span>
+            <select name="active" value={filtros.active ?? ""} onChange={handleChange} className={inputCls}>
+              <option value="">Todos</option>
+              <option value="true">Sólo activos</option>
+              <option value="false">Sólo inactivos</option>
+            </select>
+          </div>
 
-            <div className="flex gap-2">
-              <Button onClick={apply} className="bg-blue-600 hover:bg-blue-700 text-white">
-                Aplicar
-              </Button>
-              <Button variant="outline" onClick={clear}>
-                Limpiar
-              </Button>
-              <Button variant="outline" onClick={() => setShowAdvanced(false)}>
-                Ocultar avanzada
-              </Button>
-            </div>
+          {/* Botones */}
+          <div className="flex flex-wrap justify-end gap-3 lg:col-span-3 pt-2">
+            <Button onClick={apply} className="bg-blue-600 text-white px-5 py-2 rounded-lg">
+              Aplicar
+            </Button>
+            <Button variant="outline" onClick={clear} className="px-5 py-2 rounded-lg">
+              Limpiar
+            </Button>
+            <Button variant="outline" onClick={() => setShowAdvanced(false)} className="px-5 py-2 rounded-lg">
+              Ocultar avanzada
+            </Button>
           </div>
         </div>
       )}

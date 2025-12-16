@@ -1,4 +1,3 @@
-// src/context/AuthProvider.tsx
 import { useMemo, useState, type ReactNode, useEffect } from "react";
 import {
   AuthContext,
@@ -42,8 +41,6 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  // 3) Por si en algún momento el user cambia en localStorage desde fuera
-  //    (no es obligatorio, pero da más seguridad)
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "user") {
@@ -94,9 +91,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           businessType: data.businessType ?? null,
         });
       },
-
-      logout() {
-        logoutApi();     // limpia localStorage y redirige a /login
+      logout(manual?: boolean) {
+        logoutApi(manual);
         setToken(null);
         setUser(null);
       },

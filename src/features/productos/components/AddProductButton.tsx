@@ -196,17 +196,27 @@ const branches = useBranches({
 });
 
   // formulario
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-    setFocus,
-    watch,
-  } = useForm<FormValues>({
-    resolver: makeZodResolver<FormValues>(isSuper ? superSchema : baseSchema),
-    defaultValues: { description: "" },
-  });
+ const {
+  register,
+  handleSubmit,
+  reset,
+  formState: { errors },
+  setFocus,
+  watch,
+} = useForm<FormValues>({
+  resolver: makeZodResolver<FormValues>(isSuper ? superSchema : baseSchema),
+  defaultValues: {
+    name: "",
+    sku: "",
+    codigoBarras: "",
+    description: "",
+    purchasePrice: undefined,
+    salePrice: undefined,
+    categoryId: undefined,
+    providerId: undefined,
+    branchId: isSuper ? undefined : user?.branchId, // <-- CLAVE
+  },
+});
 
   const branchId = watch("branchId");
 
@@ -236,12 +246,37 @@ const branches = useBranches({
     return () => clearTimeout(t);
   }, [toast]);
 
-  const onClose = useCallback(() => {
-    setOpen(false);
-    reset();
-  reset({ description: "", branchId: undefined } as Partial<FormValues>);
-    setDerivedBT(null);
-  }, [reset]);
+  const resetForm = useCallback(() => {
+  reset({
+    name: "",
+    sku: "",
+    codigoBarras: "",
+    description: "",
+    purchasePrice: undefined,
+    salePrice: undefined,
+    categoryId: undefined,
+    providerId: undefined,
+    branchId: isSuper ? undefined : user?.branchId,
+  });
+}, [reset, isSuper, user?.branchId]);
+
+
+
+const onClose = useCallback(() => {
+  setOpen(false);
+  reset({
+    name: "",
+    sku: "",
+    codigoBarras: "",
+    description: "",
+    purchasePrice: undefined,
+    salePrice: undefined,
+    categoryId: undefined,
+    providerId: undefined,
+    branchId: isSuper ? undefined : user?.branchId, // <-- NO borrar
+  });
+  setDerivedBT(null);
+}, [reset, isSuper, user?.branchId]);
 
   // focus inicial + Escape (igual que Edit)
   useEffect(() => {
@@ -294,7 +329,10 @@ const branches = useBranches({
      {(isSuper || isAdmin) && (
      <button
         className={`px-3 py-2 rounded bg-blue-600 text-white ${className ?? ""}`}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+           resetForm(); 
+            setOpen(true);
+          }}
         >
           Agregar producto
         </button>
@@ -375,45 +413,53 @@ const branches = useBranches({
                     )}
                   </label>
 
-                  {/* Precio compra */}
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm">Precio compra</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="border rounded px-3 py-2"
-                      {...register("purchasePrice")}
-                    />
-                    {errors.purchasePrice && (
-                      <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>
-                    )}
-                  </label>
+                {/* Precio compra */}
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm">Precio compra</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="border rounded px-3 py-2"
+                    {...register("purchasePrice", { valueAsNumber: true })}
+                  />
+                  {errors.purchasePrice && (
+                    <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>
+                  )}
+                </label>
 
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm">Precio venta</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="border rounded px-3 py-2"
-                      {...register("salePrice")}
-                    />
-                    {errors.salePrice && (
-                      <p className="text-red-600 text-xs">{errors.salePrice.message}</p>
-                    )}
-                  </label>
+                {/* Precio venta */}
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm">Precio venta</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="border rounded px-3 py-2"
+                    {...register("salePrice", { valueAsNumber: true })}
+                  />
+                  {errors.salePrice && (
+                    <p className="text-red-600 text-xs">{errors.salePrice.message}</p>
+                  )}
+                </label>
                   {/* Sucursal (solo SUPER_ADMIN) */}
                   {isSuper && (
                     <label className="flex flex-col gap-1 sm:col-span-2">
                       <span className="text-sm">Sucursal</span>
-                      <select
-                        className="border rounded px-3 py-2"
-                        {...register("branchId", { valueAsNumber: true })}
-                      >
-                        <option value="">Selecciona…</option>
-                        {branches.data.map((b) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                      </select>
+                        <select
+                          className="border rounded px-3 py-2"
+                          value={watch("branchId") ?? ""}
+                          onChange={(e) => {
+                            const newValue = e.target.value === "" ? undefined : Number(e.target.value);
+                            reset({
+                              ...watch(),
+                              branchId: newValue,
+                            });
+                          }}
+                        >
+                          <option value="">Selecciona…</option>
+                          {branches.data.map((b) => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                          ))}
+                        </select>
                       {errors.branchId && (
                         <p className="text-red-600 text-xs">{errors.branchId.message}</p>
                       )}

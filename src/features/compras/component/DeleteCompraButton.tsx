@@ -6,9 +6,11 @@ import { useDeleteCompra } from "@/hooks/useCompras";
 export default function DeleteCompraButton({
   id,
   onDeleted,
+  idHtml, // ← NUEVO PROP
 }: {
   id: number;
   onDeleted?: () => void;
+  idHtml?: string; // ← NUEVO TIPO
 }) {
   const { mutateAsync, isPending } = useDeleteCompra();
   const [open, setOpen] = useState(false);
@@ -34,6 +36,7 @@ export default function DeleteCompraButton({
   return (
     <>
       <button
+        id={idHtml}               // ← ÚNICO CAMBIO REAL EN EL COMPONENTE
         onClick={() => setOpen(true)}
         className="px-2 py-1 text-xs rounded border border-red-300 text-red-700 hover:bg-red-50"
       >

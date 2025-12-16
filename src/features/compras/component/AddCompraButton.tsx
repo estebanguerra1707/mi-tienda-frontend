@@ -15,7 +15,6 @@ import { useAuth } from "@/hooks/useAuth";
 import type { CompraCreate } from "@/features/compras/api";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
-import { toastError } from "@/lib/toast";
 import { ResumenCompra } from "@/types/catalogs";
 import ConfirmarCompraModal from "@/features/compras/component/ConfirmarCompraModal";
 import EnviarTicketCompraModal from "@/features/compras/component/EnviarTicketCompraModal";
@@ -23,6 +22,8 @@ import { ProductItem } from "@/types/product";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormSelect } from "@/components/ui/FormSelect";
 import BarcodeScannerModal from "@/components/BarcodeScannerModal";
+import { AxiosError } from "axios";
+
 
 /* ---------- Schema ---------- */
 const schema = z.object({
@@ -387,10 +388,16 @@ useEffect(() => {
       reset();
       setOpen(false);
       onCreated?.();
-    } catch (e) {
-      console.error(e);
-      toastError("Error al registrar la compra.");
-    }
+    } catch (error) {
+        const backendMessage =
+          (error instanceof AxiosError && error.response?.data?.message) ||
+          "Error al registrar la compra.";
+
+        setToast({
+          type: "error",
+          message: backendMessage,
+        });
+      }
   };
 
     const handleBarcodeScan = async (code: string) => {

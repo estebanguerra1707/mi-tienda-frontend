@@ -1,6 +1,6 @@
 declare global {
   interface Window {
-    qz?: unknown;
+    qz?: QZTray;
   }
 }
 

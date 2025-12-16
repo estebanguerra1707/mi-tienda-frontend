@@ -59,19 +59,18 @@ export default function EnviarTicketCompraModal({
           />
 
           <div className="flex justify-between items-center mt-6">
-            {/* enlace para impresión térmica */}
-            <button
-                onClick={() => {
-                    if (!compraId) {
-                    toastError("ID inválido");
-                    return;
-                    }
-                    printTicketUniversal(compraId, "compra");
-                }}
-                className="text-blue-600 text-sm underline hover:text-blue-800"
-                >
-              Imprimir ticket
-            </button>
+          <button
+            onClick={() => {
+              if (!compraId) {
+                toastError("ID inválido");
+                return;
+              }
+              printTicketUniversal(compraId, "compra");
+            }}
+            className="text-blue-600 text-sm underline hover:text-blue-800"
+          >
+            Imprimir ticket
+          </button>
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}>

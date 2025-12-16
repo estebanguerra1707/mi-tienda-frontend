@@ -132,74 +132,137 @@ export default function AddSucursalButton({ onCreated }: { onCreated?: () => voi
 
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {open &&
-        createPortal(
-          <div className="fixed inset-0 z-[10000] isolate">
-            <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-            <div
-              role="dialog"
-              aria-modal="true"
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-                         w-[min(100vw-1rem,42rem)] sm:w-[min(100vw-2rem,44rem)]
-                         max-h-[85vh] rounded-xl bg-white shadow-2xl flex flex-col">
-              <div className="px-4 sm:px-6 py-4 border-b sticky top-0 bg-white/95 backdrop-blur z-10">
-                <h2 className="text-lg font-semibold">Nueva sucursal</h2>
-              </div>
+{open &&
+  createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm px-2 sm:px-4 animate-fadeIn">
 
-              <form onSubmit={handleSubmit(onSubmit)} className="px-4 sm:px-6 py-4 overflow-y-auto">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <label className="flex flex-col gap-1 sm:col-span-2">
-                    <span className="text-sm">Nombre</span>
-                    <input className="border rounded px-3 py-2" {...register("name")} />
-                    {errors.name && <p className="text-red-600 text-xs">{errors.name.message}</p>}
-                  </label>
+      {/* Modal container */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="
+          bg-white rounded-2xl shadow-2xl border border-gray-200
+          w-full max-w-lg sm:max-w-xl lg:max-w-2xl
+          max-h-[90vh] overflow-hidden
+          animate-scaleIn
+          flex flex-col
+        "
+      >
 
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm">Dirección</span>
-                    <input className="border rounded px-3 py-2" {...register("address")} />
-                  </label>
+        {/* Header */}
+        <div className="px-5 py-4 border-b bg-white sticky top-0 z-10">
+          <h2 className="text-xl font-semibold text-gray-800 tracking-tight">
+            Nueva sucursal
+          </h2>
+          <p className="text-sm text-gray-500">Completa los detalles para crear la nueva sucursal.</p>
+        </div>
 
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm">Teléfono</span>
-                    <input className="border rounded px-3 py-2" {...register("phone")} />
-                  </label>
+        {/* Form */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="px-5 py-4 overflow-y-auto space-y-6"
+        >
 
-                  <label className="flex items-center gap-2 sm:col-span-2">
-                    <input type="checkbox" className="h-4 w-4" {...register("isAlertaStockCritico")} />
-                    <span className="text-sm">Activar alerta de stock crítico</span>
-                  </label>
+          {/* Responsive Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-                  {isSuper ? (
-                    <label className="flex flex-col gap-1 sm:col-span-2">
-                      <span className="text-sm">Tipo de negocio</span>
-                      <select className="border rounded px-3 py-2" {...register("businessTypeId", { valueAsNumber: true })}>
-                        <option value="">Selecciona…</option>
-                        {businessTypes.map((bt) => (
-                          <option key={bt.id} value={bt.id}>{bt.name}</option>
-                        ))}
-                      </select>
-                      {errors.businessTypeId && (
-                        <p className="text-red-600 text-xs">{errors.businessTypeId.message as string}</p>
-                      )}
-                    </label>
-                  ) : (
-                    <input type="hidden" {...register("businessTypeId", { valueAsNumber: true })} />
-                  )}
-                </div>
-
-                <div className="sticky bottom-0 -mx-4 sm:-mx-6 mt-4 bg-white/95 backdrop-blur border-t px-4 sm:px-6 py-3">
-                  <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
-                    <button type="button" onClick={onClose} className="px-4 py-2 rounded border">Cancelar</button>
-                    <button type="submit" disabled={isSubmitting} className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-60">
-                      {isSubmitting ? "Guardando…" : "Guardar"}
-                    </button>
-                  </div>
-                </div>
-              </form>
+            {/* Nombre */}
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700">Nombre</label>
+              <input
+                className="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 border-gray-300 outline-none transition"
+                {...register("name")}
+              />
+              {errors.name && (
+                <p className="text-red-600 text-xs mt-1">{errors.name.message}</p>
+              )}
             </div>
-          </div>,
-          document.body
-        )}
+
+            {/* Dirección */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Dirección</label>
+              <input
+                className="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 border-gray-300 outline-none transition"
+                {...register("address")}
+              />
+            </div>
+
+            {/* Teléfono */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Teléfono</label>
+              <input
+                className="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 border-gray-300 outline-none transition"
+                {...register("phone")}
+              />
+            </div>
+
+            {/* Checkbox */}
+            <div className="sm:col-span-2 flex items-center gap-3 mt-1">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+                {...register("isAlertaStockCritico")}
+              />
+              <span className="text-sm text-gray-700">
+                Activar alerta de stock crítico
+              </span>
+            </div>
+
+            {/* Tipo de negocio (solo SUPER ADMIN) */}
+            {isSuper ? (
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium text-gray-700">Tipo de negocio</label>
+                <select
+                  className="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 border-gray-300 outline-none transition"
+                  {...register("businessTypeId", { valueAsNumber: true })}
+                >
+                  <option value="">Selecciona…</option>
+                  {businessTypes.map((bt) => (
+                    <option key={bt.id} value={bt.id}>{bt.name}</option>
+                  ))}
+                </select>
+                {errors.businessTypeId && (
+                  <p className="text-red-600 text-xs mt-1">{errors.businessTypeId.message as string}</p>
+                )}
+              </div>
+            ) : (
+              <input type="hidden" {...register("businessTypeId", { valueAsNumber: true })} />
+            )}
+
+          </div>
+
+          {/* Footer buttons */}
+          <div className="flex flex-col sm:flex-row justify-end gap-3 border-t pt-4 mt-4">
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="
+                px-4 py-2 rounded-lg border text-gray-700
+                hover:bg-gray-100 transition
+              "
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="
+                px-4 py-2 rounded-lg bg-blue-600 text-white shadow-sm
+                hover:bg-blue-700 transition disabled:opacity-60
+              "
+            >
+              {isSubmitting ? "Guardando…" : "Guardar"}
+            </button>
+
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
+  )
+}
     </>
   );
 }

@@ -37,7 +37,8 @@ export default function ConfirmarCompraModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {/* SCROLL INTERNO */}
+        <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4">
 
           <div>
             <p className="font-semibold">Proveedor:</p>
@@ -77,20 +78,21 @@ export default function ConfirmarCompraModal({
               </p>
             </>
           )}
+        </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
+        {/* BOTONES ABAJO (SIEMPRE VISIBLES) */}
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
 
-            <Button
-              className="bg-blue-600 text-white"
-              onClick={onConfirm}
-              disabled={isLoading}
-            >
-              {isLoading ? "Registrando compra…" : "Confirmar compra"}
-            </Button>
-          </div>
+          <Button
+            className="bg-blue-600 text-white"
+            onClick={onConfirm}
+            disabled={isLoading}
+          >
+            {isLoading ? "Registrando compra…" : "Confirmar compra"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

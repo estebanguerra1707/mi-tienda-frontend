@@ -1,11 +1,25 @@
 import { useState, useEffect } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import LogoutButton from "@/components/LogoutButton";
-import { useHasAnyRole } from "@/features/auth/roles";
+import { useHasAnyRole } from "@/features/auth/roles"
+import { useIdleLogout } from "@/features/auth/useIdleLogout";
+
+import { bc } from "@/lib/broadcast";
+import { logout } from "@/features/auth/authService";
+
 
 type NavItem = { to: string; label: string; show: boolean };
 
 export default function AppLayout() {
+  useIdleLogout();
+ useEffect(() => {
+    bc.onmessage = (event) => {
+      if (event.data === "logout") {
+        logout();
+      }
+    };
+  }, []);
+
   const stored = localStorage.getItem("user");
   const user = stored ? JSON.parse(stored) : null;
 

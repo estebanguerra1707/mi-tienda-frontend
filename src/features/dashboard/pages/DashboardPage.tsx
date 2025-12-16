@@ -12,12 +12,11 @@ export default function DashboardPage() {
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
 
-const branchesHook = useBranches({
+  const branchesHook = useBranches({
     isSuper,
     businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
     oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
   });
-
 
   const [branchId, setBranchId] = useState<number | null>(
     isSuper ? null : auth.user?.branchId ?? null
@@ -31,11 +30,11 @@ const branchesHook = useBranches({
 
   const isLoading = loading || loadingTop;
 
+  // Fechas
   const hoy = new Date();
   const diaSemana = hoy.getDay() === 0 ? 7 : hoy.getDay();
   const inicioSemana = new Date(hoy);
   inicioSemana.setDate(hoy.getDate() - (diaSemana - 1));
-
   const finSemana = new Date(inicioSemana);
   finSemana.setDate(inicioSemana.getDate() + 6);
 
@@ -46,23 +45,20 @@ const branchesHook = useBranches({
     });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* ------------ HEADER ------------ */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-6 max-w-7xl mx-auto space-y-8">
+
+      {/* ---------- HEADER ---------- */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6 mb-4">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500">
-            Resumen general de actividad y ventas.
-          </p>
+          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500">Resumen general de actividad y ventas.</p>
         </div>
 
         {isSuper && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sucursal
-            </label>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-slate-700 mb-1">Sucursal</label>
             <select
-              className="border rounded-lg px-3 py-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              className="border rounded-xl px-3 py-2 shadow-sm bg-white focus:ring-2 focus:ring-blue-600 transition"
               value={branchId ?? ""}
               onChange={(e) =>
                 setBranchId(e.target.value ? Number(e.target.value) : null)
@@ -79,31 +75,31 @@ const branchesHook = useBranches({
         )}
       </div>
 
-      {/* ------------ NO SELECCIONADO ------------ */}
+      {/* ---------- SIN SELECCIÓN ---------- */}
       {!branchId && (
-        <div className="text-gray-500 text-center py-10 bg-white rounded-xl shadow-sm border">
+        <div className="text-slate-500 text-center py-12 bg-white rounded-xl shadow border">
           Selecciona una sucursal para ver el dashboard.
         </div>
       )}
 
-      {/* ------------ LOADING ------------ */}
+      {/* ---------- LOADING ---------- */}
       {branchId && isLoading && (
-        <p className="text-gray-500 text-center">Cargando datos…</p>
+        <p className="text-slate-500 text-center py-6">Cargando datos…</p>
       )}
 
-      {/* ------------ CONTENIDO PRINCIPAL ------------ */}
+      {/* ---------- CONTENIDO PRINCIPAL ---------- */}
       {branchId && !isLoading && data && (
         <>
-          {/* ------------ CARDS ------------ */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+          {/* ---------- CARDS ---------- */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 pt-2">
             <Card titulo="Productos" valor={data.totalProductos} />
             <Card titulo="Stock crítico" valor={data.productosCriticos} />
             <Card titulo="Ventas hoy" valor={data.ventasHoy} />
             <Card titulo="Ingresos mes" valor={`$${data.ingresosMes}`} />
           </div>
 
-          {/* ------------ TABS ------------ */}
-          <div className="border-b mb-6">
+          {/* ---------- TABS ---------- */}
+          <div className="border-b mt-8">
             <Tabs
               active={activeTab}
               onChange={setActiveTab}
@@ -116,23 +112,23 @@ const branchesHook = useBranches({
             />
           </div>
 
-          {/* ------------ CONTENIDO TABS ------------ */}
+          {/* ---------- CONTENIDO DE CADA TAB ---------- */}
+
           {activeTab === "semana" && (
-            <div className="bg-white rounded-xl shadow p-6 border">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            <div className="bg-white rounded-xl shadow p-6 border mt-6">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
                 Más vendidos (semana)
-                <span className="ml-2 text-gray-500 font-normal">
+                <span className="ml-2 text-slate-500 text-base font-normal">
                   ({format(inicioSemana)} – {format(finSemana)})
                 </span>
               </h2>
-
               <ProductosChart data={topWeek} />
             </div>
           )}
 
           {activeTab === "mes" && (
-            <div className="bg-white rounded-xl shadow p-6 border">
-              <h2 className="text-lg font-semibold mb-4">
+            <div className="bg-white rounded-xl shadow p-6 border mt-6">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
                 Más vendidos (mes)
               </h2>
               <ProductosChart data={topMonth} />
@@ -140,15 +136,17 @@ const branchesHook = useBranches({
           )}
 
           {activeTab === "Más vendidos" && (
-            <div className="bg-white rounded-xl shadow p-6 border">
-              <h2 className="text-lg font-semibold mb-4">Más vendidos</h2>
+            <div className="bg-white rounded-xl shadow p-6 border mt-6">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+                Más vendidos (consolidado)
+              </h2>
               <ProductosChart data={consolidado} />
             </div>
           )}
 
           {activeTab === "usuario" && isSuper && (
-            <div className="bg-white rounded-xl shadow p-6 border">
-              <h2 className="text-lg font-semibold mb-4">
+            <div className="bg-white rounded-xl shadow p-6 border mt-6">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
                 Más vendidos por usuario
               </h2>
               <ProductosPorUsuarioChart data={porUsuario} />

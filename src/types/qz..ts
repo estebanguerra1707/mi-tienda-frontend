@@ -1,12 +1,4 @@
-// src/types/qz.d.ts
-
-declare global {
-  interface Window {
-    qz?: QZTray;
-  }
-}
-
-interface QZTray {
+export interface QZTray {
   websocket: {
     connect(): Promise<void>;
     disconnect(): Promise<void>;
@@ -14,7 +6,7 @@ interface QZTray {
 
   security: {
     setCertificatePromise(fn: () => Promise<string>): void;
-    setSignaturePromise(fn: (toSign: string) => Promise<string>): void;
+    setSignaturePromise(fn: () => Promise<string>): void;
   };
 
   printers: {
@@ -23,7 +15,10 @@ interface QZTray {
   };
 
   configs: {
-    create(printer: string, options?: Record<string, unknown>): unknown;
+    create(
+      printer: string,
+      options?: Record<string, unknown>
+    ): unknown;
   };
 
   print(config: unknown, data: unknown[]): Promise<void>;

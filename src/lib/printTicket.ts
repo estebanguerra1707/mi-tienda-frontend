@@ -1,5 +1,8 @@
 import { toastError } from "@/lib/toast";
+import { toastSuccess } from "@/lib/toastSuccess";
 import { API_BASE_URL } from "@/lib/api";
+import { printTicketRaw } from "@/lib/printTicketRaw";
+
 type TicketType = "venta" | "compra";
 
 export async function printTicketUniversal(id: number, type: TicketType) {
@@ -8,24 +11,35 @@ export async function printTicketUniversal(id: number, type: TicketType) {
     return;
   }
 
-const url = `${API_BASE_URL}/pdf-sender/${type}/${id}?isPrinted=true`;
+  const qz = window.qz;
 
-  // 1) QZ-Tray (PC con impresora térmica real)
-  if (window.qz) {
-    try {
-      window.open(url, "_blank");
-      return;
-    } catch {
-      console.warn("QZ error, usando fallback.");
+  try {
+    if (qz && qz.websocket) {
+      if (!qz.websocket.isActive()) {
+        toastSuccess("Conectando impresora...");
+        console.log("🟠 QZ inactivo → conectando...");
+
+        await qz.websocket.connect();
+
+        toastSuccess("Impresora lista ✔");
+        console.log("🟢 QZ conectado correctamente");
+      }
     }
+
+    if (qz && qz.websocket && qz.websocket.isActive()) {
+      console.log("🖨 Imprimiendo ticket térmico RAW...");
+
+      await printTicketRaw(id, type);
+
+      toastSuccess("Ticket enviado a impresión 🧾");
+      return;
+    }
+
+  } catch (err) {
+    console.error("⚠ Error con QZ:", err);
+    toastError("No se pudo imprimir. Abriendo PDF...");
   }
 
-  // 2) Android (RAWBT)
-  if (/Android/i.test(navigator.userAgent)) {
-    window.open(url, "_blank");
-    return;
-  }
-
-  // 3) PC / iPhone / Tablet → impresión nativa
-  window.open(url, "_blank");
+  const pdfUrl = `${API_BASE_URL}/pdf-sender/${type}/${id}?isPrinted=true`;
+  window.open(pdfUrl, "_blank");
 }

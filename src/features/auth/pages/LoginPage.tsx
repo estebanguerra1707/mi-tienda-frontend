@@ -3,6 +3,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
+import { toastError } from "@/lib/toast";
 
 const schema = z.object({
   email: z.string().email("Correo inválido").min(1, "Requerido"),
@@ -15,7 +17,10 @@ export default function LoginPage() {
   const nav = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
 
+  const params = new URLSearchParams(location.search);
+  const reason = params.get("reason");
   const from =
     (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
 
@@ -28,28 +33,38 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: FormValues) => {
-    await login(data.email, data.password);
-    nav(from, { replace: true });
+    try {
+      await login(data.email, data.password);
+      nav(from, { replace: true });
+    } catch (err) {
+      // Aquí mostramos error elegante
+      console.warn(err);
+      toastError("Usuario o contraseña incorrectos.");
+    }
   };
+
+  useEffect(() => {
+    if (reason === "session_expired") {
+      toastError("Tu sesión expiró por inactividad.");
+    }
+  }, [reason]);
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
 
-      {/* Fondo con imagen desde /public */}
+      {/* Fondo */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage: "url('/fondo.png')",
-        }}
+        style={{ backgroundImage: "url('/fondo.png')" }}
       />
 
-
-      {/* Tarjeta del login estilo glassmorphism */}
-      <div className="relative mx-auto max-w-md w-full p-8
+      {/* Tarjeta */}
+      <div
+        className="relative mx-auto max-w-md w-full p-8
         bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl
-        border border-white/20">
-
-        {/* LOGO */}
+        border border-white/20"
+      >
+        {/* Logo */}
         <div className="flex justify-center mb-6">
           <img
             src="/logo001.png"
@@ -79,21 +94,32 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Contraseña */}
+          {/* Contraseña con botón de mostrar/ocultar */}
           <div>
             <label className="block text-sm text-white/80 mb-1">Contraseña</label>
-            <input
-              type="password"
-              className="w-full border border-white/20 bg-white/10 text-white
-              rounded-xl px-4 py-3 focus:outline-none focus:ring-2
-              focus:ring-blue-400 placeholder-white/40"
-              placeholder="••••••••"
-              {...register("password")}
-            />
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="w-full border border-white/20 bg-white/10 text-white
+                rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2
+                focus:ring-blue-400 placeholder-white/40"
+                placeholder="••••••••"
+                {...register("password")}
+              />
+
+              {/* Botón ver/ocultar */}
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-3 flex items-center text-white/70 hover:text-white"
+              >
+                {showPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+
             {errors.password && (
-              <p className="text-red-400 text-sm mt-1">
-                {errors.password.message}
-              </p>
+              <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>
             )}
 
             {/* Recuperar contraseña */}
@@ -107,7 +133,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Botón */}
+          {/* Botón Entrar */}
           <button
             type="submit"
             disabled={isSubmitting}

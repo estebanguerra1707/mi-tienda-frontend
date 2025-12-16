@@ -28,14 +28,15 @@ export default function ConfirmarVentaModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+     <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             Confirmar venta
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-3 text-sm sm:text-base p-1">
+
           <div>
             <p className="font-semibold">Cliente:</p>
             <p>{cliente}</p>
@@ -52,8 +53,10 @@ export default function ConfirmarVentaModal({
           </div>
 
           <div>
-            <p className="font-semibold">Productos:</p>
-            <ul className="ml-4 list-disc text-sm">
+            <p className="font-semibold mb-1">Productos:</p>
+
+            {/* Scroll SOLO en la lista de productos si son muchos */}
+            <ul className="ml-4 list-disc text-sm max-h-40 overflow-y-auto pr-2 sm:max-h-48">
               {productos.map((p: ProductoResumen, i: number) => (
                 <li key={i}>
                   {p.name} — {p.quantity} x ${p.price.toFixed(2)}
@@ -62,16 +65,16 @@ export default function ConfirmarVentaModal({
             </ul>
           </div>
 
-          <div className="font-semibold">
+          <div className="font-semibold text-base">
             Total: ${total.toFixed(2)}
           </div>
 
           {metodoPago === "EFECTIVO" && (
             <>
-              <p className="text-sm">
+              <p>
                 Pago recibido: <strong>${pago.toFixed(2)}</strong>
               </p>
-              <p className="text-sm">
+              <p>
                 Cambio: <strong>${cambio.toFixed(2)}</strong>
               </p>
             </>
@@ -82,16 +85,16 @@ export default function ConfirmarVentaModal({
               Cancelar
             </Button>
 
-            <Button 
-                className="bg-blue-600 text-white"
-                onClick={onConfirm}
-                disabled={isLoading}   // ← agregaremos este prop
-                >
-                {isLoading ? "Generando venta..." : "Confirmar y generar venta"}
-                </Button>
+            <Button
+              className="bg-blue-600 text-white"
+              onClick={onConfirm}
+              disabled={isLoading}
+            >
+              {isLoading ? "Generando venta..." : "Confirmar y generar venta"}
+            </Button>
           </div>
         </div>
-      </DialogContent>
+     </DialogContent>
     </Dialog>
   );
 }

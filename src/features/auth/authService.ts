@@ -1,6 +1,8 @@
-// src/features/auth/authService.ts
 import { api } from "@/lib/api";
 import { setAccessToken, setRefreshToken, clearAuthData } from "./tokenStorage";
+import { queryClient } from '@/lib/queryClient';
+import { bc } from "@/lib/broadcast";
+import { toastSuccess } from "@/lib/toastSuccess";
 
 export async function login(email: string, password: string) {
   const resp = await api.post(`auth/login`, { email, password });
@@ -24,7 +26,15 @@ export async function login(email: string, password: string) {
   return data;
 }
 
-export function logout() {
+export function logout(manual: boolean = false) {
   clearAuthData();
-  window.location.href = "/login";
+  queryClient.clear();
+  bc.postMessage("logout");
+
+  if (manual) {
+    toastSuccess("Sesión cerrada correctamente");
+    window.location.href = "/login";
+  } else {
+    window.location.href = "/login?reason=session_expired";
+  }
 }

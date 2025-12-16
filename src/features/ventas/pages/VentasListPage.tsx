@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import VentaDetalleModal from "@/features/ventas/components/VentaDetalleModal";
 import type { VentaItem } from "@/features/ventas/api";
 
-// 🔹 Campos ordenables
+// Campos ordenables
 type SortKey =
   | "id"
   | "clientName"
@@ -31,14 +31,16 @@ export default function VentasListPage() {
   const [filtros, setFiltros] = useState<VentaSearchFiltro>({});
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
   const [selectedVenta, setSelectedVenta] = useState<VentaItem | null>(null);
   const [openDetalle, setOpenDetalle] = useState(false);
 
   const handleRowClick = (venta: VentaItem) => {
-  setSelectedVenta(venta);
-  setOpenDetalle(true);
-};
+    setSelectedVenta(venta);
+    setOpenDetalle(true);
+  };
 
+  // Ordenamiento local
   const [localSort, setLocalSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
     key: "id",
     dir: "asc",
@@ -53,7 +55,6 @@ export default function VentasListPage() {
 
   const collator = useMemo(() => new Intl.Collator("es", { sensitivity: "base" }), []);
 
-  // ✅ Flecha visual
   const Arrow = ({ k }: { k: SortKey }) =>
     localSort.key !== k ? (
       <span className="opacity-40">↕︎</span>
@@ -63,22 +64,19 @@ export default function VentasListPage() {
       <>▼</>
     );
 
-  // ✅ Detectar filtros activos
   const hasFilters = Object.values(filtros).some(
     (v) => v !== undefined && v !== "" && v !== null
   );
 
-  // ✅ Hooks de datos
   const ventasPaginadas = useSearchVentasPaginadas({
-    page: Number(params.page ?? 0),
-    size: Number(params.size ?? 10),
+    page: params.page,
+    size: params.size,
     ...filtros,
   });
 
   const ventasNormales = useVentas(params, filtros);
   const ventas = hasFilters ? ventasPaginadas : ventasNormales;
 
-  // ✅ Aplicar filtros desde el panel
   const onApplyFilters = (next: Record<string, string | undefined>) => {
     const clean = Object.fromEntries(
       Object.entries(next).filter(([, v]) => v !== undefined && v !== "")
@@ -106,17 +104,15 @@ export default function VentasListPage() {
     setParams((p) => ({ ...p, page: 0 }));
   };
 
-  // ✅ Ordenamiento local
   const sortedItems = useMemo(() => {
     const items = ventas.data?.content ?? [];
     const mult = localSort.dir === "asc" ? 1 : -1;
-    const key = localSort.key;
 
     return [...items].sort((a, b) => {
-      const av = a[key];
-      const bv = b[key];
+      const av = a[localSort.key];
+      const bv = b[localSort.key];
 
-      switch (key) {
+      switch (localSort.key) {
         case "amountPaid":
           return (Number(av ?? 0) - Number(bv ?? 0)) * mult;
         case "saleDate":
@@ -125,70 +121,89 @@ export default function VentasListPage() {
               new Date(bv as string).getTime()) * mult
           );
         case "id":
-            return (Number(av) - Number(bv)) * mult;
+          return (Number(av) - Number(bv)) * mult;
         default:
           return collator.compare(String(av ?? ""), String(bv ?? "")) * mult;
       }
     });
   }, [ventas.data?.content, localSort, collator]);
 
-  // ✅ Render
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-xl font-semibold">Ventas</h1>
+    <div className="mx-auto max-w-7xl p-6 space-y-6">
+
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+          Ventas
+        </h1>
+
+       <div className="shadow-md hover:shadow-lg transition rounded-xl inline-block">
         <AddVentaButton onCreated={() => ventas.refetch()} />
       </div>
+      </div>
 
-      {/* Filtros */}
-<   AdvancedFiltersVentas onApply={onApplyFilters} showId={true} />
+      {/* FILTROS VISUALES */}
+      <div className="bg-white p-5 rounded-xl shadow border">
+        <AdvancedFiltersVentas onApply={onApplyFilters} showId={true} />
+      </div>
 
-      {/* Tabla */}
-      <div className="overflow-auto border rounded">
-        <table className="min-w-[900px] w-full text-sm">
-          <thead className="bg-slate-50">
+      {/* TABLA */}
+      <div className="rounded-xl border bg-white shadow overflow-auto">
+        <table className="min-w-[1000px] w-full text-sm">
+          <thead className="bg-slate-50 border-b">
             <tr>
-              <th className="p-2 text-left">
-                <button onClick={() => toggleSort("id")} className="flex items-center gap-1">
+              <th className="px-4 py-3">
+                <button onClick={() => toggleSort("id")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
                   ID Venta <Arrow k="id" />
                 </button>
               </th>
-              <th className="p-2 text-left">
-                <button onClick={() => toggleSort("clientName")} className="flex items-center gap-1">
+
+              <th className="px-4 py-3">
+                <button onClick={() => toggleSort("clientName")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
                   Cliente <Arrow k="clientName" />
                 </button>
               </th>
-              <th className="p-2 text-left">
-                <button onClick={() => toggleSort("saleDate")} className="flex items-center gap-1">
+
+              <th className="px-4 py-3">
+                <button onClick={() => toggleSort("saleDate")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
                   Fecha <Arrow k="saleDate" />
                 </button>
               </th>
-              <th className="p-2 text-left">
-                <button onClick={() => toggleSort("paymentMethodName")} className="flex items-center gap-1">
+
+              <th className="px-4 py-3">
+                <button onClick={() => toggleSort("paymentMethodName")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
                   Método pago <Arrow k="paymentMethodName" />
                 </button>
               </th>
-              <th className="p-2 text-right">
-                <button onClick={() => toggleSort("amountPaid")} className="flex items-center gap-1 justify-end w-full">
+
+              <th className="px-4 py-3 text-right">
+                <button
+                  onClick={() => toggleSort("amountPaid")}
+                  className="flex items-center justify-end gap-1 font-semibold hover:text-blue-600 w-full"
+                >
                   Monto pagado <Arrow k="amountPaid" />
                 </button>
               </th>
+
               {isSuperAdmin && (
-                <th className="p-2 text-center">
-                  <button onClick={() => toggleSort("userName")} className="flex items-center gap-1 justify-center w-full">
+                <th className="px-4 py-3 text-center">
+                  <button
+                    onClick={() => toggleSort("userName")}
+                    className="flex items-center gap-1 justify-center font-semibold hover:text-blue-600"
+                  >
                     Vendido por <Arrow k="userName" />
                   </button>
                 </th>
               )}
-              <th className="p-2 text-center">Acciones</th>
+
+              <th className="px-4 py-3 font-semibold">Acciones</th>
             </tr>
           </thead>
 
           <tbody>
             {ventas.isLoading && (
               <tr>
-                <td colSpan={6} className="p-4 text-center">
+                <td colSpan={7} className="p-4 text-center">
                   Cargando…
                 </td>
               </tr>
@@ -196,72 +211,43 @@ export default function VentasListPage() {
 
             {sortedItems.map((v) => (
               <tr
-                    key={v.id}
-                    className="border-t hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleRowClick(v)}
-                >
-                <td className="p-2">{v.id}</td>
-                <td className="p-2">{v.clientName}</td>
-                <td className="p-2">
+                key={v.id}
+                onClick={() => handleRowClick(v)}
+                className="border-t hover:bg-slate-50 transition cursor-pointer"
+              >
+                <td className="px-4 py-3">{v.id}</td>
+                <td className="px-4 py-3">{v.clientName}</td>
+                <td className="px-4 py-3">
                   {isSuperAdmin
-                    ? new Date(v.saleDate).toLocaleString("es-MX", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                        hour12: false,
-                      })
-                    : new Date(v.saleDate).toLocaleDateString("es-MX", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
+                    ? new Date(v.saleDate).toLocaleString("es-MX")
+                    : new Date(v.saleDate).toLocaleDateString("es-MX")}
                 </td>
-                <td className="p-2 text-left">{v.paymentMethodName}</td>
-                <td className="p-2 text-right">
-                    <div className="font-semibold">
-                      Total: ${(v.totalAmount ?? v.amountPaid ?? 0).toFixed(2)}
-                    </div>
 
-                    {/* Mostrar texto en palabras */}
-                    {v.amountInWords && (
-                      <div className="text-[10px] text-gray-500 italic">
-                        {v.amountInWords}
-                      </div>
-                    )}
+                <td className="px-4 py-3">{v.paymentMethodName}</td>
 
-                    {/* Si fue EFECTIVO → mostrar monto entregado y cambio */}
-                    {v.paymentMethodName === "EFECTIVO" && (
-                      <div className="mt-1 text-xs text-gray-700">
-                        <div>Monto entregado: ${(v.amountPaid ?? 0).toFixed(2)}</div>
-                        <div>Cambio: ${(v.changeAmount ?? 0).toFixed(2)}</div>
-                      </div>
-                    )}
-
-                    {/* Si NO fue EFECTIVO → solo mostrar el monto pagado */}
-                    {v.paymentMethodName !== "EFECTIVO" && (
-                      <div className="text-right">
-                        ${(v.amountPaid ?? 0).toFixed(2)}
-                      </div>
-                  )}
+                <td className="px-4 py-3 text-right font-semibold">
+                  ${(v.amountPaid ?? 0).toFixed(2)}
                 </td>
+
                 {isSuperAdmin && (
-                  <td className="p-2 text-center">{v.userName}</td>
+                  <td className="px-4 py-3 text-center">{v.userName}</td>
                 )}
+
                 <td
-                  className="p-2 text-center"
+                  className="px-4 py-3"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <DeleteVentaButton id={v.id} onDeleted={() => ventas.refetch()} />
+                  <DeleteVentaButton
+                    id={v.id}
+                    onDeleted={() => ventas.refetch()}
+                  />
                 </td>
               </tr>
             ))}
 
-            {!ventas.isLoading && !sortedItems.length && (
+            {!ventas.isLoading && sortedItems.length === 0 && (
               <tr>
-                <td colSpan={isSuperAdmin ? 7 : 6} className="p-4 text-center">
+                <td colSpan={7} className="p-4 text-center text-slate-500">
                   Sin registros
                 </td>
               </tr>
@@ -270,36 +256,32 @@ export default function VentasListPage() {
         </table>
       </div>
 
-      {/* Paginación */}
-      <div className="flex justify-end gap-2">
+      {/* PAGINACIÓN */}
+      <div className="pt-4 flex justify-end gap-2">
         <Button
           variant="outline"
-          disabled={Number(params.page ?? 0) === 0}
+          disabled={params.page === 0}
           onClick={() =>
-            setParams((p) => ({
-              ...p,
-              page: Math.max(0, Number(p.page ?? 0) - 1),
-            }))
+            setParams((p) => ({ ...p, page: Math.max(0, p.page - 1) }))
           }
         >
           Anterior
         </Button>
 
-        <span>Página {Number(params.page ?? 0) + 1}</span>
+        <span className="px-2 py-2 text-sm text-slate-600">
+          Página {params.page + 1}
+        </span>
 
         <Button
           variant="outline"
           disabled={ventas.data?.last}
-          onClick={() =>
-            setParams((p) => ({
-              ...p,
-              page: Number(p.page ?? 0) + 1,
-            }))
-          }
+          onClick={() => setParams((p) => ({ ...p, page: p.page + 1 }))}
         >
           Siguiente
         </Button>
       </div>
+
+      {/* MODAL DETALLE */}
       {openDetalle && selectedVenta && (
         <VentaDetalleModal
           venta={selectedVenta}

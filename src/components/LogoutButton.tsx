@@ -7,7 +7,7 @@ export default function LogoutButton() {
   const nav = useNavigate();
 
   function handleLogout() {
-    logout();
+    logout(true);
     nav("/login", { replace: true });
   }
 

@@ -25,15 +25,25 @@
 
   <body class="bg-slate-100">
     <div id="root"></div>
+    <script src="/qz-tray.js"></script>
 
-    <!-- Cargar QZ Tray solo en modo desarrollo -->
-    <script>
-      if (location.hostname === "localhost") {
-        const script = document.createElement("script");
-        script.src = "https://localhost:8181/qz-tray.js";
-        document.body.appendChild(script);
-      }
-    </script>
+  <script>
+    // detección segura
+    function waitForQZ() {
+      return new Promise(resolve => {
+        const check = setInterval(() => {
+          if (window.qz) {
+            clearInterval(check);
+            resolve(true);
+          }
+        }, 300);
+      });
+    }
+
+    waitForQZ().then(() => {
+      console.log("QZ cargado correctamente:", window.qz);
+    });
+  </script>
 
     <!-- App -->
     <script type="module" src="/src/main.tsx"></script>

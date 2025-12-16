@@ -36,69 +36,70 @@ export default function DevolucionesPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex gap-4 border-b pb-2">
-        <button
-          onClick={() => cambiarTab("compras")}
-          className={`px-4 py-2 font-medium ${
-            tab === "compras"
-              ? "border-b-2 border-blue-600 text-blue-600"
-              : "text-gray-500"
-          }`}
-        >
-          Devolución de Compras
-        </button>
+    <div className="p-6 space-y-8 max-w-7xl mx-auto">
 
-        <button
-          onClick={() => cambiarTab("Filtrar devoluciones compras")}
-          className={`px-4 py-2 font-medium ${
-            tab === "Filtrar devoluciones compras"
-              ? "border-b-2 border-blue-600 text-blue-600"
-              : "text-gray-500"
-          }`}
-        >
-          Filtro devolución compras
-        </button>
+      {/* ---------------- TABS MODERNIZADOS ---------------- */}
+      <div className="bg-white rounded-xl shadow-md border p-3">
+        <div className="flex gap-4">
 
-        <button
-          onClick={() => cambiarTab("ventas")}
-          className={`px-4 py-2 font-medium ${
-            tab === "ventas"
-              ? "border-b-2 border-blue-600 text-blue-600"
-              : "text-gray-500"
-          }`}
-        >
-          Devolución de Ventas
-        </button>
+          {[
+            { key: "compras", label: "Devolución Compras" },
+            { key: "Filtrar devoluciones compras", label: "Filtro Compras" },
+            { key: "ventas", label: "Devolución Ventas" },
+            { key: "Filtrar devoluciones ventas", label: "Filtro Ventas" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => cambiarTab(t.key as TabName)}
+              className={`
+                px-4 py-2 font-medium rounded-lg transition
+                ${
+                  tab === t.key
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "text-gray-600 hover:bg-gray-100"
+                }
+              `}
+            >
+              {t.label}
+            </button>
+          ))}
 
-        <button
-          onClick={() => cambiarTab("Filtrar devoluciones ventas")}
-          className={`px-4 py-2 font-medium ${
-            tab === "Filtrar devoluciones ventas"
-              ? "border-b-2 border-blue-600 text-blue-600"
-              : "text-gray-500"
-          }`}
-        >
-          Filtro devolución ventas
-        </button>
+        </div>
       </div>
 
-      <div className="pt-4">
-        {tab === "compras" && <NuevaDevolucionPage ref={refCompras} />}
+      {/* ---------------- CONTENIDO ---------------- */}
+      <div className="bg-white rounded-xl shadow-md border p-6 transition">
 
-        {tab === "ventas" && <NuevaDevolucionVentaPage ref={refVentas} />}
-
-        {tab === "Filtrar devoluciones ventas" && (
-          <BuscadorAvanzadoDevoluciones
-            ref={devolucionesRef}
-            onSelect={(dev) => console.log("Devolución seleccionada:", dev)}
-            onClearFilters={() => devolucionesRef.current?.limpiar()}
-          />
+        {tab === "compras" && (
+          <div className="shadow-sm hover:shadow-lg transition rounded-xl p-2">
+            <NuevaDevolucionPage ref={refCompras} />
+          </div>
         )}
 
-       {tab === "Filtrar devoluciones compras" && (
-        <BusquedaDevolucionesComprasPage ref={refSearchCompras} />
-      )}
+        {tab === "ventas" && (
+          <div className="shadow-sm hover:shadow-lg transition rounded-xl p-2">
+            <NuevaDevolucionVentaPage ref={refVentas} />
+          </div>
+        )}
+
+        {tab === "Filtrar devoluciones ventas" && (
+          <div className="shadow-sm hover:shadow-lg transition rounded-xl p-2">
+            <BuscadorAvanzadoDevoluciones
+              ref={devolucionesRef}
+              onSelect={(dev) =>
+                console.log("Devolución seleccionada:", dev)
+              }
+              onClearFilters={() => devolucionesRef.current?.limpiar()}
+            />
+          </div>
+        )}
+
+        {tab === "Filtrar devoluciones compras" && (
+          <div className="shadow-sm hover:shadow-lg transition rounded-xl p-2">
+            <BusquedaDevolucionesComprasPage ref={refSearchCompras} />
+          </div>
+        )}
+
       </div>
     </div>
   );

@@ -2,6 +2,8 @@
 //   API BASE URL
 // ======================================================================
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { queryClient } from "@/lib/queryClient";
+
 
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
@@ -147,7 +149,8 @@ api.interceptors.response.use(
       // Falló el refresh → deslogueamos
       processQueue(refreshError, null);
       clearAuthData();
-      window.location.href = "/login";
+        queryClient.clear();
+       window.location.href = "/login?reason=session_expired";
       return Promise.reject(refreshError);
 
     } finally {

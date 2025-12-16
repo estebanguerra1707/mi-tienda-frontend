@@ -16,8 +16,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "types": ["react", "react-dom"],
-
-    // 👇 Aquí tus alias
+    "typeRoots": ["./src/types", "./node_modules/@types"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

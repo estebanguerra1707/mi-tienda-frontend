@@ -49,17 +49,19 @@ export default function EnviarTicketModal({ ventaId, open, onClose }: EnviarTick
             onChange={(e) => setEmail(e.target.value)}
           />
 
-          {/* ============================
-              FILA DE IMPRESIÓN + BOTONES
-              ============================ */}
           <div className="flex justify-between items-center mt-6">
 
-            {/* 🔵 Enlace de imprimir */}
             <button
-              onClick={() => printTicketUniversal(ventaId!, "venta")}
+              onClick={() => {
+                if (!ventaId) {
+                  toastError("ID inválido");
+                  return;
+                }
+                printTicketUniversal(ventaId, "venta");
+              }}
               className="text-blue-600 text-sm underline hover:text-blue-800"
             >
-              Imprimir ticket
+              🖨 Imprimir ticket
             </button>
 
             <div className="flex gap-2">

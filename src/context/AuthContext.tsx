@@ -16,7 +16,8 @@ export type AuthCtx = {
   user: User | null; 
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: (manual?: boolean) => void;
+
 };
 
 
@@ -27,5 +28,5 @@ export interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: (manual?: boolean) => void;
 }

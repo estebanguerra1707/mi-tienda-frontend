@@ -92,6 +92,16 @@ function getErrorMessage(err: unknown): string {
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  useEffect(() => {
+  if (!toast) return;
+
+  const timer = setTimeout(() => {
+    setToast(null);
+  }, 7000); // 7 segundos
+
+  return () => clearTimeout(timer);
+}, [toast]);
+
   // schema & form
   const schema: ZodSchema<FormValues> = useMemo(
     () => (isSuper ? superSchema : baseSchema),
