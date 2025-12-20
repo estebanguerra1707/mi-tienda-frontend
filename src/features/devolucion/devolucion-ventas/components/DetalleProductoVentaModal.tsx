@@ -32,7 +32,6 @@ export default function DetalleProductoVentaModal({
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
-  // Hook para crear devolución
   const crearDevolucion = useCrearDevolucionVenta();
 
   const dynamicSchema = details
@@ -40,7 +39,7 @@ export default function DetalleProductoVentaModal({
         cantidad: baseSchema.shape.cantidad.max(
           details.quantity,
           `No puedes devolver más de ${details.quantity} unidades`
-        )
+        ),
       })
     : baseSchema;
 
@@ -71,24 +70,26 @@ export default function DetalleProductoVentaModal({
     onClose();
   };
 
+  const inputCls =
+    "w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+
   return (
     <Modal
       open={true}
       onClose={onClose}
-      title={`Detalle del producto – ${details.productName}`}
+      title={`Producto · ${details.productName}`}
     >
-      <div className="animate-fadeIn space-y-6 p-3 max-h-[70vh] overflow-y-auto pr-2">
+      <div className="space-y-5 px-1 max-h-[80vh] overflow-y-auto">
 
-        {/* INFORMACIÓN DEL PRODUCTO */}
-        <div className="space-y-1 text-gray-700 text-sm border-b pb-3">
-          <p><b>Producto:</b> {details.productName}</p>
-          <p><b>Código de barras:</b> {details.codigoBarras}</p>
+        {/* ---------- INFO PRODUCTO (PLANO) ---------- */}
+        <div className="text-sm text-gray-700 space-y-1">
+          <p><b>Código:</b> {details.codigoBarras}</p>
           <p><b>SKU:</b> {details.sku}</p>
 
           {isSuperAdmin && (
             <>
               <p><b>Sucursal:</b> {details.branchName}</p>
-              <p><b>Tipo de negocio:</b> {details.businessTypeName}</p>
+              <p><b>Negocio:</b> {details.businessTypeName}</p>
             </>
           )}
 
@@ -100,54 +101,61 @@ export default function DetalleProductoVentaModal({
           )}
         </div>
 
-        {/* FORMULARIO */}
+        {/* ---------- FORMULARIO ---------- */}
         <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
 
           {/* Cantidad */}
-          <div>
-            <label className="text-sm font-semibold pb-1">Cantidad a devolver</label>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              Cantidad a devolver
+            </label>
             <input
               type="number"
               {...form.register("cantidad", { valueAsNumber: true })}
-              className="w-full border px-3 py-2 rounded"
+              className={inputCls}
             />
-            <p className="text-red-500 text-sm">
-              {form.formState.errors.cantidad?.message}
-            </p>
+            {form.formState.errors.cantidad && (
+              <p className="text-red-500 text-sm">
+                {form.formState.errors.cantidad.message}
+              </p>
+            )}
           </div>
 
           {/* Motivo */}
-          <div>
-            <label className="text-sm font-semibold pb-1">Motivo</label>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              Motivo
+            </label>
             <textarea
               {...form.register("motivo")}
-              className="w-full border px-3 py-2 rounded"
+              className={`${inputCls} min-h-[90px]`}
               placeholder="Describe el motivo"
             />
-            <p className="text-red-500 text-sm">
-              {form.formState.errors.motivo?.message}
-            </p>
+            {form.formState.errors.motivo && (
+              <p className="text-red-500 text-sm">
+                {form.formState.errors.motivo.message}
+              </p>
+            )}
           </div>
 
-          {/* BOTONES */}
-          <div className="flex justify-end gap-2 pt-2">
+          {/* ---------- BOTONES ---------- */}
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+              className="w-full sm:w-auto px-4 py-3 rounded-lg bg-gray-200 hover:bg-gray-300"
             >
               Cancelar
             </button>
 
             <button
               type="submit"
-              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+              className="w-full sm:w-auto px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
               disabled={form.watch("cantidad") > details.quantity}
             >
               Registrar devolución
             </button>
           </div>
-
         </form>
       </div>
     </Modal>

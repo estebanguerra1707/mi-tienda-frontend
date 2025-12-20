@@ -28,8 +28,3 @@ export async function updateProveedor(id: number, payload: UpdateProveedorDto): 
 export async function deleteProveedor(id: number): Promise<void> {
   await api.delete(`/proveedores/${id}`);
 }
-
-export async function fetchProveedoresBySucursal(sucursalId: number): Promise<Proveedor[]> {
-  const { data } = await api.get<Proveedor[]>(`/proveedores/proveedor-sucursal/${sucursalId}`);
-  return data;
-}

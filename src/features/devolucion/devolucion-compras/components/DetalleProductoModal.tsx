@@ -9,6 +9,7 @@ import { useCrearDevolucion } from "../hooks/useCrearDevolucion";
 import type { CompraItem, DetalleCompraResponseDTO } from "@/features/compras/api";
 import type { Devolucion } from "../types/Devolucion";
 import { useAuth } from "@/hooks/useAuth";
+
 interface Props {
   compra: CompraItem;
   detalle: DetalleCompraResponseDTO | null;
@@ -27,13 +28,12 @@ export default function DetalleProductoModal({
   onClose,
   onSuccess,
 }: Props) {
-      const { user } = useAuth();
-      const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  
-  // Hooks antes de cualquier return
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
   const crearDevolucion = useCrearDevolucion();
 
-  const buildSchema = detalle
+  const schema = detalle
     ? baseSchema.extend({
         cantidad: baseSchema.shape.cantidad.max(
           detalle.quantity,
@@ -41,8 +41,6 @@ export default function DetalleProductoModal({
         ),
       })
     : baseSchema;
-
-  const schema = detalle ? buildSchema : baseSchema;
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -52,7 +50,6 @@ export default function DetalleProductoModal({
     },
   });
 
-  // Render condicional DESPUÉS de los hooks
   if (!detalle) return null;
 
   const submit = async (data: z.infer<typeof schema>) => {
@@ -61,8 +58,8 @@ export default function DetalleProductoModal({
       detalleId: detalle.id,
       cantidad: data.cantidad,
       sku: detalle.sku,
-      branchId:detalle.branchId,
-      businessTypeId:detalle.businessTypeId,
+      branchId: detalle.branchId,
+      businessTypeId: detalle.businessTypeId,
       codigoBarras: detalle.codigoBarras,
       motivo: data.motivo,
     };
@@ -74,74 +71,82 @@ export default function DetalleProductoModal({
 
   return (
     <Modal
-      open={true}
+      open
       onClose={onClose}
-      title={`Detalle del producto – ${detalle.productName}`}
+      title={detalle.productName}
     >
-    <div className="animate-fadeIn space-y-6 p-3 max-h-[70vh] overflow-y-auto pr-2">
+      <div className="space-y-4 px-3 py-2 max-h-[75vh] overflow-y-auto">
 
-        <div className="space-y-1 text-gray-700 text-sm border-b pb-3">
-          <p><b>Producto:</b> {detalle.productName}</p>
-          <p><b>Código de barras:</b> {detalle.codigoBarras}</p>
-          <p><b>SKU:</b> {detalle.sku}</p>
-           {isSuperAdmin && (
-                <>
-                    <p><b>Sucursal:</b> {detalle.branchName}</p>
-                    <p><b>Tipo de negocio:</b> {detalle.businessTypeName}</p>
-                </>
-                )}
-          <p><b>Cantidad comprada:</b> {detalle.quantity}</p>
-          <p><b>Precio unitario:</b> ${detalle.unitPrice.toFixed(2)}</p>
+        {/* INFO PRODUCTO */}
+        <div className="text-sm text-gray-700 space-y-1">
+          <p className="font-medium">{detalle.productName}</p>
+          <p className="text-xs text-gray-600">
+            {detalle.codigoBarras} · SKU {detalle.sku}
+          </p>
+
+          {isSuperAdmin && (
+            <p className="text-xs text-gray-600">
+              {detalle.branchName} · {detalle.businessTypeName}
+            </p>
+          )}
+
+          <p className="text-xs text-gray-600">
+            Cantidad: {detalle.quantity} · ${detalle.unitPrice.toFixed(2)}
+          </p>
 
           {detalle.subTotal && (
-            <p><b>Subtotal:</b> ${Number(detalle.subTotal).toFixed(2)}</p>
+            <p className="text-xs font-medium">
+              Subtotal: ${Number(detalle.subTotal).toFixed(2)}
+            </p>
           )}
         </div>
 
+        {/* FORM */}
         <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
 
           <div>
-            <label className="text-sm font-semibold pb-1">Cantidad a devolver</label>
+            <label className="text-sm font-medium">Cantidad a devolver</label>
             <input
               type="number"
               {...form.register("cantidad", { valueAsNumber: true })}
-              className="w-full border px-3 py-2 rounded"
+              className="w-full border rounded-lg px-3 py-3 text-sm focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-red-500 text-sm">
+            <p className="text-xs text-red-500">
               {form.formState.errors.cantidad?.message}
             </p>
           </div>
 
           <div>
-            <label className="text-sm font-semibold pb-1">Motivo</label>
+            <label className="text-sm font-medium">Motivo</label>
             <textarea
               {...form.register("motivo")}
-              className="w-full border px-3 py-2 rounded"
+              className="w-full border rounded-lg px-3 py-3 text-sm focus:ring-2 focus:ring-blue-500"
+              rows={3}
               placeholder="Describe el motivo"
             />
-            <p className="text-red-500 text-sm">
+            <p className="text-xs text-red-500">
               {form.formState.errors.motivo?.message}
             </p>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          {/* BOTONES */}
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+              className="w-full sm:w-auto px-4 py-3 rounded-lg border"
             >
               Cancelar
             </button>
 
             <button
               type="submit"
-              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
               disabled={form.watch("cantidad") > detalle.quantity}
+              className="w-full sm:w-auto px-4 py-3 rounded-lg bg-blue-600 text-white disabled:opacity-50"
             >
               Registrar devolución
             </button>
           </div>
-
         </form>
       </div>
     </Modal>

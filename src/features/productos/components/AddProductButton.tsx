@@ -186,9 +186,14 @@ const onInvalid = (errors: FieldErrors<FormValues>) => {
 const categories = useCategories({
   businessTypeId: isSuper ? (derivedBT ?? undefined) : undefined,
 });
+
 const providers = useProviders({
-  businessTypeId: isSuper ? (derivedBT ?? undefined) : undefined,
+  isSuper,
+  businessTypeId: isSuper ? derivedBT ?? undefined : undefined,
+  branchId: !isSuper ? user?.branchId : undefined,
 });
+
+
 const branches = useBranches({
   isSuper,
   businessTypeId: isSuper ? (derivedBT ?? undefined) : user?.businessTypeId ?? undefined,

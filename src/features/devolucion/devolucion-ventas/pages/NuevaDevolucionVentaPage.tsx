@@ -6,6 +6,7 @@ import {
   forwardRef,
   useImperativeHandle,
   ForwardedRef,
+  useEffect, 
 } from "react";
 
 import BuscadorAvanzadoVentas, {
@@ -35,6 +36,7 @@ function NuevaDevolucionVentaPageInner(
   const [resultado, setResultado] = useState<DevolucionVenta | null>(null);
 
   const buscadorRef = useRef<BuscadorAvanzadoVentasHandle>(null);
+  const detalleVentaRef = useRef<HTMLDivElement | null>(null);
 
   useImperativeHandle(ref, () => ({
     limpiar() {
@@ -45,21 +47,57 @@ function NuevaDevolucionVentaPageInner(
     },
   }));
 
-  return (
-    <div className="p-6 space-y-6">
-      <BuscadorAvanzadoVentas
-        ref={buscadorRef}
-        onSelect={(v) => {
-          setVenta(v);
-          setDetalle(null);
-        }}
-      />
+  useEffect(() => {
+  if (venta && detalleVentaRef.current) {
+    const t = setTimeout(() => {
+      detalleVentaRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
 
-      {!venta && <p className="text-gray-400">Sin búsqueda</p>}
+    return () => clearTimeout(t);
+  }
+}, [venta]);
+  return (
+    <div
+      className="
+        w-full 
+        max-w-5xl 
+        mx-auto 
+        px-4 sm:px-6 
+        py-4 sm:py-6 
+        space-y-6
+      "
+    >
+      <div className="bg-white rounded-xl shadow-md border p-4 sm:p-6">
+        <BuscadorAvanzadoVentas
+          ref={buscadorRef}
+          selectedId={venta?.id}
+          onSelect={(v) => {
+            setVenta(v);
+            setDetalle(null);
+          }}
+        />
+      </div>
+
+      {!venta && (
+        <div className="text-gray-400 text-center py-6 text-sm sm:text-base">
+          Sin búsqueda
+        </div>
+      )}
 
       {venta && (
-        <>
-          <DetalleVentaCard venta={venta} onSelectDetalle={setDetalle} />
+        <div className="space-y-4">
+          <div
+            ref={detalleVentaRef}
+          className="bg-white rounded-xl shadow border p-4 sm:p-6 animate-fadeIn"
+          >
+            <DetalleVentaCard
+              venta={venta}
+              onSelectDetalle={setDetalle}
+            />
+          </div>
 
           <DetalleProductoVentaModal
             venta={venta}
@@ -70,9 +108,8 @@ function NuevaDevolucionVentaPageInner(
               setDetalle(null);
             }}
           />
-        </>
+        </div>
       )}
-
       {resultado && (
         <DevolucionVentaResultModal
           devolucion={resultado}

@@ -7,9 +7,14 @@ import {
   deleteProveedor,
 } from "@/features/proveedores/proveedores.api";
 import { CreateProveedorDto, UpdateProveedorDto } from "@/features/proveedores/types";
+import type { Proveedor } from "@/features/proveedores/types";
+
 
 export function useProveedores() {
-  return useQuery({ queryKey: ["proveedores"], queryFn: fetchProveedores });
+  return useQuery<Proveedor[]>({
+    queryKey: ["proveedores"],
+    queryFn: fetchProveedores,
+  });
 }
 
 export function useProveedorById(id: number) {

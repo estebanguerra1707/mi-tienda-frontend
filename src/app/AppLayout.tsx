@@ -7,18 +7,13 @@ import { useIdleLogout } from "@/features/auth/useIdleLogout";
 import { bc } from "@/lib/broadcast";
 import { logout } from "@/features/auth/authService";
 
+import { useNavigate } from "react-router-dom";
+import ConfirmLogoutModal from "@/components/ConfirmLogoutModal";
 
 type NavItem = { to: string; label: string; show: boolean };
 
 export default function AppLayout() {
   useIdleLogout();
- useEffect(() => {
-    bc.onmessage = (event) => {
-      if (event.data === "logout") {
-        logout();
-      }
-    };
-  }, []);
 
   const stored = localStorage.getItem("user");
   const user = stored ? JSON.parse(stored) : null;
@@ -30,7 +25,8 @@ export default function AppLayout() {
   const canBranches = useHasAnyRole(["SUPER_ADMIN"]);
   const canCategories = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
   const canReports = useHasAnyRole(["ADMIN", "SUPER_ADMIN"]);
-
+const [showLogout, setShowLogout] = useState(false);
+const nav = useNavigate();
 
   const [open, setOpen] = useState(false);
 
@@ -39,7 +35,14 @@ export default function AppLayout() {
     if (open) document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
-
+  
+ useEffect(() => {
+   bc.onmessage = (event) => {
+  if (event.data === "logout") {
+    nav("/login", { replace: true });
+  }
+};
+  }, [nav]);
   const NAV_ITEMS: NavItem[] = [
     { to: "/", label: "Dashboard", show: true },
     { to: "/productos", label: "Productos", show: true },
@@ -53,10 +56,22 @@ export default function AppLayout() {
     { to: "/inventario", label: "Inventario", show: canInventory },
   ];
 
+useEffect(() => {
+  document.body.style.overflow = showLogout ? "hidden" : "";
+  return () => {
+    document.body.style.overflow = "";
+  };
+}, [showLogout]);
   return (
     <div className="min-h-screen w-full overflow-x-hidden">
       {/* HEADER */}
-      <header className="sticky top-0 z-20 bg-brand-blue shadow text-black">
+        <header
+          className="
+            sticky top-0 z-30
+            h-16 sm:h-[72px]
+            bg-brand-blue shadow
+          "
+        >       
         <div
           className="
             mx-auto 
@@ -149,8 +164,13 @@ export default function AppLayout() {
             >
               {userName}
             </span>
-            <LogoutButton />
-          </div>
+            <LogoutButton
+              onClick={() => {
+                setOpen(false);
+                setShowLogout(true);
+              }}
+            />     
+            </div>
         </div>
       </header>
 
@@ -184,9 +204,35 @@ export default function AppLayout() {
       )}
 
       {/* CONTENIDO */}
-      <main className="mx-auto max-w-[1900px] px-3 sm:px-4 md:px-6 lg:px-10 py-6">
+      <main
+        className="
+          mx-auto 
+          max-w-[1900px]
+          px-3 sm:px-4 md:px-6 lg:px-10
+          pt-16 sm:pt-[72px]
+          pb-6
+        "
+      >
         <Outlet />
-      </main>
+              </main>
+              <ConfirmLogoutModal
+          open={showLogout}
+          onCancel={() => setShowLogout(false)}
+          onConfirm={() => {
+            setShowLogout(false);
+
+            // 🔴 iOS Safari fix (quita foco activo)
+            if (document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur();
+            }
+
+            setTimeout(() => {
+              logout(true);
+              nav("/login", { replace: true });
+            }, 50);
+          }}
+        />
     </div>
+    
   );
 }

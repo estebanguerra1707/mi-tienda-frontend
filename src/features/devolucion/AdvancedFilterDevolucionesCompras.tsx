@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/Button";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -18,9 +14,11 @@ interface Props {
   onClear: () => void;
 }
 
-export default function AdvancedFiltersDevolucionesCompras({ onApply, onClear }: Props) {
+export default function AdvancedFiltersDevolucionesCompras({
+  onApply,
+  onClear,
+}: Props) {
   const { data: users = [] } = useUsers();
-
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const FILTROS_DEFAULT: FiltrosDevoluciones = {
@@ -41,7 +39,6 @@ export default function AdvancedFiltersDevolucionesCompras({ onApply, onClear }:
   };
 
   const [filtros, setFiltros] = useState(FILTROS_DEFAULT);
-
   const [openStart, setOpenStart] = useState(false);
   const [openEnd, setOpenEnd] = useState(false);
 
@@ -56,7 +53,7 @@ export default function AdvancedFiltersDevolucionesCompras({ onApply, onClear }:
 
   const setDate = (key: "startDate" | "endDate", d?: Date) => {
     if (!d) {
-      setFiltros((prev) => ({ ...prev, [key]: undefined }));
+      setFiltros((p) => ({ ...p, [key]: undefined }));
       return;
     }
 
@@ -70,7 +67,7 @@ export default function AdvancedFiltersDevolucionesCompras({ onApply, onClear }:
       L.getDate()
     )}T${pad(L.getHours())}:${pad(L.getMinutes())}:${pad(L.getSeconds())}`;
 
-    setFiltros((prev) => ({ ...prev, [key]: formatted }));
+    setFiltros((p) => ({ ...p, [key]: formatted }));
   };
 
   const change = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -90,28 +87,45 @@ export default function AdvancedFiltersDevolucionesCompras({ onApply, onClear }:
     onClear();
   };
 
-  const cls = "border rounded px-3 py-2 w-full";
+  const cls =
+    "w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
-    <div className="p-4 bg-white border rounded shadow-sm space-y-4">
-      <h3 className="text-lg font-semibold">Filtro Devoluciones COMPRAS</h3>
+    <div className="space-y-4">
 
-      {/* SIMPLE */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <h3 className="text-base font-semibold">
+        Filtro devoluciones · Compras
+      </h3>
+      <p className="text-sm sm:text-base font-medium text-gray-700">
+        Busca una devolución hecha de una compra
+      </p>
 
-        <label className="flex flex-col">
-          <span>ID devolución</span>
+      {/* ---------------- SIMPLE ---------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">ID devolución</span>
           <input name="id" value={filtros.id} onChange={change} className={cls} />
         </label>
 
-        <label className="flex flex-col">
-          <span>Código de barras</span>
-          <input name="codigoBarras" value={filtros.codigoBarras} onChange={change} className={cls} />
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Código de barras</span>
+          <input
+            name="codigoBarras"
+            value={filtros.codigoBarras}
+            onChange={change}
+            className={cls}
+          />
         </label>
 
-        <label className="flex flex-col">
-          <span>Tipo devolución</span>
-          <select name="tipoDevolucion" value={filtros.tipoDevolucion} onChange={change} className={cls}>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Tipo devolución</span>
+          <select
+            name="tipoDevolucion"
+            value={filtros.tipoDevolucion}
+            onChange={change}
+            className={cls}
+          >
             <option value="">Todas</option>
             <option value="TOTAL">Total</option>
             <option value="PARCIAL">Parcial</option>
@@ -119,15 +133,17 @@ export default function AdvancedFiltersDevolucionesCompras({ onApply, onClear }:
         </label>
 
         {/* FECHAS */}
-        <div className="flex flex-col">
-          <span>Desde</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm">Desde</span>
           <Popover open={openStart} onOpenChange={setOpenStart}>
             <PopoverTrigger asChild>
               <Button variant="outline" className={cls}>
-                {startDate ? format(startDate, "dd MMM yyyy", { locale: es }) : "Seleccionar"}
+                {startDate
+                  ? format(startDate, "dd MMM yyyy", { locale: es })
+                  : "Seleccionar"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent>
+            <PopoverContent className="p-0">
               <Calendar
                 mode="single"
                 selected={startDate}
@@ -141,15 +157,17 @@ export default function AdvancedFiltersDevolucionesCompras({ onApply, onClear }:
           </Popover>
         </div>
 
-        <div className="flex flex-col">
-          <span>Hasta</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm">Hasta</span>
           <Popover open={openEnd} onOpenChange={setOpenEnd}>
             <PopoverTrigger asChild>
               <Button variant="outline" className={cls}>
-                {endDate ? format(endDate, "dd MMM yyyy", { locale: es }) : "Seleccionar"}
+                {endDate
+                  ? format(endDate, "dd MMM yyyy", { locale: es })
+                  : "Seleccionar"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent>
+            <PopoverContent className="p-0">
               <Calendar
                 mode="single"
                 selected={endDate}
@@ -162,90 +180,92 @@ export default function AdvancedFiltersDevolucionesCompras({ onApply, onClear }:
             </PopoverContent>
           </Popover>
         </div>
-
       </div>
 
-      {/* AVANZADO */}
+      {/* ---------------- AVANZADO ---------------- */}
       {showAdvanced && (
-        <div className="border-t pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 border-t">
 
-            <label className="flex flex-col">
-              <span>Usuario</span>
-              <select name="username" value={filtros.username} onChange={change} className={cls}>
-                <option value="">Todos</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.username}>
-                    {u.username}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm">Usuario</span>
+            <select
+              name="username"
+              value={filtros.username}
+              onChange={change}
+              className={cls}
+            >
+              <option value="">Todos</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.username}>
+                  {u.username}
+                </option>
+              ))}
+            </select>
+          </label>
 
-            <label className="flex flex-col">
-              <span>ID Compra</span>
-              <input name="compraId" value={filtros.compraId} onChange={change} className={cls} />
-            </label>
-            <label className="flex flex-col pt-6">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm">ID compra</span>
             <input
-                name="minMonto"
-                placeholder="Monto mínimo"
-                value={filtros.minMonto}
-                onChange={change}
-                className={cls}
+              name="compraId"
+              value={filtros.compraId}
+              onChange={change}
+              className={cls}
             />
-            </label>
+          </label>
 
-            <label className="flex flex-col">
-            <input
-                name="maxMonto"
-                placeholder="Monto máximo"
-                value={filtros.maxMonto}
-                onChange={change}
-                className={cls}
-            />
-            </label>
+          <input
+            name="minMonto"
+            placeholder="Monto mínimo"
+            value={filtros.minMonto}
+            onChange={change}
+            className={cls}
+          />
+          <input
+            name="maxMonto"
+            placeholder="Monto máximo"
+            value={filtros.maxMonto}
+            onChange={change}
+            className={cls}
+          />
 
-            <label className="flex flex-col">
-            <input
-                name="minCantidad"
-                placeholder="Cantidad mínima"
-                value={filtros.minCantidad}
-                onChange={change}
-                className={cls}
-            />
-            </label>
+          <input
+            name="minCantidad"
+            placeholder="Cantidad mínima"
+            value={filtros.minCantidad}
+            onChange={change}
+            className={cls}
+          />
+          <input
+            name="maxCantidad"
+            placeholder="Cantidad máxima"
+            value={filtros.maxCantidad}
+            onChange={change}
+            className={cls}
+          />
 
-            <label className="flex flex-col">
-            <input
-                name="maxCantidad"
-                placeholder="Cantidad máxima"
-                value={filtros.maxCantidad}
-                onChange={change}
-                className={cls}
-            />
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <input name="day" placeholder="Día" value={filtros.day} onChange={change} className={cls} />
-              <input name="month" placeholder="Mes" value={filtros.month} onChange={change} className={cls} />
-              <input name="year" placeholder="Año" value={filtros.year} onChange={change} className={cls} />
-            </div>
-
+          <div className="grid grid-cols-3 gap-2">
+            <input name="day" placeholder="Día" value={filtros.day} onChange={change} className={cls} />
+            <input name="month" placeholder="Mes" value={filtros.month} onChange={change} className={cls} />
+            <input name="year" placeholder="Año" value={filtros.year} onChange={change} className={cls} />
           </div>
         </div>
       )}
 
-      {/* BOTONES */}
-      <div className="flex justify-end gap-2 pt-4">
-        <Button onClick={apply} className="bg-blue-600 text-white">
+      {/* ---------------- BOTONES ---------------- */}
+      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        <Button className="bg-blue-600 text-white w-full sm:w-auto" onClick={apply}>
           Buscar
         </Button>
 
-        <Button variant="outline" onClick={clear}>
+        <Button variant="outline" className="w-full sm:w-auto" onClick={clear}>
           Limpiar
         </Button>
 
-        <Button variant="outline" onClick={() => setShowAdvanced(!showAdvanced)}>
+        <Button
+          variant="ghost"
+          className="w-full sm:w-auto"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+        >
           {showAdvanced ? "Ocultar avanzada" : "Búsqueda avanzada"}
         </Button>
       </div>

@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBranches } from "@/hooks/useCatalogs";
 
@@ -15,7 +17,7 @@ import { ResumenGananciasChart } from "../components/ResumenGanaciasChart";
 import { BrutasNetasChart } from "../components/BrutasNetasChart";
 import { GananciaPorVentaChart } from "../components/GananciaPorVentaChart";
 
-// Fechas por defecto
+// Fechas default
 const hoy = new Date().toISOString().slice(0, 10);
 const hace30 = new Date(Date.now() - 30 * 86400000)
   .toISOString()
@@ -25,24 +27,18 @@ export default function ReportesPage() {
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
 
-const branchesHook = useBranches({
-  isSuper,
-  businessTypeId: isSuper
-    ? undefined
-    : (auth.user?.businessType ?? null),
-  oneBranchId: !isSuper
-    ? (auth.user?.branchId ?? null)
-    : null,
-});
+  const branchesHook = useBranches({
+    isSuper,
+    businessTypeId: isSuper ? undefined : auth.user?.businessType ?? null,
+    oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
+  });
 
   const [branchId, setBranchId] = useState<number | null | undefined>(
     isSuper ? undefined : auth.user?.branchId ?? null
   );
-
   const [start, setStart] = useState(hace30);
   const [end, setEnd] = useState(hoy);
   const [shouldLoad, setShouldLoad] = useState(false);
-
   const [dataLoaded, setDataLoaded] = useState(false);
 
   const onBuscar = () => {
@@ -50,21 +46,18 @@ const branchesHook = useBranches({
     setDataLoaded(false);
   };
 
-  // GANANCIAS (por rango)
   const { resumen, diario, loading } = useGanancias({
     startDate: shouldLoad ? start : null,
     endDate: shouldLoad ? end : null,
     branchId: shouldLoad ? branchId ?? null : null,
   });
 
-  // BRUTAS / NETAS
   const { brutas, netas, loading: loadingBrutasNetas } = useBrutasNetas({
     startDate: shouldLoad ? start : null,
     endDate: shouldLoad ? end : null,
     branchId: shouldLoad ? branchId ?? null : null,
   });
 
-  // GANANCIA POR VENTA
   const [ventaIdInput, setVentaIdInput] = useState("");
   const ventaIdNumber = ventaIdInput ? Number(ventaIdInput) : null;
   const [shouldLoadVenta, setShouldLoadVenta] = useState(false);
@@ -90,32 +83,27 @@ const branchesHook = useBranches({
     }
   }, [loading, shouldLoad]);
 
-  // Series transformadas
   const serieDia = transformarGanancias(diario, "day");
   const serieSemana = transformarGanancias(diario, "week");
   const serieMes = transformarGanancias(diario, "month");
 
-  // SUBTABS
   const subtabsGanancia = [
-    {
-      label: "Por Día",
-      content: (
-        <GananciasChart titulo="Ganancia por Día" data={serieDia} />
-      ),
-    },
-    {
-      label: "Por Semana",
-      content: (
-        <GananciasChart titulo="Ganancia por Semana" data={serieSemana} />
-      ),
-    },
-    {
-      label: "Por Mes",
-      content: <GananciasChart titulo="Ganancia por Mes" data={serieMes} />,
-    },
+    { label: "Por Día", content: <GananciasChart titulo="Ganancia por Día" data={serieDia} /> },
+    { label: "Por Semana", content: <GananciasChart titulo="Ganancia por Semana" data={serieSemana} /> },
+    { label: "Por Mes", content: <GananciasChart titulo="Ganancia por Mes" data={serieMes} /> },
   ];
 
-  // TABS PRINCIPALES
+const branchName = useMemo(() => {
+  if (isSuper) return "";
+
+  if (!auth.user?.branchId) return "";
+
+  const branch = branchesHook.data.find(
+    (b) => b.id === auth.user?.branchId
+  );
+
+  return branch?.name ?? "";
+}, [isSuper, auth.user?.branchId, branchesHook.data]);
   const tabs = [
     {
       label: "Ganancias",
@@ -124,7 +112,7 @@ const branchesHook = useBranches({
           <IndicadorHoy valor={resumen?.hoy ?? 0} />
 
           {dataLoaded ? (
-            <div className="bg-white rounded-xl shadow p-6 border">
+            <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
               <Tabs tabs={subtabsGanancia} />
             </div>
           ) : (
@@ -139,18 +127,14 @@ const branchesHook = useBranches({
     {
       label: "Brutas / Netas",
       content: dataLoaded ? (
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="bg-white rounded-xl shadow p-6 border">
-            <h2 className="text-lg font-semibold mb-4">
-              Resumen de Ganancias
-            </h2>
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
+            <h2 className="text-lg font-semibold mb-4">Resumen de Ganancias</h2>
             {resumen && <ResumenGananciasChart data={resumen} />}
           </div>
 
-          <div className="bg-white rounded-xl shadow p-6 border">
-            <h2 className="text-lg font-semibold mb-4">
-              Ventas Brutas vs Netas
-            </h2>
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
+            <h2 className="text-lg font-semibold mb-4">Brutas vs Netas</h2>
             {loadingBrutasNetas ? (
               <p>Cargando...</p>
             ) : (
@@ -165,21 +149,18 @@ const branchesHook = useBranches({
       ),
     },
 
-    // GANANCIA POR VENTA
     {
       label: "Ganancia por Venta",
       content: (
-        <div className="bg-white rounded-xl shadow p-6 border">
-          <h2 className="text-lg font-semibold mb-4">Ganancia por Venta</h2>
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border space-y-6">
+          <h2 className="text-lg font-semibold">Ganancia por Venta</h2>
 
-          <div className="flex gap-4 mb-6 items-end">
-            <div className="flex flex-col">
-              <label className="text-sm font-medium text-gray-700">
-                ID Venta
-              </label>
+          <div className="grid grid-cols-1 sm:flex sm:items-end gap-4">
+            <div className="flex flex-col w-full sm:w-auto">
+              <label className="text-sm font-medium text-gray-700">ID Venta</label>
               <input
                 type="number"
-                className="border rounded-lg px-3 py-2 shadow-sm"
+                className="border rounded-lg px-3 py-2 shadow-sm w-full"
                 value={ventaIdInput}
                 onChange={(e) => {
                   setVentaIdInput(e.target.value);
@@ -191,7 +172,7 @@ const branchesHook = useBranches({
 
             <button
               onClick={onBuscarVenta}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition w-full sm:w-auto"
               disabled={!ventaIdNumber}
             >
               Buscar
@@ -199,17 +180,12 @@ const branchesHook = useBranches({
           </div>
 
           {!shouldLoadVenta ? (
-            <p className="text-gray-500">
-              Ingresa un ID y presiona <strong>Buscar</strong>.
-            </p>
+            <p className="text-gray-500">Ingresa un ID y presiona <strong>Buscar</strong>.</p>
           ) : loadingVenta ? (
             <p>Cargando...</p>
           ) : (
             ganancia != null && (
-              <GananciaPorVentaChart
-                ventaId={ventaIdNumber}
-                ganancia={ganancia}
-              />
+              <GananciaPorVentaChart ventaId={ventaIdNumber} ganancia={ganancia} />
             )
           )}
         </div>
@@ -218,35 +194,29 @@ const branchesHook = useBranches({
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* HEADER */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Reportes de Ganancias
-        </h1>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
+
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Reportes de Ganancias</h1>
         <p className="text-gray-500">
           Analiza ganancias, ventas brutas, netas y desglose por venta.
         </p>
       </div>
 
-      {/* FILTROS */}
-      <div className="bg-white rounded-xl shadow p-6 border mb-8">
-        <h2 className="text-lg font-semibold mb-4">Filtros del Reporte</h2>
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border space-y-6">
+        <h2 className="text-lg font-semibold">Filtros del Reporte</h2>
 
-        <div className="flex flex-wrap gap-6 items-end">
-          {/* Sucursal */}
-          {isSuper ? (
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Sucursal
-              </label>
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1">Sucursal</label>
+
+            {isSuper ? (
               <select
                 className="border rounded-lg px-3 py-2 shadow-sm"
                 value={branchId ?? ""}
                 onChange={(e) =>
-                  setBranchId(
-                    e.target.value ? Number(e.target.value) : undefined
-                  )
+                  setBranchId(e.target.value ? Number(e.target.value) : undefined)
                 }
               >
                 <option value="">Selecciona…</option>
@@ -256,25 +226,17 @@ const branchesHook = useBranches({
                   </option>
                 ))}
               </select>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-medium">Sucursal</label>
+            ) : (
               <input
                 className="border rounded-lg px-3 py-2 bg-gray-100 shadow-sm"
-                value={
-                  branchesHook.data.find(
-                    (b) => b.id === auth.user?.branchId
-                  )?.name ?? "Sucursal asignada"
-                }
+               value={branchName || "Sucursal asignada"}
                 readOnly
               />
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Fechas */}
-          <div>
-            <label className="block text-sm font-medium">Desde</label>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium">Desde</label>
             <input
               type="date"
               value={start}
@@ -283,8 +245,8 @@ const branchesHook = useBranches({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium">Hasta</label>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium">Hasta</label>
             <input
               type="date"
               value={end}
@@ -293,10 +255,9 @@ const branchesHook = useBranches({
             />
           </div>
 
-          {/* BOTÓN */}
           <button
             onClick={onBuscar}
-            className="px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 disabled:bg-gray-300 transition"
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 disabled:bg-gray-300 transition w-full sm:w-auto"
             disabled={rangoInvalido}
           >
             Buscar reporte
@@ -304,15 +265,12 @@ const branchesHook = useBranches({
         </div>
 
         {rangoInvalido && (
-          <p className="text-red-600 mt-4">
-            Selecciona una sucursal y un rango válido.
-          </p>
+          <p className="text-red-600 mt-2">Selecciona una sucursal y un rango válido.</p>
         )}
       </div>
 
-      {/* TABS PRINCIPALES */}
       {dataLoaded && (
-        <div className="bg-white rounded-xl shadow p-6 border">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
           <Tabs tabs={tabs} />
         </div>
       )}

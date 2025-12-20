@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo} from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCategories, useBranches, fetchBranchInfo, useBusinessTypes  } from "@/hooks/useCatalogs";
 
@@ -81,11 +81,8 @@ const branchesHook = useBranches({
   businessTypeId: isSuper
     ? (businessTypeId ? Number(businessTypeId) : undefined)
     : null,
-  oneBranchId: !isSuper
-    ? (user?.branchId ?? null)
-    : null,
+  oneBranchId: null,
 });
-
 
 useEffect(() => {
   if (isSuper) setCategoryId("");
@@ -142,7 +139,17 @@ useEffect(() => {
   // Clase de inputs para igualar AddProduct (px-3 py-2 + borde redondeado)
   const inputCls = "border rounded px-3 py-2";
   const selectCls = `${inputCls} disabled:bg-slate-100`;
+const branchName = useMemo(() => {
+  if (isSuper) return "";
 
+  if (!user?.branchId) return "";
+
+  const branch = branchesHook.data.find(
+    (b) => b.id === user.branchId
+  );
+
+  return branch?.name ?? "";
+}, [isSuper, user?.branchId, branchesHook.data]);
   return (
     <div className="rounded border p-3 grid gap-3 sm:grid-cols-3">
       <label className="flex flex-col gap-1">
@@ -165,13 +172,13 @@ useEffect(() => {
         />
       </label>
         {/* Sucursal */}
-        {isVendor ? (
+       {(isVendor || isAdmin) ? (
         <label className="flex flex-col gap-1">
             <span className="text-sm">Sucursal</span>
             <input
             type="text"
             readOnly
-            value={user?.branchName ?? "Sucursal asignada"}
+            value={branchName || "Sucursal asignada"}
             className="border rounded px-3 py-2 bg-slate-100 cursor-not-allowed"
             />
         </label>

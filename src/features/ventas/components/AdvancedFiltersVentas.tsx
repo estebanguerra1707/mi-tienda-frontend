@@ -14,7 +14,10 @@ interface Props {
   showId?: boolean;
 }
 
-export default function AdvancedFiltersVentas({ onApply, showId = false }: Props) {
+export default function AdvancedFiltersVentas({
+  onApply,
+  showId = false,
+}: Props) {
   const [filtros, setFiltros] = useState<Record<string, string | undefined>>({
     clientId: "",
     paymentMethodId: "",
@@ -46,39 +49,41 @@ export default function AdvancedFiltersVentas({ onApply, showId = false }: Props
 
   const setDate = (key: "startDate" | "endDate", d?: Date) => {
     if (!d) {
-      setFiltros((prev) => ({ ...prev, [key]: undefined }));
+      setFiltros((p) => ({ ...p, [key]: undefined }));
       return;
     }
-    const localDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    if (key === "startDate") localDate.setHours(0, 0, 0, 0);
-    else localDate.setHours(23, 59, 59, 999);
+
+    const local = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (key === "startDate") local.setHours(0, 0, 0, 0);
+    else local.setHours(23, 59, 59, 999);
 
     const pad = (n: number) => String(n).padStart(2, "0");
-    const formatted = `${localDate.getFullYear()}-${pad(localDate.getMonth() + 1)}-${pad(
-      localDate.getDate()
-    )}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}:${pad(localDate.getSeconds())}`;
+    const formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(
+      local.getDate()
+    )}T${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(
+      local.getSeconds()
+    )}`;
 
-    setFiltros((prev) => ({ ...prev, [key]: formatted }));
+    setFiltros((p) => ({ ...p, [key]: formatted }));
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
 
     if (value === "" || value === "NaN") {
-      setFiltros((prev) => ({ ...prev, [name]: undefined }));
+      setFiltros((p) => ({ ...p, [name]: undefined }));
       return;
     }
 
-    if (name === "clientId" || name === "paymentMethodId") {
-      setFiltros((prev) => ({ ...prev, [name]: String(value) }));
-      return;
-    }
-
-    setFiltros((prev) => ({ ...prev, [name]: value }));
+    setFiltros((p) => ({ ...p, [name]: value }));
   };
 
   const apply = () => {
-    const clean = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v != null && v !== ""));
+    const clean = Object.fromEntries(
+      Object.entries(filtros).filter(([, v]) => v != null && v !== "")
+    );
     onApply({ ...clean, page: "1" });
   };
 
@@ -88,201 +93,163 @@ export default function AdvancedFiltersVentas({ onApply, showId = false }: Props
   };
 
   const inputCls =
-    "w-full border rounded-lg px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition bg-white";
+    "w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
-    <div className="p-4 sm:p-6 rounded-2xl bg-white shadow-md border space-y-6 
-                    max-w-full mx-auto 
-                    [&>*]:text-gray-900">
+    <div className="space-y-4">
 
-      <h3 className="text-xl font-semibold tracking-tight text-gray-800">
+      <h3 className="text-base font-semibold">
         Filtros de ventas
       </h3>
+      <p className="text-sm sm:text-base font-medium text-gray-700">
+        Busca una venta, selecciona y haz devolución de producto
+      </p>
 
-      {/* Filtros principales */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      {/* ---------- FILTROS PRINCIPALES ---------- */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
 
         {showId && (
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Folio (ID)</span>
-            <input
-              name="id"
-              value={filtros.id ?? ""}
-              onChange={handleChange}
-              placeholder="Ej: 21"
-              className={inputCls}
-            />
-          </label>
+          <input
+            name="id"
+            value={filtros.id ?? ""}
+            onChange={handleChange}
+            placeholder="Folio (ID)"
+            className={inputCls}
+          />
         )}
 
-        {/* Cliente */}
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Cliente</span>
-          <select name="clientId" value={filtros.clientId ?? ""} onChange={handleChange} className={inputCls}>
-            <option value="">Todos</option>
-            {clients.map((c) => (
-              <option key={c.id} value={String(c.id)}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <select
+          name="clientId"
+          value={filtros.clientId ?? ""}
+          onChange={handleChange}
+          className={inputCls}
+        >
+          <option value="">Cliente</option>
+          {clients.map((c) => (
+            <option key={c.id} value={String(c.id)}>
+              {c.name}
+            </option>
+          ))}
+        </select>
 
-        {/* Método de pago */}
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Método de pago</span>
-          <select
-            name="paymentMethodId"
-            value={filtros.paymentMethodId ?? ""}
-            onChange={handleChange}
-            className={inputCls}
-          >
-            <option value="">Todos</option>
-            {paymentMethods.map((m) => (
-              <option key={m.id} value={String(m.id)}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <select
+          name="paymentMethodId"
+          value={filtros.paymentMethodId ?? ""}
+          onChange={handleChange}
+          className={inputCls}
+        >
+          <option value="">Método de pago</option>
+          {paymentMethods.map((m) => (
+            <option key={m.id} value={String(m.id)}>
+              {m.name}
+            </option>
+          ))}
+        </select>
 
-        {/* Fechas */}
-        <div className="flex flex-col sm:flex-row lg:col-span-4 gap-4">
+        {/* FECHAS */}
+        <div className="flex flex-col sm:flex-row lg:col-span-4 gap-3">
 
-          {/* Desde */}
-          <div className="flex flex-col gap-1 w-full">
-            <span className="text-sm font-medium">Desde</span>
-            <Popover open={openStart} onOpenChange={setOpenStart}>
-              <PopoverTrigger asChild>
-                <button className={`${inputCls} text-left`}>
-                  {startDate ? format(startDate, "dd 'de' MMMM yyyy", { locale: es }) : "Seleccionar fecha"}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0 shadow-lg rounded-xl">
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={(d) => {
-                    setDate("startDate", d);
-                    setOpenStart(false);
-                  }}
-                  initialFocus
-                  locale={es}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <Popover open={openStart} onOpenChange={setOpenStart}>
+            <PopoverTrigger asChild>
+              <button className={`${inputCls} text-left`}>
+                {startDate
+                  ? format(startDate, "dd MMM yyyy", { locale: es })
+                  : "Desde"}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={(d) => {
+                  setDate("startDate", d);
+                  setOpenStart(false);
+                }}
+                locale={es}
+              />
+            </PopoverContent>
+          </Popover>
 
-          {/* Hasta */}
-          <div className="flex flex-col gap-1 w-full">
-            <span className="text-sm font-medium">Hasta</span>
-            <Popover open={openEnd} onOpenChange={setOpenEnd}>
-              <PopoverTrigger asChild>
-                <button className={`${inputCls} text-left`}>
-                  {endDate ? format(endDate, "dd 'de' MMMM yyyy", { locale: es }) : "Seleccionar fecha"}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0 shadow-lg rounded-xl">
-                <Calendar
-                  mode="single"
-                  selected={endDate}
-                  onSelect={(d) => {
-                    setDate("endDate", d);
-                    setOpenEnd(false);
-                  }}
-                  initialFocus
-                  locale={es}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <Popover open={openEnd} onOpenChange={setOpenEnd}>
+            <PopoverTrigger asChild>
+              <button className={`${inputCls} text-left`}>
+                {endDate
+                  ? format(endDate, "dd MMM yyyy", { locale: es })
+                  : "Hasta"}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0">
+              <Calendar
+                mode="single"
+                selected={endDate}
+                onSelect={(d) => {
+                  setDate("endDate", d);
+                  setOpenEnd(false);
+                }}
+                locale={es}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
-      {/* Botones principales */}
-      <div className="flex flex-wrap justify-end gap-3">
-        <Button onClick={apply} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm sm:text-base">
+      {/* ---------- BOTONES ---------- */}
+      <div className="flex flex-col sm:flex-row gap-2 justify-end">
+        <Button className="bg-blue-600 text-white w-full sm:w-auto" onClick={apply}>
           Buscar
         </Button>
 
-        <Button variant="outline" onClick={clear} className="px-5 py-2 rounded-lg text-sm sm:text-base">
+        <Button variant="outline" className="w-full sm:w-auto" onClick={clear}>
           Limpiar
         </Button>
 
         {!showAdvanced && (
-          <Button variant="outline" onClick={() => setShowAdvanced(true)} className="px-5 py-2 rounded-lg">
+          <Button
+            variant="ghost"
+            className="w-full sm:w-auto"
+            onClick={() => setShowAdvanced(true)}
+          >
             Búsqueda avanzada
           </Button>
         )}
       </div>
 
-      {/* Filtros avanzados */}
+      {/* ---------- AVANZADO ---------- */}
       {showAdvanced && (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t pt-6">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t pt-3">
 
-          {/* Min */}
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Monto mínimo</span>
-            <input
-              name="min"
-              type="number"
-              value={filtros.min ?? ""}
-              onChange={handleChange}
-              className={inputCls}
-              placeholder="0.00"
-            />
-          </label>
+          <input name="min" placeholder="Monto mínimo" value={filtros.min ?? ""} onChange={handleChange} className={inputCls} />
+          <input name="max" placeholder="Monto máximo" value={filtros.max ?? ""} onChange={handleChange} className={inputCls} />
 
-          {/* Max */}
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Monto máximo</span>
-            <input
-              name="max"
-              type="number"
-              value={filtros.max ?? ""}
-              onChange={handleChange}
-              className={inputCls}
-              placeholder="0.00"
-            />
-          </label>
-
-          {/* Día / Mes / Año */}
           <div className="grid grid-cols-3 gap-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Día</span>
-              <input name="day" type="number" value={filtros.day ?? ""} onChange={handleChange} className={inputCls} placeholder="dd" />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Mes</span>
-              <input name="month" type="number" value={filtros.month ?? ""} onChange={handleChange} className={inputCls} placeholder="mm" />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Año</span>
-              <input name="year" type="number" value={filtros.year ?? ""} onChange={handleChange} className={inputCls} placeholder="yyyy" />
-            </label>
+            <input name="day" placeholder="Día" value={filtros.day ?? ""} onChange={handleChange} className={inputCls} />
+            <input name="month" placeholder="Mes" value={filtros.month ?? ""} onChange={handleChange} className={inputCls} />
+            <input name="year" placeholder="Año" value={filtros.year ?? ""} onChange={handleChange} className={inputCls} />
           </div>
 
-          {/* Activo */}
-          <div className="flex flex-col gap-1 lg:col-span-3">
-            <span className="text-sm font-medium">Activo</span>
-            <select name="active" value={filtros.active ?? ""} onChange={handleChange} className={inputCls}>
-              <option value="">Todos</option>
-              <option value="true">Sólo activos</option>
-              <option value="false">Sólo inactivos</option>
-            </select>
-          </div>
+          <select
+            name="active"
+            value={filtros.active ?? ""}
+            onChange={handleChange}
+            className={`${inputCls} lg:col-span-3`}
+          >
+            <option value="">Activo</option>
+            <option value="true">Sólo activos</option>
+            <option value="false">Sólo inactivos</option>
+          </select>
 
-          {/* Botones */}
-          <div className="flex flex-wrap justify-end gap-3 lg:col-span-3 pt-2">
-            <Button onClick={apply} className="bg-blue-600 text-white px-5 py-2 rounded-lg">
+          <div className="flex flex-col sm:flex-row gap-2 justify-end lg:col-span-3">
+            <Button className="bg-blue-600 text-white w-full sm:w-auto" onClick={apply}>
               Aplicar
             </Button>
-            <Button variant="outline" onClick={clear} className="px-5 py-2 rounded-lg">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={clear}>
               Limpiar
             </Button>
-            <Button variant="outline" onClick={() => setShowAdvanced(false)} className="px-5 py-2 rounded-lg">
+            <Button
+              variant="ghost"
+              className="w-full sm:w-auto"
+              onClick={() => setShowAdvanced(false)}
+            >
               Ocultar avanzada
             </Button>
           </div>

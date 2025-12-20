@@ -1,22 +1,24 @@
-// src/components/LogoutButton.tsx
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+interface Props {
+  onClick: () => void;
+}
 
-export default function LogoutButton() {
-  const { logout } = useAuth();
-  const nav = useNavigate();
-
-  function handleLogout() {
-    logout(true);
-    nav("/login", { replace: true });
-  }
-
+export default function LogoutButton({ onClick }: Props) {
   return (
     <button
-      onClick={handleLogout}
-      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+      type="button"
+      onClick={onClick}
+      className="
+        flex items-center gap-2
+        px-3 py-2
+        bg-red-600 text-white
+        rounded-lg
+        hover:bg-red-700
+        active:scale-95
+        transition
+      "
     >
-      Cerrar sesión
+      🚪
+      <span className="hidden sm:inline">Cerrar sesión</span>
     </button>
   );
 }

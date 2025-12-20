@@ -1,4 +1,3 @@
-// src/features/inventario/components/AddInventoryButton.tsx
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useForm, Resolver } from "react-hook-form";
@@ -18,7 +17,6 @@ import type { Product } from "@/features/productos/api";
 type ProductLite = Pick<Product, "id" | "name" | "sku">;
 
 type Role = "ADMIN" | "VENDOR" | "SUPER_ADMIN";
-
 const schema = z.object({
   productId: z.coerce.number().int().min(1, "Producto requerido"),
   // branchId es requerido solo para SUPER (para otros lo inyectamos desde sesión)
@@ -45,6 +43,7 @@ export default function AddInventoryButton({ onCreated }: { onCreated?: () => vo
 
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+const [branchName, setBranchName] = useState<string>("");
 
   // ------- Branches (catálogo) -------
   const branchesHook = useBranches({
@@ -140,6 +139,7 @@ const productOptions = useMemo(() => {
 
   const onClose = () => {
     setOpen(false);
+      setBranchName("");
     reset();
   };
 
@@ -161,6 +161,19 @@ const productOptions = useMemo(() => {
       setToast({ type: "error", message: getErrorMessage(e) });
     }
   };
+useEffect(() => {
+  if (!open || isSuper) return;
+
+  const branchId = auth.user?.branchId;
+  if (!branchId) return;
+
+  if (branchesHook.data.length === 0) return;
+
+  const branch = branchesHook.data.find((b) => b.id === branchId);
+  if (branch) {
+    setBranchName(branch.name);
+  }
+}, [open, isSuper, auth.user?.branchId, branchesHook.data]);
 
   return (
     <>
@@ -206,9 +219,8 @@ const productOptions = useMemo(() => {
                 ) : (
                   <label className="block">
                     <span className="text-sm">Sucursal</span>
-                    <input className="border rounded px-3 py-2 w-full bg-slate-100" value={
-                      branchesHook.data.find(b => b.id === (auth.user?.branchId ?? 0))?.name ?? "Sucursal asignada"
-                    } readOnly />
+                    <input className="border rounded px-3 py-2 w-full bg-slate-100" value={branchName || "Sucursal asignada"}
+                     readOnly />
                     <input type="hidden" {...register("branchId", { valueAsNumber: true })} value={auth.user?.branchId ?? ""} readOnly />
                   </label>
                 )}

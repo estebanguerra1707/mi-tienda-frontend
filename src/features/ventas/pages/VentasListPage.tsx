@@ -128,50 +128,65 @@ export default function VentasListPage() {
     });
   }, [ventas.data?.content, localSort, collator]);
 
+
   return (
-    <div className="mx-auto max-w-7xl p-6 space-y-6">
+  <div className="mx-auto max-w-7xl p-4 sm:p-6 space-y-6">
 
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-          Ventas
-        </h1>
+    {/* HEADER */}
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+        Ventas
+      </h1>
 
-       <div className="shadow-md hover:shadow-lg transition rounded-xl inline-block">
+      <div className="shadow-md hover:shadow-lg transition rounded-xl inline-block">
         <AddVentaButton onCreated={() => ventas.refetch()} />
       </div>
-      </div>
+    </div>
 
-      {/* FILTROS VISUALES */}
-      <div className="bg-white p-5 rounded-xl shadow border">
-        <AdvancedFiltersVentas onApply={onApplyFilters} showId={true} />
-      </div>
+    {/* FILTROS */}
+    <div className="bg-white p-5 rounded-xl shadow border">
+      <AdvancedFiltersVentas onApply={onApplyFilters} showId={true} />
+    </div>
 
-      {/* TABLA */}
-      <div className="rounded-xl border bg-white shadow overflow-auto">
+    {/* TABLA */}
+    <div className="rounded-xl border bg-white shadow overflow-hidden">
+      <div className="overflow-x-auto no-scrollbar">
         <table className="min-w-[1000px] w-full text-sm">
-          <thead className="bg-slate-50 border-b">
-            <tr>
+          <thead className="bg-slate-100 border-b sticky top-0 z-10">
+            <tr className="text-gray-700">
+
               <th className="px-4 py-3">
-                <button onClick={() => toggleSort("id")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
+                <button
+                  onClick={() => toggleSort("id")}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600"
+                >
                   ID Venta <Arrow k="id" />
                 </button>
               </th>
 
               <th className="px-4 py-3">
-                <button onClick={() => toggleSort("clientName")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
+                <button
+                  onClick={() => toggleSort("clientName")}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600"
+                >
                   Cliente <Arrow k="clientName" />
                 </button>
               </th>
 
               <th className="px-4 py-3">
-                <button onClick={() => toggleSort("saleDate")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
+                <button
+                  onClick={() => toggleSort("saleDate")}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600"
+                >
                   Fecha <Arrow k="saleDate" />
                 </button>
               </th>
 
               <th className="px-4 py-3">
-                <button onClick={() => toggleSort("paymentMethodName")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
+                <button
+                  onClick={() => toggleSort("paymentMethodName")}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600"
+                >
                   Método pago <Arrow k="paymentMethodName" />
                 </button>
               </th>
@@ -194,16 +209,18 @@ export default function VentasListPage() {
                     Vendido por <Arrow k="userName" />
                   </button>
                 </th>
-              )}
-
-              <th className="px-4 py-3 font-semibold">Acciones</th>
+                
+                )}
+                {isSuperAdmin && (
+                            <th className="px-4 py-3 font-semibold text-center">Acciones</th>      
+                            )}             
             </tr>
           </thead>
 
           <tbody>
             {ventas.isLoading && (
               <tr>
-                <td colSpan={7} className="p-4 text-center">
+                <td colSpan={7} className="p-4 text-center text-gray-500">
                   Cargando…
                 </td>
               </tr>
@@ -213,19 +230,28 @@ export default function VentasListPage() {
               <tr
                 key={v.id}
                 onClick={() => handleRowClick(v)}
-                className="border-t hover:bg-slate-50 transition cursor-pointer"
+                className="border-t hover:bg-blue-50 transition cursor-pointer"
               >
                 <td className="px-4 py-3">{v.id}</td>
                 <td className="px-4 py-3">{v.clientName}</td>
+
                 <td className="px-4 py-3">
                   {isSuperAdmin
-                    ? new Date(v.saleDate).toLocaleString("es-MX")
+                    ? new Date(v.saleDate).toLocaleString("es-MX", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false,
+                      })
                     : new Date(v.saleDate).toLocaleDateString("es-MX")}
                 </td>
 
                 <td className="px-4 py-3">{v.paymentMethodName}</td>
 
-                <td className="px-4 py-3 text-right font-semibold">
+                <td className="px-4 py-3 text-right font-semibold text-gray-700">
                   ${(v.amountPaid ?? 0).toFixed(2)}
                 </td>
 
@@ -233,15 +259,17 @@ export default function VentasListPage() {
                   <td className="px-4 py-3 text-center">{v.userName}</td>
                 )}
 
-                <td
-                  className="px-4 py-3"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <DeleteVentaButton
-                    id={v.id}
-                    onDeleted={() => ventas.refetch()}
-                  />
-                </td>
+                {isSuperAdmin && (
+              <td
+                className="px-4 py-3 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <DeleteVentaButton
+                  id={v.id}
+                  onDeleted={() => ventas.refetch()}
+                />
+              </td>
+              )}
               </tr>
             ))}
 
@@ -255,39 +283,40 @@ export default function VentasListPage() {
           </tbody>
         </table>
       </div>
-
-      {/* PAGINACIÓN */}
-      <div className="pt-4 flex justify-end gap-2">
-        <Button
-          variant="outline"
-          disabled={params.page === 0}
-          onClick={() =>
-            setParams((p) => ({ ...p, page: Math.max(0, p.page - 1) }))
-          }
-        >
-          Anterior
-        </Button>
-
-        <span className="px-2 py-2 text-sm text-slate-600">
-          Página {params.page + 1}
-        </span>
-
-        <Button
-          variant="outline"
-          disabled={ventas.data?.last}
-          onClick={() => setParams((p) => ({ ...p, page: p.page + 1 }))}
-        >
-          Siguiente
-        </Button>
-      </div>
-
-      {/* MODAL DETALLE */}
-      {openDetalle && selectedVenta && (
-        <VentaDetalleModal
-          venta={selectedVenta}
-          onClose={() => setOpenDetalle(false)}
-        />
-      )}
     </div>
-  );
+
+    {/* PAGINACIÓN */}
+    <div className="pt-4 flex justify-center sm:justify-end gap-3 items-center">
+      <Button
+        variant="outline"
+        disabled={params.page === 0}
+        onClick={() =>
+          setParams((p) => ({ ...p, page: Math.max(0, p.page - 1) }))
+        }
+      >
+        ← Anterior
+      </Button>
+
+      <span className="px-2 py-2 text-sm text-slate-600">
+        Página <strong>{params.page + 1}</strong>
+      </span>
+
+      <Button
+        variant="outline"
+        disabled={ventas.data?.last}
+        onClick={() => setParams((p) => ({ ...p, page: p.page + 1 }))}
+      >
+        Siguiente →
+      </Button>
+    </div>
+
+    {/* MODAL DETALLE */}
+    {openDetalle && selectedVenta && (
+      <VentaDetalleModal
+        venta={selectedVenta}
+        onClose={() => setOpenDetalle(false)}
+      />
+    )}
+  </div>
+);
 }

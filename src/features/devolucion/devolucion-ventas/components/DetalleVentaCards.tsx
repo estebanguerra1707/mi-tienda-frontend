@@ -9,34 +9,47 @@ interface Props {
   onSelectDetalle: (d: DetalleVentaResponseDTO) => void;
 }
 
-export default function DetalleVentaCard({ venta, onSelectDetalle }: Props) {
+export default function DetalleVentaCard({
+  venta,
+  onSelectDetalle,
+}: Props) {
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 border border-gray-200">
-      <h2 className="text-2xl font-semibold mb-6 text-gray-800">
-        Productos de la venta <span className="text-blue-600">#{venta.id}</span>
+    <div className="space-y-3">
+
+      {/* HEADER SIMPLE */}
+      <h2 className="text-base font-semibold">
+        Productos · Venta #{venta.id}
       </h2>
 
-      <div className="grid gap-4">
+      {/* LISTA MOBILE-FIRST */}
+      <div className="space-y-2">
         {venta.details?.map((d) => (
           <button
             key={d.productId}
             onClick={() => onSelectDetalle(mapVentaDetalleToDTO(d))}
-            className="flex justify-between items-center p-4 rounded-lg border border-gray-200 shadow-sm 
-              hover:bg-blue-50 hover:border-blue-400 transition duration-150 text-left"
+            className="
+              w-full flex justify-between items-center
+              px-3 py-3
+              border rounded-lg
+              text-left
+              active:bg-blue-100 hover:bg-blue-50
+              transition
+            "
           >
-            <div>
-              <p className="text-gray-700 font-medium text-lg">{d.productName}</p>
-
-              <p className="text-sm text-gray-600">
-                <b>Cantidad:</b> {d.quantity}
+            <div className="space-y-0.5">
+              <p className="font-medium text-gray-800">
+                {d.productName}
               </p>
 
-              <p className="text-sm text-gray-600">
-                <b>Precio:</b> ${d.unitPrice.toFixed(2)}
+              <p className="text-xs text-gray-600">
+                Cant: {d.quantity} · ${d.unitPrice.toFixed(2)}
               </p>
             </div>
 
-            <span className="text-blue-600 font-semibold">Ver detalle →</span>
+            {/* INDICADOR */}
+            <span className="text-blue-600 text-lg leading-none">
+              ›
+            </span>
           </button>
         ))}
       </div>

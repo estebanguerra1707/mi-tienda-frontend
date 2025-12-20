@@ -28,7 +28,6 @@ export default function DevolucionesPage() {
 
   const cambiarTab = (nuevo: TabName) => {
     setTab(nuevo);
-
     refCompras.current?.limpiar?.();
     refVentas.current?.limpiar?.();
     devolucionesRef.current?.limpiar?.();
@@ -36,68 +35,57 @@ export default function DevolucionesPage() {
   };
 
   return (
-    <div className="p-6 space-y-8 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-4">
 
-      {/* ---------------- TABS MODERNIZADOS ---------------- */}
-      <div className="bg-white rounded-xl shadow-md border p-3">
-        <div className="flex gap-4">
-
-          {[
-            { key: "compras", label: "Devolución Compras" },
-            { key: "Filtrar devoluciones compras", label: "Filtro Compras" },
-            { key: "ventas", label: "Devolución Ventas" },
-            { key: "Filtrar devoluciones ventas", label: "Filtro Ventas" },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => cambiarTab(t.key as TabName)}
-              className={`
-                px-4 py-2 font-medium rounded-lg transition
-                ${
-                  tab === t.key
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "text-gray-600 hover:bg-gray-100"
-                }
-              `}
-            >
-              {t.label}
-            </button>
-          ))}
-
-        </div>
+      {/* ------------------- TABS MOBILE-FIRST (SIN CARD) ------------------- */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        {[
+          { key: "compras", label: "Compras" },
+          { key: "Filtrar devoluciones compras", label: "Filtro Compras" },
+          { key: "ventas", label: "Ventas" },
+          { key: "Filtrar devoluciones ventas", label: "Filtro Ventas" },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => cambiarTab(t.key as TabName)}
+            className={`
+              px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
+              transition
+              ${
+                tab === t.key
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 active:bg-gray-200"
+              }
+            `}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* ---------------- CONTENIDO ---------------- */}
-      <div className="bg-white rounded-xl shadow-md border p-6 transition">
+      {/* ------------------- CONTENIDO (UNA SOLA CARD SUAVE) ------------------- */}
+      <div className="bg-white rounded-xl border p-3 sm:p-5">
 
         {tab === "compras" && (
-          <div className="shadow-sm hover:shadow-lg transition rounded-xl p-2">
-            <NuevaDevolucionPage ref={refCompras} />
-          </div>
+          <NuevaDevolucionPage ref={refCompras} />
         )}
 
         {tab === "ventas" && (
-          <div className="shadow-sm hover:shadow-lg transition rounded-xl p-2">
-            <NuevaDevolucionVentaPage ref={refVentas} />
-          </div>
+          <NuevaDevolucionVentaPage ref={refVentas} />
         )}
 
         {tab === "Filtrar devoluciones ventas" && (
-          <div className="shadow-sm hover:shadow-lg transition rounded-xl p-2">
-            <BuscadorAvanzadoDevoluciones
-              ref={devolucionesRef}
-              onSelect={(dev) =>
-                console.log("Devolución seleccionada:", dev)
-              }
-              onClearFilters={() => devolucionesRef.current?.limpiar()}
-            />
-          </div>
+          <BuscadorAvanzadoDevoluciones
+            ref={devolucionesRef}
+            onSelect={(dev) =>
+              console.log("Devolución seleccionada:", dev)
+            }
+            onClearFilters={() => devolucionesRef.current?.limpiar()}
+          />
         )}
 
         {tab === "Filtrar devoluciones compras" && (
-          <div className="shadow-sm hover:shadow-lg transition rounded-xl p-2">
-            <BusquedaDevolucionesComprasPage ref={refSearchCompras} />
-          </div>
+          <BusquedaDevolucionesComprasPage ref={refSearchCompras} />
         )}
 
       </div>

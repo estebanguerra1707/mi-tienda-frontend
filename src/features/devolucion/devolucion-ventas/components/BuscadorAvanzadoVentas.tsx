@@ -18,14 +18,14 @@ export interface BuscadorAvanzadoVentasHandle {
 
 export interface Props {
   onSelect: (venta: VentaItem) => void;
+  selectedId?: number;
 }
 
 const BuscadorAvanzadoVentas = forwardRef<
   BuscadorAvanzadoVentasHandle,
   Props
->(({ onSelect }, ref: ForwardedRef<BuscadorAvanzadoVentasHandle>) => {
+>(({ onSelect, selectedId }, ref: ForwardedRef<BuscadorAvanzadoVentasHandle>) => {
 
-  // 🔹 filtros completos (incluye ID)
   const [filtros, setFiltros] = useState<VentaSearchFiltro>({});
   const [buscado, setBuscado] = useState(false);
 
@@ -34,7 +34,6 @@ const BuscadorAvanzadoVentas = forwardRef<
     { enabled: buscado }
   );
 
-  // 🔹 método limpiar()
   useImperativeHandle(ref, () => ({
     limpiar() {
       setFiltros({});
@@ -43,16 +42,14 @@ const BuscadorAvanzadoVentas = forwardRef<
   }));
 
   const aplicarFiltros = (next: VentaSearchFiltro) => {
-    // 👉 Si viene vacío, es un "Limpiar", no un "Buscar"
     const isClear = Object.keys(next).length === 0;
 
     if (isClear) {
       setFiltros({});
-      setBuscado(false);   // ⬅️ Ocultamos resultados
-      return;              // ⬅️ No llamamos a la API
+      setBuscado(false);
+      return;
     }
 
-    // 👉 Aquí sí es un "Buscar"
     setFiltros(next);
     setBuscado(true);
   };
@@ -60,39 +57,59 @@ const BuscadorAvanzadoVentas = forwardRef<
   const ventas = data?.content ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
 
-      {/* SOLO FILTROS AVANZADOS – SIN BÚSQUEDA SIMPLE */}
-     <AdvancedFiltersVentas onApply={aplicarFiltros} showId={true} />
+      {/* FILTROS */}
+      <AdvancedFiltersVentas onApply={aplicarFiltros} showId={true} />
 
-      {/* Resultados */}
+      {/* SIN RESULTADOS */}
       {buscado && ventas.length === 0 && (
-        <p className="text-gray-500 text-sm">No se encontraron resultados.</p>
+        <p className="text-sm text-gray-500">
+          No se encontraron resultados.
+        </p>
       )}
 
+      {/* LISTA MOBILE-FIRST */}
       {buscado && ventas.length > 0 && (
         <div className="space-y-2">
-          {ventas.map((v: VentaItem) => (
-            <button
-              key={v.id}
-              onClick={() => onSelect(v)}
-              className="w-full text-left p-4 border rounded-md hover:bg-blue-50"
-            >
-              <p className="font-semibold">Venta #{v.id}</p>
+          {ventas.map((v) => {
+            const selected = selectedId === v.id;
 
-              <p className="text-sm text-gray-600">
-                {new Date(v.saleDate).toLocaleString()} – ${v.amountPaid} MXN
-              </p>
+            return (
+              <button
+                key={v.id}
+                onClick={() => onSelect(v)}
+                className={`
+                  w-full flex justify-between items-center
+                  px-3 py-3
+                  rounded-lg border
+                  text-left transition
+                  ${selected
+                    ? "bg-blue-100 border-blue-400 ring-2 ring-blue-300"
+                    : "border-gray-200 hover:bg-blue-50 active:bg-blue-100"}
+                `}
+              >
+                <div className="space-y-0.5">
+                  <p className="font-medium text-gray-800">
+                    Venta #{v.id}
+                  </p>
 
-              <p className="text-sm text-gray-600">
-                Cliente: {v.clientName}
-              </p>
+                  <p className="text-xs text-gray-600">
+                    {new Date(v.saleDate).toLocaleString()} · ${v.amountPaid} MXN
+                  </p>
 
-              <p className="text-sm text-gray-600">
-                Pago: {v.paymentMethodName}
-              </p>
-            </button>
-          ))}
+                  <p className="text-xs text-gray-600">
+                    {v.clientName} · {v.paymentMethodName}
+                  </p>
+                </div>
+
+                {/* INDICADOR TÁCTIL */}
+                <span className="text-blue-600 text-lg leading-none">
+                  ›
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

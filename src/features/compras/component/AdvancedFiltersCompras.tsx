@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useProviders } from "@/hooks/useCatalogs";
+import { useProveedores } from "@/hooks/useProveedores";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/Button";
@@ -14,7 +14,6 @@ interface Props {
 }
 
 export default function AdvancedFiltersCompras({ params, onApply }: Props) {
-  // ---------- estado local ----------
   const [filtros, setFiltros] = useState<Record<string, string | undefined>>({
     supplier: params.get("supplier") ?? "",
     start: params.get("start") ?? "",
@@ -27,10 +26,11 @@ export default function AdvancedFiltersCompras({ params, onApply }: Props) {
     active: params.get("active") ?? "",
   });
 
-  const { data: providers = [], loading } = useProviders({});
+const { data: providers = [], isLoading } = useProveedores();
 
   const [openStart, setOpenStart] = useState(false);
   const [openEnd, setOpenEnd] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const parseLocalDate = (str?: string) => {
     if (!str) return undefined;
@@ -47,17 +47,22 @@ export default function AdvancedFiltersCompras({ params, onApply }: Props) {
       return;
     }
 
-    const localDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    if (key === "start") localDate.setHours(0, 0, 0, 0);
-    else localDate.setHours(23, 59, 59, 999);
+    const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (key === "start") dt.setHours(0, 0, 0, 0);
+    else dt.setHours(23, 59, 59, 999);
 
     const pad = (n: number) => String(n).padStart(2, "0");
-    const formatted = `${localDate.getFullYear()}-${pad(localDate.getMonth() + 1)}-${pad(
-      localDate.getDate()
-    )}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}:${pad(localDate.getSeconds())}`;
+
+    const formatted = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(
+      dt.getDate()
+    )}T${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
 
     setFiltros((prev) => ({ ...prev, [key]: formatted }));
   };
+  const proveedoresCatalogo = providers.map(p => ({
+  id: p.id,
+  name: p.name,
+}));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -65,8 +70,10 @@ export default function AdvancedFiltersCompras({ params, onApply }: Props) {
   };
 
   const apply = () => {
-    const clean = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v != null && v !== ""));
-    onApply({ ...clean, page: "1" });
+    const clean = Object.fromEntries(
+      Object.entries(filtros).filter(([, v]) => v != null && v !== "")
+    );
+    onApply({ ...clean, page: "0" });
   };
 
   const clear = () => {
@@ -74,20 +81,19 @@ export default function AdvancedFiltersCompras({ params, onApply }: Props) {
     onApply({});
   };
 
-  const inputCls = "w-full border rounded px-3 py-2";
-
-  // 🔹 Panel de filtros avanzados internos
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const inputCls =
+    "w-full border rounded-lg px-3 py-2 shadow-sm bg-white focus:ring-blue-500";
 
   return (
-    <div className="p-4 border rounded-lg bg-white shadow-sm space-y-4">
-      <h3 className="text-lg font-semibold">Filtros de compras</h3>
+    <div className="p-5 bg-white border rounded-xl shadow-md space-y-6">
+      <h3 className="text-lg font-bold text-gray-800">Filtros de compras</h3>
 
-      {/* 🔹 Filtros principales (siempre visibles) */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
-        {/* Proveedor */}
+      {/* ---------------- FILTROS PRINCIPALES ---------------- */}
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 items-end">
+
+        {/* PROVEEDOR */}
         <label className="flex flex-col gap-1">
-          <span className="text-sm">Proveedor</span>
+          <span className="text-sm font-medium">Proveedor</span>
           <select
             name="supplier"
             value={filtros.supplier ?? ""}
@@ -95,24 +101,25 @@ export default function AdvancedFiltersCompras({ params, onApply }: Props) {
             className={inputCls}
           >
             <option value="">Todos</option>
-            {loading && <option>Cargando...</option>}
-            {!loading &&
-              providers.map((p) => (
-                <option key={p.id} value={String(p.id)}>
-                  {p.name}
-                </option>
-              ))}
+            {isLoading && <option>Cargando...</option>}
+            {!isLoading &&
+              proveedoresCatalogo.map(p => (
+              <option key={p.id} value={String(p.id)}>
+                {p.name}
+              </option>
+            ))
+              }
           </select>
         </label>
 
-        {/* Fecha desde */}
+        {/* FECHA DESDE */}
         <div className="flex flex-col gap-1">
-          <span className="text-sm">Desde</span>
+          <span className="text-sm font-medium">Desde</span>
           <Popover open={openStart} onOpenChange={setOpenStart}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className={inputCls}>
+              <Button variant="outline" className="justify-start text-left px-3 py-2 rounded-lg">
                 {startDate
-                  ? format(startDate, "dd 'de' MMMM 'de' yyyy", { locale: es })
+                  ? format(startDate, "dd MMM yyyy", { locale: es })
                   : "Seleccionar fecha"}
               </Button>
             </PopoverTrigger>
@@ -121,27 +128,26 @@ export default function AdvancedFiltersCompras({ params, onApply }: Props) {
                 mode="single"
                 selected={startDate}
                 onSelect={(d) => {
-                  setDate("start", d);
+                  setDate("start", d || undefined);
                   setOpenStart(false);
                 }}
-                initialFocus
                 locale={es}
+                captionLayout="dropdown"
                 fromYear={2020}
                 toYear={2030}
-                captionLayout="dropdown"
               />
             </PopoverContent>
           </Popover>
         </div>
 
-        {/* Fecha hasta */}
+        {/* FECHA HASTA */}
         <div className="flex flex-col gap-1">
-          <span className="text-sm">Hasta</span>
+          <span className="text-sm font-medium">Hasta</span>
           <Popover open={openEnd} onOpenChange={setOpenEnd}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className={inputCls}>
+              <Button variant="outline" className="justify-start text-left px-3 py-2 rounded-lg">
                 {endDate
-                  ? format(endDate, "dd 'de' MMMM 'de' yyyy", { locale: es })
+                  ? format(endDate, "dd MMM yyyy", { locale: es })
                   : "Seleccionar fecha"}
               </Button>
             </PopoverTrigger>
@@ -150,123 +156,106 @@ export default function AdvancedFiltersCompras({ params, onApply }: Props) {
                 mode="single"
                 selected={endDate}
                 onSelect={(d) => {
-                  setDate("end", d);
+                  setDate("end", d || undefined);
                   setOpenEnd(false);
                 }}
-                initialFocus
                 locale={es}
+                captionLayout="dropdown"
                 fromYear={2020}
                 toYear={2030}
-                captionLayout="dropdown"
               />
             </PopoverContent>
           </Popover>
         </div>
       </div>
-      {/* 🔹 Botones BUSCAR y LIMPIAR en compras (igual que ventas) */}
-      <div className="flex justify-end gap-2 mt-3">
-        <Button 
-          onClick={apply} 
-          className="bg-blue-600 text-white hover:bg-blue-700"
-        >
+
+      {/* ---------------- BOTONES PRINCIPALES ---------------- */}
+      <div className="flex justify-end gap-3">
+        <Button onClick={apply} className="bg-blue-600 text-white hover:bg-blue-700">
           Buscar
         </Button>
-
         <Button variant="outline" onClick={clear}>
           Limpiar
         </Button>
       </div>
 
-      {/* 🔹 Filtros avanzados (ocultos inicialmente) */}
+      {/* ---------------- BOTÓN MOSTRAR AVANZADOS ---------------- */}
       {!showAdvanced && (
-        <div className="flex justify-end mt-2">
+        <div className="flex justify-end">
           <Button variant="outline" onClick={() => setShowAdvanced(true)}>
             Búsqueda avanzada
           </Button>
         </div>
       )}
 
-      {/* 🔹 Filtros avanzados (ocultos inicialmente) */}
+      {/* ---------------- FILTROS AVANZADOS ---------------- */}
       {showAdvanced && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end pt-4 border-t">
-          {/* Monto mínimo */}
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Monto mínimo</span>
-            <input
-              name="min"
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              value={filtros.min ?? ""}
-              onChange={handleChange}
-              className={inputCls}
-              placeholder="0.00"
-            />
-          </label>
+        <div className="space-y-6 pt-4 border-t">
 
-          {/* Monto máximo */}
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Monto máximo</span>
-            <input
-              name="max"
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              value={filtros.max ?? ""}
-              onChange={handleChange}
-              className={inputCls}
-              placeholder="0.00"
-            />
-          </label>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 items-end">
 
-          {/* Día / Mes / Año */}
-          <div className="grid grid-cols-3 gap-2">
+            {/* Monto mínimo */}
             <label className="flex flex-col gap-1">
-              <span className="text-sm">Día</span>
+              <span className="text-sm font-medium">Monto mínimo</span>
+              <input
+                name="min"
+                type="number"
+                step="0.01"
+                value={filtros.min ?? ""}
+                onChange={handleChange}
+                className={inputCls}
+                placeholder="0.00"
+              />
+            </label>
+
+            {/* Monto máximo */}
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">Monto máximo</span>
+              <input
+                name="max"
+                type="number"
+                step="0.01"
+                value={filtros.max ?? ""}
+                onChange={handleChange}
+                className={inputCls}
+                placeholder="0.00"
+              />
+            </label>
+
+            {/* Día / Mes / Año */}
+            <div className="grid grid-cols-3 gap-3">
               <input
                 name="day"
                 type="number"
-                min={1}
-                max={31}
+                placeholder="Día"
                 value={filtros.day ?? ""}
                 onChange={handleChange}
                 className={inputCls}
-                placeholder="dd"
               />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Mes</span>
               <input
                 name="month"
                 type="number"
-                min={1}
-                max={12}
+                placeholder="Mes"
                 value={filtros.month ?? ""}
                 onChange={handleChange}
                 className={inputCls}
-                placeholder="mm"
               />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Año</span>
               <input
                 name="year"
                 type="number"
-                min={2000}
-                max={2100}
+                placeholder="Año"
                 value={filtros.year ?? ""}
                 onChange={handleChange}
                 className={inputCls}
-                placeholder="yyyy"
               />
-            </label>
+            </div>
           </div>
 
-          {/* Activo */}
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between sm:col-span-2 lg:col-span-3 gap-4 mt-2">
-          
-            <label className="flex flex-col gap-1 w-full sm:w-1/3 lg:w-1/4">
-              <span className="text-sm">Activo</span>
+          {/* Activo + Botones */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+
+            <label className="flex flex-col gap-1 sm:w-1/3">
+              <span className="text-sm font-medium">Activo</span>
               <select
                 name="active"
                 value={filtros.active ?? ""}
@@ -274,14 +263,13 @@ export default function AdvancedFiltersCompras({ params, onApply }: Props) {
                 className={inputCls}
               >
                 <option value="">Todos</option>
-                <option value="true">Sólo activos</option>
-                <option value="false">Sólo inactivos</option>
+                <option value="true">Activos</option>
+                <option value="false">Inactivos</option>
               </select>
             </label>
 
-            {/* 🔹 Botones alineados en la misma fila */}
-            <div className="flex gap-2 justify-end w-full sm:w-auto">
-              <Button onClick={apply} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <div className="flex gap-2 justify-end">
+              <Button onClick={apply} className="bg-blue-600 text-white hover:bg-blue-700">
                 Aplicar
               </Button>
               <Button variant="outline" onClick={clear}>

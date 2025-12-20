@@ -17,13 +17,8 @@ export default function InventarioListPage() {
 }
 
 function InventarioContent() {
-  const { user, hasRole } = useAuth() as unknown as {
-    user?: { businessTypeId?: number; branchId?: number; branchName?: string };
-    hasRole?: (r: "ADMIN" | "SUPER_ADMIN") => boolean;
-  };
 
-  const isSuper = hasRole?.("SUPER_ADMIN") ?? false;
-  const isAdmin = hasRole?.("ADMIN") ?? false;
+const { user, isAdmin, isSuper } = useAuth();
 
   type SortKey =
     | "productId"
@@ -69,23 +64,30 @@ function InventarioContent() {
   const btHook = useBusinessTypes();
   const branchesHook = useBranches({
     isSuper,
-    businessTypeId: isSuper ? (btId ?? user?.businessTypeId ?? null) : null,
+    businessTypeId: isSuper ? (btId ?? user?.businessType ?? null) : null,
     oneBranchId: !isSuper ? (user?.branchId ?? null) : null,
   });
 
   // ==== DATA ====
-  const filtro = useMemo(
-    () => ({
-      branchId: branchId ?? user?.branchId,
-      businessTypeId: btId ?? user?.businessTypeId,
-      q: debouncedSearch.trim() || undefined,
-      onlyCritical,
-      page,
-      size: PAGE_SIZE,
-    }),
-    [branchId, btId, debouncedSearch, onlyCritical, page, user]
-  );
+ const filtro = useMemo(
+  () => ({
+    branchId:
+      branchId !== null && branchId !== undefined
+        ? branchId
+        : user?.branchId ?? undefined,
 
+    businessTypeId:
+      btId !== null && btId !== undefined
+        ? btId
+        : user?.businessType ?? undefined,
+
+    q: debouncedSearch.trim() || undefined,
+    onlyCritical,
+    page,
+    size: PAGE_SIZE,
+  }),
+  [branchId, btId, debouncedSearch, onlyCritical, page, user]
+);
   const allInv = useInventory(filtro);
 
   const rows: InventoryItem[] = useMemo(() => {
@@ -202,7 +204,10 @@ function InventarioContent() {
             <input
               readOnly
               className="border rounded-lg px-3 py-2 bg-gray-100 text-gray-700"
-              value={user?.branchName ?? "Sucursal asignada"}
+              value={
+                branchesHook.data.find(b => b.id === user?.branchId)?.name
+                  ?? "Sucursal asignada"
+              }
             />
           )}
         </label>
@@ -237,152 +242,156 @@ function InventarioContent() {
       </div>
 
       {/* Botón agregar */}
-      <div className="flex justify-end pt-2">
-        {isSuper && <AddInventoryButton onCreated={refetchList} />}
+     <div className="flex justify-end pt-2">
+        {(isSuper || isAdmin) && (
+          <AddInventoryButton onCreated={refetchList} />
+        )}
       </div>
 
       {/* TABLA PRO */}
-      <div className="overflow-auto bg-white rounded-xl shadow border border-gray-200">
-        <table className="min-w-[900px] w-full text-sm text-gray-700">
-          <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider border-b">
-            <tr>
-              <th className="px-3 py-3 text-left font-semibold">
-                <button onClick={() => toggleSort("productId")} className="flex items-center gap-1">
-                  ID Producto <Arrow k="productId" />
-                </button>
-              </th>
+     
+      <div className="rounded-xl border bg-white shadow overflow-hidden">
+        <div className="overflow-x-auto no-scrollbar">
+          <table className="min-w-[1000px] w-full text-sm text-gray-700">
+            <thead className="bg-slate-100 border-b sticky top-0 z-10">
+              <tr className="text-gray-700">
 
-              <th className="px-3 py-3 text-left font-semibold">
-                <button onClick={() => toggleSort("productName")} className="flex items-center gap-1">
-                  Producto <Arrow k="productName" />
-                </button>
-              </th>
-
-              <th className="px-3 py-3 text-left font-semibold">
-                <button onClick={() => toggleSort("branchName")} className="flex items-center gap-1">
-                  Sucursal <Arrow k="branchName" />
-                </button>
-              </th>
-
-              <th className="px-3 py-3 text-right font-semibold">
-                <button onClick={() => toggleSort("stock")} className="flex items-center gap-1">
-                  Cantidad <Arrow k="stock" />
-                </button>
-              </th>
-
-              <th className="px-3 py-3 text-right font-semibold">
-                <button onClick={() => toggleSort("minStock")} className="flex items-center gap-1">
-                  Mín <Arrow k="minStock" />
-                </button>
-              </th>
-
-              <th className="px-3 py-3 text-right font-semibold">
-                <button onClick={() => toggleSort("maxStock")} className="flex items-center gap-1">
-                  Máx <Arrow k="maxStock" />
-                </button>
-              </th>
-
-              <th className="px-3 py-3 text-center font-semibold">Crítico</th>
-
-              {(isSuper || isAdmin) && (
-                <th className="px-3 py-3 text-left font-semibold">
-                  Última actualización
+                <th className="px-4 py-3 text-left">
+                  <button onClick={() => toggleSort("productId")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
+                    ID Producto <Arrow k="productId" />
+                  </button>
                 </th>
-              )}
 
-              {(isSuper || isAdmin) && (
-                <th className="px-3 py-3 text-left font-semibold">
-                  Actualizado por
+                <th className="px-4 py-3 text-left">
+                  <button onClick={() => toggleSort("productName")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
+                    Producto <Arrow k="productName" />
+                  </button>
                 </th>
-              )}
 
-              <th className="px-3 py-3 text-center font-semibold">Acciones</th>
-            </tr>
-          </thead>
+                <th className="px-4 py-3 text-left">
+                  <button onClick={() => toggleSort("branchName")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
+                    Sucursal <Arrow k="branchName" />
+                  </button>
+                </th>
 
-          <tbody className="divide-y divide-gray-200">
-            {allInv.isLoading && (
-              <tr>
-                <td className="p-4" colSpan={9}>Cargando…</td>
-              </tr>
-            )}
+                <th className="px-4 py-3 text-right">
+                  <button onClick={() => toggleSort("stock")} className="flex items-center justify-end gap-1 font-semibold hover:text-blue-600 w-full">
+                    Cantidad <Arrow k="stock" />
+                  </button>
+                </th>
 
-            {!sortedRows.length && !allInv.isLoading && (
-              <tr>
-                <td className="p-4 text-center text-gray-500" colSpan={9}>
-                  Sin registros
-                </td>
-              </tr>
-            )}
+                <th className="px-4 py-3 text-right">
+                  <button onClick={() => toggleSort("minStock")} className="flex items-center justify-end gap-1 font-semibold hover:text-blue-600 w-full">
+                    Min <Arrow k="minStock" />
+                  </button>
+                </th>
 
-            {allInv.isError && (
-              <tr>
-                <td colSpan={9} className="p-4 text-red-600">
-                  Error al cargar el inventario: {(allInv.error as Error)?.message ?? "Error desconocido"}
-                </td>
-              </tr>
-            )}
+                <th className="px-4 py-3 text-right">
+                  <button onClick={() => toggleSort("maxStock")} className="flex items-center justify-end gap-1 font-semibold hover:text-blue-600 w-full">
+                    Máx <Arrow k="maxStock" />
+                  </button>
+                </th>
 
-            {sortedRows.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-
-                <td className="px-3 py-2">{row.productId}</td>
-
-                <td className="px-3 py-2 max-w-[200px] truncate">
-                  {row.productName ?? row.productId}
-                </td>
-
-                <td className="px-3 py-2">{row.branchName ?? row.branchId}</td>
-
-                <td className="px-3 py-2 text-right tabular-nums">{row.stock}</td>
-
-                <td className="px-3 py-2 text-right tabular-nums">{row.minStock ?? "—"}</td>
-
-                <td className="px-3 py-2 text-right tabular-nums">{row.maxStock ?? "—"}</td>
-
-                <td className="px-3 py-2 text-center">
-                  <span
-                    className={`
-                      inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
-                      ${row.isStockCritico
-                        ? "bg-red-100 text-red-700"
-                        : "bg-green-50 text-green-700"}
-                    `}
-                  >
-                    {row.isStockCritico ? "Crítico" : "OK"}
-                  </span>
-                </td>
+                <th className="px-4 py-3 text-center font-semibold">Crítico</th>
 
                 {(isSuper || isAdmin) && (
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    {row.lastUpdated
-                      ? new Date(row.lastUpdated).toLocaleString("es-MX")
-                      : "—"}
+                  <th className="px-4 py-3">Última actualización</th>
+                )}
+
+                {(isSuper || isAdmin) && (
+                  <th className="px-4 py-3">Actualizado por</th>
+                )}
+
+                <th className="px-4 py-3 text-center font-semibold">Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-gray-200">
+
+              {allInv.isLoading && (
+                <tr>
+                  <td colSpan={12} className="p-4 text-center text-gray-500">
+                    Cargando…
                   </td>
-                )}
+                </tr>
+              )}
 
-                {(isSuper || isAdmin) && (
-                  <td className="px-3 py-2">{row.updatedBy ?? "—"}</td>
-                )}
+              {!sortedRows.length && !allInv.isLoading && (
+                <tr>
+                  <td colSpan={12} className="p-4 text-center text-gray-500">
+                    Sin registros
+                  </td>
+                </tr>
+              )}
 
-                <td className="px-3 py-2 text-center whitespace-nowrap space-x-2">
-                  <EditInventarioButton row={row} onUpdated={refetchList} />
-                  <MarkCriticalButton id={row.id} current={!!row.isStockCritico} onUpdated={refetchList} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              {sortedRows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="hover:bg-blue-50 transition cursor-pointer"
+                >
+                  <td className="px-4 py-3">{row.productId}</td>
+
+                  <td className="px-4 py-3 max-w-[220px] truncate font-medium">
+                    {row.productName}
+                  </td>
+
+                  <td className="px-4 py-3">{row.branchName}</td>
+
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {row.stock}
+                  </td>
+
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {row.minStock ?? "—"}
+                  </td>
+
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {row.maxStock ?? "—"}
+                  </td>
+
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`
+                        inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                        ${row.isStockCritico
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-50 text-green-700"}
+                      `}
+                    >
+                      {row.isStockCritico ? "Crítico" : "OK"}
+                    </span>
+                  </td>
+
+                  {(isSuper || isAdmin) && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {row.lastUpdated
+                        ? new Date(row.lastUpdated).toLocaleString("es-MX")
+                        : "—"}
+                    </td>
+                  )}
+
+                  {(isSuper || isAdmin) && (
+                    <td className="px-4 py-3">{row.updatedBy ?? "—"}</td>
+                  )}
+
+                  <td className="px-4 py-3 text-center space-x-2">
+                    <EditInventarioButton row={row} onUpdated={refetchList} />
+                    <MarkCriticalButton id={row.id} current={!!row.isStockCritico} onUpdated={refetchList} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-
       {/* Paginación */}
-      <div className="flex items-center justify-end gap-3 pt-4">
+     <div className="pt-4 flex justify-center sm:justify-end items-center gap-4">
         <button
-          className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-50 shadow-sm"
           disabled={page <= 0}
           onClick={() => setPage((p) => Math.max(0, p - 1))}
         >
-          Anterior
+          ← Anterior
         </button>
 
         <span className="text-sm text-gray-600">
@@ -390,11 +399,11 @@ function InventarioContent() {
         </span>
 
         <button
-          className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-50 shadow-sm"
           disabled={page + 1 >= totalPages}
           onClick={() => setPage((p) => p + 1)}
         >
-          Siguiente
+          Siguiente →
         </button>
       </div>
     </div>

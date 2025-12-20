@@ -27,6 +27,7 @@ export default function ListPage() {
   const { params, setSearch, setParams } = useProductSearchParams();
   const { user } = useAuth();
   const isSuper = user?.role === "SUPER_ADMIN";
+  const isAdmin = user?.role === "ADMIN";
 
   // Limpieza inicial de filtros
   useEffect(() => {
@@ -91,9 +92,7 @@ export default function ListPage() {
         available: params.get("available") === "true" ? true : undefined,
         withoutCategory: params.get("withoutCategory") === "true" ? true : undefined,
         branchId: params.get("branchId") ? Number(params.get("branchId")) : undefined,
-        businessTypeId: params.get("businessTypeId")
-          ? Number(params.get("businessTypeId"))
-          : undefined,
+        businessTypeId: params.get("businessTypeId") ? Number(params.get("businessTypeId")) : undefined,
       }),
     [q, params]
   );
@@ -122,7 +121,7 @@ export default function ListPage() {
       if (ev.key.length === 1) buffer += ev.key;
 
       clearTimeout(timeout);
-      timeout = setTimeout(() => (buffer = ""), 100);
+      timeout = setTimeout(() => (buffer = ""), 120);
     };
 
     window.addEventListener("keydown", handleKey);
@@ -170,9 +169,7 @@ export default function ListPage() {
         case "active":
           return ((a.active ? 1 : 0) - (b.active ? 1 : 0)) * mult;
         case "creationDate":
-          return (
-            new Date(av as string).getTime() - new Date(bv as string).getTime()
-          ) * mult;
+          return (new Date(av as string).getTime() - new Date(bv as string).getTime()) * mult;
         default:
           return collator.compare(String(av ?? ""), String(bv ?? "")) * mult;
       }
@@ -186,126 +183,191 @@ export default function ListPage() {
   if (error) return <p className="p-4 text-red-600">{(error as Error).message}</p>;
 
   return (
-    <div className="mx-auto w-full max-w-7xl p-6 space-y-8">
-
-      {/* 🔵 HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Productos</h1>
-        <AddProductButton onCreated={() => refetch()} />
-      </div>
-
-      {/* 🔍 BUSCADOR */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto_auto_auto] bg-white p-5 rounded-xl shadow border">
-
-        {/* Input */}
-        <div className="relative">
-          <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">🔍</span>
-          <input
-            className="border rounded-xl pl-10 pr-3 py-2 w-full shadow-sm focus:ring-2 focus:ring-blue-500 transition"
-            placeholder="Busca por nombre o código…"
-            defaultValue={params.get("barcodeName") ?? ""}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+    <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      {/* ===== Sticky “top bar” (móvil) ===== */}
+      <div className="md:hidden sticky top-0 z-30 bg-white/90 backdrop-blur border-b -mx-3 px-3 pt-3 pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-slate-900 truncate">Productos</h1>
+            <p className="text-xs text-slate-500 leading-tight">
+              Busca por nombre o código de barras
+            </p>
+          </div>
+          <div className="shrink-0">
+            <AddProductButton onCreated={() => refetch()} />
+          </div>
         </div>
 
-        <button
-          className="rounded-xl px-5 py-2 bg-green-600 text-white font-semibold hover:bg-green-700 transition shadow"
-          onClick={() => setShowScanner(true)}
-        >
-          📷 Escanear
-        </button>
-
-        <button
-          className="rounded-xl px-5 py-2 bg-blue-600 text-white font-semibold hover:bg-blue-700 transition shadow"
-          onClick={() => refetch()}
-        >
-          Buscar
-        </button>
-
-        {!showAdvanced && (
-          <button
-            className="rounded-xl px-5 py-2 bg-slate-100 hover:bg-slate-200 transition shadow"
-            onClick={() => setShowAdvanced(true)}
-          >
-            Búsqueda avanzada
-          </button>
-        )}
-      </div>
-
-      {/* 🔧 FILTROS AVANZADOS */}
-      {showAdvanced && (
-        <>
-          <div className="bg-white p-5 rounded-xl shadow border">
-            <AdvancedFilters
-              params={params}
-              onApply={(next) => {
-                const sp = new URLSearchParams(params);
-                Object.entries(next).forEach(([k, v]) => {
-                  if (!v) sp.delete(k);
-                  else sp.set(k, v);
-                });
-                setParams(sp);
-              }}
-            />
+        <div className="mt-3 grid grid-cols-12 gap-2">
+          <div className="col-span-12">
+            <div className="relative">
+              <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">🔍</span>
+              <input
+                inputMode="search"
+                className="w-full h-11 rounded-2xl border bg-white pl-10 pr-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 transition"
+                placeholder="Nombre o código…"
+                defaultValue={params.get("barcodeName") ?? ""}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="flex justify-end">
+          <button
+            className="col-span-6 h-11 rounded-2xl bg-green-600 text-white font-semibold active:scale-[0.99] transition shadow-sm"
+            onClick={() => setShowScanner(true)}
+          >
+            📷 Escanear
+          </button>
+
+          <button
+            className="col-span-6 h-11 rounded-2xl bg-blue-600 text-white font-semibold active:scale-[0.99] transition shadow-sm"
+            onClick={() => refetch()}
+          >
+            Buscar
+          </button>
+
+          {!showAdvanced ? (
             <button
-              className="px-4 py-2 mt-2 rounded-xl bg-slate-200 hover:bg-slate-300 transition shadow"
+              className="col-span-12 h-11 rounded-2xl bg-slate-100 text-slate-900 font-semibold active:scale-[0.99] transition"
+              onClick={() => setShowAdvanced(true)}
+            >
+              Filtros avanzados
+            </button>
+          ) : (
+            <button
+              className="col-span-12 h-11 rounded-2xl bg-slate-200 text-slate-900 font-semibold active:scale-[0.99] transition"
               onClick={() => setShowAdvanced(false)}
             >
               Ocultar filtros
             </button>
+          )}
+        </div>
+      </div>
+
+      {/* ===== Header (desktop/tablet) ===== */}
+      <div className="hidden md:flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Productos</h1>
+          <p className="text-sm text-slate-600">Busca por nombre, SKU o código de barras</p>
+        </div>
+        <AddProductButton onCreated={() => refetch()} />
+      </div>
+
+      {/* ===== Buscador (desktop/tablet) ===== */}
+      <div className="hidden md:block bg-white rounded-2xl shadow-sm border p-4">
+        <div className="grid grid-cols-12 gap-3 items-center">
+          <div className="col-span-12 lg:col-span-6">
+            <div className="relative">
+              <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">🔍</span>
+              <input
+                inputMode="search"
+                className="w-full h-11 rounded-2xl border bg-white pl-10 pr-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 transition"
+                placeholder="Busca por nombre o código…"
+                defaultValue={params.get("barcodeName") ?? ""}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-        </>
+
+          <button
+            className="col-span-12 sm:col-span-4 lg:col-span-2 h-11 rounded-2xl bg-green-600 text-white font-semibold hover:bg-green-700 transition shadow-sm"
+            onClick={() => setShowScanner(true)}
+          >
+            📷 Escanear
+          </button>
+
+          <button
+            className="col-span-12 sm:col-span-4 lg:col-span-2 h-11 rounded-2xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition shadow-sm"
+            onClick={() => refetch()}
+          >
+            Buscar
+          </button>
+
+          {!showAdvanced && (
+            <button
+              className="col-span-12 sm:col-span-4 lg:col-span-2 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 transition font-semibold"
+              onClick={() => setShowAdvanced(true)}
+            >
+              Filtros
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ===== Filtros avanzados ===== */}
+      {showAdvanced && (
+        <div className="bg-white rounded-2xl shadow-sm border p-4">
+          <AdvancedFilters
+            params={params}
+            onApply={(next) => {
+              const sp = new URLSearchParams(params);
+              Object.entries(next).forEach(([k, v]) => {
+                if (!v) sp.delete(k);
+                else sp.set(k, v);
+              });
+              setParams(sp);
+            }}
+          />
+        </div>
       )}
 
-      {/* 📱 LISTA MOBILE */}
-      <ul className="grid gap-4 md:hidden">
+      {/* ===== Lista MOBILE (cards compactas) ===== */}
+      <ul className="grid gap-3 md:hidden">
         {sortedItems.map((p) => (
-          <li key={p.id} className="rounded-xl border bg-white p-4 shadow-sm hover:shadow-md transition">
+          <li key={p.id} className="rounded-2xl border bg-white p-4 shadow-sm active:scale-[0.995] transition">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-base text-slate-900 truncate">{p.name}</p>
 
-            {/* Info */}
-            <div className="flex justify-between">
-              <div>
-                <p className="font-semibold text-lg truncate">{p.name}</p>
-                <p className="text-xs text-slate-500">SKU: {p.sku}</p>
-                <p className="text-xs text-slate-500">Código: {p.codigoBarras || "-"}</p>
+                <div className="mt-1 space-y-0.5">
+                  <p className="text-xs text-slate-500">SKU: <span className="text-slate-700">{p.sku || "-"}</span></p>
+                  <p className="text-xs text-slate-500">
+                    Código: <span className="text-slate-700">{p.codigoBarras || "-"}</span>
+                  </p>
+                  {p.categoryName && (
+                    <p className="text-xs text-slate-500">
+                      Categoría: <span className="text-slate-700">{p.categoryName}</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <span className="font-bold text-blue-700 text-lg">
-                {p.salePrice ? `$${p.salePrice.toFixed(2)}` : "-"}
-              </span>
+              <div className="shrink-0 text-right">
+                <p className="text-xs text-slate-500">Venta</p>
+                <p className="font-bold text-blue-700 text-lg leading-none">
+                  {p.salePrice != null ? `$${p.salePrice.toFixed(2)}` : "-"}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Compra: {p.purchasePrice != null ? `$${p.purchasePrice.toFixed(2)}` : "-"}
+                </p>
+              </div>
             </div>
 
-            {/* BOTONES MOBILE */}
-            <div className="flex justify-end gap-3 mt-4">
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="w-full">
+                <EditProductButton
+                  product={p}
+                  paramsActuales={{
+                    barcodeName: params.get("barcodeName") ?? "",
+                    page: pageUI,
+                    pageSize: size,
+                  }}
+                  onUpdated={() => refetch()}
+                />
+              </div>
 
-              <EditProductButton
-                product={p}
-                paramsActuales={{
-                  barcodeName: params.get("barcodeName") ?? "",
-                  page: pageUI,
-                  pageSize: size,
-                }}
-                onUpdated={() => refetch()}
-              />
-
-              <DeleteProductButton
-                id={p.id}
-                name={p.name}
-                onDeleted={() => refetch()}
-              />
-
+              <div className="w-full">
+                <DeleteProductButton id={p.id} name={p.name} onDeleted={() => refetch()} />
+              </div>
             </div>
           </li>
         ))}
       </ul>
 
-      {/* 🖥️ TABLA DESKTOP */}
-      <div className="hidden md:block rounded-xl border bg-white shadow overflow-x-auto">
-        <table className="min-w-[1000px] w-full text-sm">
-          <thead className="bg-slate-50 border-b">
+      {/* ===== Tabla DESKTOP ===== */}
+      <div className="hidden md:block rounded-2xl border bg-white shadow-sm overflow-x-auto">
+        <table className="min-w-[1100px] w-full text-sm">
+          <thead className="bg-slate-50 border-b sticky top-0 z-10">
             <tr>
               {[
                 ["sku", "SKU"],
@@ -316,7 +378,7 @@ export default function ListPage() {
                 ["categoryName", "Categoría"],
                 ["creationDate", "Alta"],
               ].map(([k, label]) => (
-                <th key={k} className="px-4 py-3 font-semibold text-slate-700">
+                <th key={k} className="px-4 py-3 font-semibold text-slate-700 text-left">
                   <button
                     onClick={() => toggleSort(k as SortKey)}
                     className="flex items-center gap-1 hover:text-blue-600 transition"
@@ -328,13 +390,14 @@ export default function ListPage() {
 
               {isSuper && (
                 <>
-                  <th className="px-4 py-3 font-semibold">Negocio</th>
-                  <th className="px-4 py-3 font-semibold">Activo</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 text-left">Negocio</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 text-left">Activo</th>
                 </>
               )}
-
-              <th className="px-4 py-3 font-semibold">Acciones</th>
-            </tr>
+              {(isSuper || isAdmin) && (
+                <th className="px-4 py-3 font-semibold text-slate-700 text-left">Acciones</th>
+                  )}
+                  </tr>
           </thead>
 
           <tbody>
@@ -342,9 +405,11 @@ export default function ListPage() {
               <tr key={p.id} className="border-t hover:bg-slate-50 transition">
                 <td className="px-4 py-3">{p.sku}</td>
                 <td className="px-4 py-3">{p.codigoBarras ?? "-"}</td>
-                <td className="px-4 py-3">{p.name}</td>
-                <td className="px-4 py-3">${p.purchasePrice?.toFixed(2)}</td>
-                <td className="px-4 py-3">${p.salePrice?.toFixed(2)}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
+                <td className="px-4 py-3">{p.purchasePrice != null ? `$${p.purchasePrice.toFixed(2)}` : "-"}</td>
+                <td className="px-4 py-3 font-semibold text-blue-700">
+                  {p.salePrice != null ? `$${p.salePrice.toFixed(2)}` : "-"}
+                </td>
                 <td className="px-4 py-3">{p.categoryName}</td>
                 <td className="px-4 py-3">{new Date(p.creationDate).toLocaleDateString("es-MX")}</td>
 
@@ -366,24 +431,17 @@ export default function ListPage() {
                       }}
                       onUpdated={() => refetch()}
                     />
-
-                    <DeleteProductButton
-                      id={p.id}
-                      name={p.name}
-                      onDeleted={() => refetch()}
-                    />
+                    <DeleteProductButton id={p.id} name={p.name} onDeleted={() => refetch()} />
                   </div>
                 </td>
-
               </tr>
             ))}
           </tbody>
-
         </table>
       </div>
 
-      {/* PAGINACIÓN */}
-      <div className="pt-4 flex justify-center">
+      {/* ===== Paginación ===== */}
+      <div className="pt-2 flex justify-center md:justify-end">
         <ServerPagination
           page={pageUI}
           totalPages={totalPages}
@@ -395,32 +453,38 @@ export default function ListPage() {
         />
       </div>
 
-      {/* SCANNER OVERLAY */}
+      {/* ===== SCANNER OVERLAY (safe-area, botones grandes) ===== */}
       {showScanner && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-4 w-[95%] max-w-md shadow-xl">
-            <h2 className="text-xl font-semibold mb-3">Escanear código de barras</h2>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 sm:p-6">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-xl overflow-hidden">
+            <div className="px-4 pt-4 pb-3 border-b">
+              <h2 className="text-lg font-semibold">Escanear código</h2>
+              <p className="text-xs text-slate-500">Alinea el código dentro de la cámara</p>
+            </div>
 
-            <BarcodeCameraScanner
-              onResult={(code) => {
-                setShowScanner(false);
-                setSearch(code);
-                refetch();
-              }}
-              onError={(e) => console.error("Error escáner:", e)}
-            />
+            <div className="p-4">
+              <BarcodeCameraScanner
+                onResult={(code) => {
+                  setShowScanner(false);
+                  setSearch(code);
+                  refetch();
+                }}
+                onError={(e) => console.error("Error escáner:", e)}
+              />
 
-            <button
-              onClick={() => setShowScanner(false)}
-              className="mt-4 w-full bg-red-600 text-white py-2 rounded-xl"
-            >
-              Cerrar
-            </button>
+              <button
+                onClick={() => setShowScanner(false)}
+                className="mt-4 w-full h-11 rounded-2xl bg-red-600 text-white font-semibold active:scale-[0.99] transition"
+              >
+                Cerrar
+              </button>
+            </div>
 
+            {/* “safe area” bottom extra padding para iPhone */}
+            <div className="h-[max(12px,env(safe-area-inset-bottom))]" />
           </div>
         </div>
       )}
-
     </div>
   );
 }

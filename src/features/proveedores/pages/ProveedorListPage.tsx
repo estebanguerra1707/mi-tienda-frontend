@@ -39,7 +39,7 @@ export default function ProveedorListPage() {
           {data.map((p: Proveedor) => (
             <tr key={p.id}>
               <td className="border p-2">{p.id}</td>
-              <td className="border p-2">{p.nombre}</td>
+              <td className="border p-2">{p.name}</td>
               <td className="border p-2">{p.email ?? "—"}</td>
               <td className="border p-2">{p.tipoNegocioNombre ?? "—"}</td>
               <td className="border p-2 space-x-2">

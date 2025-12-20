@@ -110,7 +110,11 @@ export default function AddCompraButton({ onCreated }: { onCreated?: () => void 
       ? null
       : (user?.branchId ?? null),
   });
-  const providers = useProviders({});
+    const providers = useProviders({
+      isSuper: isSuperAdmin,
+      branchId: !isSuperAdmin ? selectedBranchId : null,
+      businessTypeId: isSuperAdmin ? user?.businessType ?? null : null,
+    });
   const paymentMethods = usePaymentMethods();
   const { data: products, isLoading, error } = useProductsByBranch(
     selectedBranchId ?? undefined

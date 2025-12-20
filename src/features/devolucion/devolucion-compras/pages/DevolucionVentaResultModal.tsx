@@ -7,28 +7,55 @@ interface Props {
   onClose: () => void;
 }
 
-export default function DevolucionVentaResultModal({ devolucion, onClose }: Props) {
+export default function DevolucionVentaResultModal({
+  devolucion,
+  onClose,
+}: Props) {
   const fecha = new Date(devolucion.fechaDevolucion).toLocaleString("es-MX", {
     dateStyle: "medium",
     timeStyle: "short",
   });
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-        <h2 className="text-xl font-bold text-center mb-4">✔ Devolución registrada</h2>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center">
+      
+      {/* CONTENEDOR */}
+      <div
+        className="
+          bg-white w-full sm:max-w-md
+          rounded-t-2xl sm:rounded-2xl
+          px-4 py-5
+          animate-slideUp
+        "
+      >
+        {/* ICONO / TÍTULO */}
+        <div className="text-center space-y-2">
+          <div className="text-3xl">✅</div>
+          <h2 className="text-lg font-semibold">
+            Devolución registrada
+          </h2>
+        </div>
 
-        <p><b>ID:</b> {devolucion.id}</p>
-        <p><b>Tipo:</b> {devolucion.tipoDevolucion}</p>
-        <p>
-          <b>Total devuelto:</b> ${Number(devolucion.totalDevuelto).toFixed(2)}
-        </p>
-        <p><b>Fecha:</b> {fecha}</p>
+        {/* DATOS */}
+        <div className="mt-4 space-y-1 text-sm text-gray-700">
+          <p><b>ID:</b> {devolucion.id}</p>
+          <p><b>Tipo:</b> {devolucion.tipoDevolucion}</p>
+          <p>
+            <b>Total devuelto:</b>{" "}
+            ${Number(devolucion.totalDevuelto).toFixed(2)}
+          </p>
+          <p><b>Fecha:</b> {fecha}</p>
+        </div>
 
-        <div className="text-center mt-4">
+        {/* BOTÓN */}
+        <div className="mt-6">
           <button
-            className="px-4 py-2 bg-blue-600 text-white rounded"
             onClick={onClose}
+            className="
+              w-full py-3 rounded-lg
+              bg-blue-600 text-white
+              hover:bg-blue-700
+            "
           >
             Cerrar
           </button>

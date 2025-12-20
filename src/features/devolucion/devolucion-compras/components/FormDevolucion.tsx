@@ -30,7 +30,11 @@ interface Props {
   onSuccess: (devolucion: Devolucion) => void;
 }
 
-export default function FormDevolucion({ compra, detalle, onSuccess }: Props) {
+export default function FormDevolucion({
+  compra,
+  detalle,
+  onSuccess,
+}: Props) {
   const crearDevolucion = useCrearDevolucion();
 
   const form = useForm<FormValues>({
@@ -47,7 +51,7 @@ export default function FormDevolucion({ compra, detalle, onSuccess }: Props) {
       detalleId: detalle.id,
       branchId: detalle.branchId,
       codigoBarras: detalle.codigoBarras,
-      sku:detalle.sku,
+      sku: detalle.sku,
       cantidad: data.cantidad,
       motivo: data.motivo,
     };
@@ -56,38 +60,73 @@ export default function FormDevolucion({ compra, detalle, onSuccess }: Props) {
     onSuccess(response);
   };
 
-  return (
-    <form onSubmit={form.handleSubmit(submit)} className="card p-4">
-      <h3 className="text-lg font-semibold mb-3">
-        Registrar devolución para: {detalle.productName}
-      </h3>
+  const inputCls =
+    "w-full border rounded-lg px-3 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition";
 
-      <div className="flex flex-col gap-4">
+  return (
+    <form
+      onSubmit={form.handleSubmit(submit)}
+      className="space-y-4"
+    >
+      {/* HEADER */}
+      <div>
+        <h3 className="text-base font-semibold">
+          Registrar devolución
+        </h3>
+        <p className="text-sm text-gray-600">
+          Producto: {detalle.productName}
+        </p>
+      </div>
+
+      {/* CANTIDAD */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium">
+          Cantidad a devolver
+        </label>
         <input
           type="number"
           {...form.register("cantidad", { valueAsNumber: true })}
-          className="input"
-          placeholder="Cantidad a devolver"
+          className={inputCls}
         />
+        {form.formState.errors.cantidad && (
+          <p className="text-xs text-red-500">
+            {form.formState.errors.cantidad.message}
+          </p>
+        )}
+      </div>
 
-        <p className="text-red-500 text-sm">
-          {form.formState.errors.cantidad?.message}
-        </p>
-
+      {/* MOTIVO */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium">
+          Motivo
+        </label>
         <textarea
           {...form.register("motivo")}
-          className="input"
-          placeholder="Motivo de la devolución"
+          rows={3}
+          className={inputCls}
+          placeholder="Describe el motivo"
         />
-
-        <button
-          className="btn-success"
-          type="submit"
-          disabled={form.watch("cantidad") > detalle.quantity}
-        >
-          Registrar devolución
-        </button>
+        {form.formState.errors.motivo && (
+          <p className="text-xs text-red-500">
+            {form.formState.errors.motivo.message}
+          </p>
+        )}
       </div>
+
+      {/* BOTÓN */}
+      <button
+        type="submit"
+        disabled={form.watch("cantidad") > detalle.quantity}
+        className="
+          w-full py-3 rounded-lg
+          bg-blue-600 text-white
+          hover:bg-blue-700
+          transition
+          disabled:opacity-50
+        "
+      >
+        Registrar devolución
+      </button>
     </form>
   );
 }

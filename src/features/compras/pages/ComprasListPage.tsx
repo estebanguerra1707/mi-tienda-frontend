@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   useCompras,
   useSearchComprasPaginadas,
@@ -11,7 +11,6 @@ import AdvancedFiltersCompras from "@/features/compras/component/AdvancedFilters
 import { useAuth } from "@/hooks/useAuth";
 import CompraDetalleModal from "@/features/compras/component/CompraDetalleModal";
 import type { CompraItem } from "@/features/compras/api";
-
 
 // 🔹 Campos que se pueden ordenar
 type SortKey =
@@ -30,6 +29,7 @@ export default function ComprasListPage() {
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [selectedCompra, setSelectedCompra] = useState<CompraItem | null>(null);
   const [openDetalle, setOpenDetalle] = useState(false);
+  const detalleRef = useRef<HTMLDivElement>(null);
 
 
 const handleRowClick = (compra: CompraItem) => {
@@ -118,7 +118,16 @@ const onApplyFilters = (next: Record<string, string | undefined>) => {
   setParams((p) => ({ ...p, page: 0 }));
 };
 
-
+useEffect(() => {
+  if (openDetalle && selectedCompra) {
+    setTimeout(() => {
+      detalleRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
+  }
+}, [openDetalle, selectedCompra]);
   // ✅ Ordenamiento local (cliente)
   const sortedItems = useMemo(() => {
  const items = compras.data?.content ?? [];
@@ -145,16 +154,20 @@ const onApplyFilters = (next: Record<string, string | undefined>) => {
     });
   }, [compras.data?.content, localSort, collator]);
 
-  // ✅ Render
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-xl font-semibold">Compras</h1>
+  <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+
+    {/* Header */}
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+      <h1 className="text-2xl font-bold text-gray-900">Compras</h1>
+
+      <div className="flex justify-end">
         <AddCompraButton onCreated={() => compras.refetch()} />
       </div>
+    </div>
 
-      {/* Filtros avanzados */}
+    {/* Filtros */}
+    <div className="bg-white rounded-xl shadow p-4 border">
       <AdvancedFiltersCompras
         params={
           new URLSearchParams(
@@ -163,52 +176,63 @@ const onApplyFilters = (next: Record<string, string | undefined>) => {
         }
         onApply={onApplyFilters}
       />
+    </div>
 
-      {/* Tabla */}
-      <div className="overflow-auto border rounded">
+    {/* Tabla */}
+    <div className="bg-white rounded-xl shadow border p-0 overflow-hidden">
+      <div className="overflow-x-auto no-scrollbar">
         <table className="min-w-[900px] w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="p-2 text-left">
+          <thead className="bg-slate-100 sticky top-0 z-10">
+            <tr className="text-gray-700">
+              <th className="p-3 text-left">
                 <button onClick={() => toggleSort("id")} className="flex items-center gap-1">
                   ID Compra <Arrow k="id" />
                 </button>
               </th>
-              <th className="p-2 text-left">
+
+              <th className="p-3 text-left">
                 <button onClick={() => toggleSort("providerName")} className="flex items-center gap-1">
                   Proveedor <Arrow k="providerName" />
                 </button>
               </th>
-              <th className="p-2 text-left">
+
+              <th className="p-3 text-left">
                 <button onClick={() => toggleSort("purchaseDate")} className="flex items-center gap-1">
                   Fecha <Arrow k="purchaseDate" />
                 </button>
               </th>
-              <th className="p-2 text-left">
+
+              <th className="p-3 text-left">
                 <button onClick={() => toggleSort("paymentName")} className="flex items-center gap-1">
                   Método pago <Arrow k="paymentName" />
                 </button>
               </th>
-              <th className="p-2 text-right">
+
+              <th className="p-3 text-right">
                 <button onClick={() => toggleSort("amountPaid")} className="flex items-center gap-1">
-                  Monto pagado <Arrow k="amountPaid" />
+                  Total pagado <Arrow k="amountPaid" />
                 </button>
               </th>
+
               {isSuperAdmin && (
-                <th className="p-2 text-center">
+                <th className="p-3 text-center">
                   <button onClick={() => toggleSort("userName")} className="flex items-center gap-1">
-                    Comprado por <Arrow k="userName" />
+                    Usuario <Arrow k="userName" />
                   </button>
                 </th>
               )}
-              <th className="p-2 text-center">Acciones</th>
+               {isSuperAdmin && (
+                 <th className="p-3 text-center">Acciones</th>
+              )}
+
+             
             </tr>
           </thead>
 
           <tbody>
             {compras.isLoading && (
               <tr>
-                <td colSpan={6} className="p-4 text-center">
+                <td colSpan={isSuperAdmin ? 7 : 6} className="p-4 text-center text-gray-500">
                   Cargando…
                 </td>
               </tr>
@@ -217,12 +241,13 @@ const onApplyFilters = (next: Record<string, string | undefined>) => {
             {sortedItems.map((c) => (
               <tr
                 key={c.id}
-                className="border-t hover:bg-gray-100 cursor-pointer"
+                className="border-t hover:bg-blue-50 cursor-pointer transition"
                 onClick={() => handleRowClick(c)}
               >
-                <td className="p-2">{c.id}</td>
-                <td className="p-2">{c.providerName}</td>
-                <td className="p-2">
+                <td className="p-3">{c.id}</td>
+                <td className="p-3">{c.providerName}</td>
+
+                <td className="p-3">
                   {isSuperAdmin
                     ? new Date(c.purchaseDate).toLocaleString("es-MX", {
                         day: "2-digit",
@@ -233,76 +258,87 @@ const onApplyFilters = (next: Record<string, string | undefined>) => {
                         second: "2-digit",
                         hour12: false,
                       })
-                    : new Date(c.purchaseDate).toLocaleDateString("es-MX", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
+                    : new Date(c.purchaseDate).toLocaleDateString("es-MX")}
                 </td>
-                <td className="p-2">{c.paymentName}</td>
-                <td className="p-2 text-right">${c.amountPaid.toFixed(2)}</td>
+
+                <td className="p-3">{c.paymentName}</td>
+
+                <td className="p-3 text-right font-semibold text-gray-700">
+                  ${c.amountPaid.toFixed(2)}
+                </td>
+
                 {isSuperAdmin && (
-                  <td className="p-2 text-center">{c.userName}</td>
+                  <td className="p-3 text-center">{c.userName}</td>
                 )}
-                <td
-                  className="p-2 text-center"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <DeleteCompraButton
-                    id={c.id}
-                    onDeleted={() => compras.refetch()}
-                  />
-                </td>
+
+              {isSuperAdmin && (
+                              <td
+                                className="p-3 text-center"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <DeleteCompraButton
+                                  id={c.id}
+                                  onDeleted={() => compras.refetch()}
+                                />
+                              </td>
+                            )}  
               </tr>
             ))}
 
             {!compras.isLoading && !sortedItems.length && (
               <tr>
-                <td colSpan={isSuperAdmin ? 7 : 6} className="p-4 text-center">
-                  Sin registros
+                <td colSpan={isSuperAdmin ? 7 : 6} className="p-6 text-center text-gray-500">
+                  No se encontraron registros.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      {/* Paginación */}
-      <div className="flex justify-end gap-2">
-        <button
-          disabled={Number(params.page ?? 0) === 0}
-          onClick={() =>
-            setParams((p) => ({
-              ...p,
-              page: Math.max(0, Number(p.page ?? 0) - 1),
-            }))
-          }
-          className="border px-3 py-1 rounded disabled:opacity-50"
-        >
-          Anterior
-        </button>
-
-        <span>Página {Number(params.page ?? 0) + 1}</span>
-
-        <button
-          disabled={compras.data?.last}
-          onClick={() =>
-            setParams((p) => ({
-              ...p,
-              page: Number(p.page ?? 0) + 1,
-            }))
-          }
-          className="border px-3 py-1 rounded disabled:opacity-50"
-        >
-          Siguiente
-        </button>
-      </div>
-      {openDetalle && selectedCompra && (
-      <CompraDetalleModal
-        compra={selectedCompra}
-        onClose={() => setOpenDetalle(false)}
-      />
-    )}
     </div>
-  );
+
+    {/* Paginación */}
+    <div className="flex justify-center sm:justify-end items-center gap-3 mt-4">
+      <button
+        disabled={Number(params.page ?? 0) === 0}
+        onClick={() =>
+          setParams((p) => ({
+            ...p,
+            page: Math.max(0, Number(p.page ?? 0) - 1),
+          }))
+        }
+        className="px-4 py-2 rounded-lg border bg-white hover:bg-gray-100 disabled:opacity-50 transition"
+      >
+        ← Anterior
+      </button>
+
+      <span className="text-gray-700">
+        Página <strong>{Number(params.page ?? 0) + 1}</strong>
+      </span>
+
+      <button
+        disabled={compras.data?.last}
+        onClick={() =>
+          setParams((p) => ({
+            ...p,
+            page: Number(p.page ?? 0) + 1,
+          }))
+        }
+        className="px-4 py-2 rounded-lg border bg-white hover:bg-gray-100 disabled:opacity-50 transition"
+      >
+        Siguiente →
+      </button>
+    </div>
+
+   <div ref={detalleRef}>
+      {openDetalle && selectedCompra && (
+        <CompraDetalleModal
+          compra={selectedCompra}
+          onClose={() => setOpenDetalle(false)}
+        />
+      )}
+    </div>
+  </div>
+);
+
 }

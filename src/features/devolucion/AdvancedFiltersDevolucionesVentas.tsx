@@ -18,26 +18,24 @@ export default function AdvancedFiltersDevoluciones({ onApply, onClear }: Props)
   const { data: users = [] } = useUsers();
 
   const FILTROS_DEFAULT = {
-  id: "",
-  codigoBarras: "",
-  tipoDevolucion: "",
-  startDate: "",
-  endDate: "",
-  username: "",
-  ventaId: "",
-  productName: "",
-  day: "",
-  month: "",
-  year: "",
-  minMonto: "",
-  maxMonto: "",
-  minCantidad: "",
-  maxCantidad: "",
-};
+    id: "",
+    codigoBarras: "",
+    tipoDevolucion: "",
+    startDate: "",
+    endDate: "",
+    username: "",
+    ventaId: "",
+    productName: "",
+    day: "",
+    month: "",
+    year: "",
+    minMonto: "",
+    maxMonto: "",
+    minCantidad: "",
+    maxCantidad: "",
+  };
 
-const [filtros, setFiltros] = useState(FILTROS_DEFAULT);
-
-
+  const [filtros, setFiltros] = useState(FILTROS_DEFAULT);
 
   const [openStart, setOpenStart] = useState(false);
   const [openEnd, setOpenEnd] = useState(false);
@@ -72,59 +70,63 @@ const [filtros, setFiltros] = useState(FILTROS_DEFAULT);
     setFiltros((p) => ({ ...p, [key]: formatted }));
   };
 
-const change = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-  const { name, value } = e.target;
-  setFiltros((prev) => ({ ...prev, [name]: value }));
-};
+  const change = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFiltros((prev) => ({ ...prev, [name]: value }));
+  };
 
-const apply = () => {
-  const clean: Record<string, string> = {};
+  const apply = () => {
+    const clean: Record<string, string> = {};
+    Object.entries(filtros).forEach(([key, value]) => {
+      if (value !== "" && value !== undefined) {
+        clean[key] = value;
+      }
+    });
+    onApply({ ...clean, page: "0", size: "20" });
+  };
 
-  Object.entries(filtros).forEach(([key, value]) => {
-    if (value !== "" && value !== undefined) {
-      clean[key] = value;
-    }
-  });
+  const clear = () => {
+    setFiltros(FILTROS_DEFAULT);
+  };
 
-  onApply({ ...clean, page: "0", size: "20" });
-};
-const clear = () => {
-  setFiltros(FILTROS_DEFAULT);
-};
-
-  const cls = "w-full border rounded px-3 py-2";
+  const cls =
+    "w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
-    <div className="p-4 bg-white border rounded shadow-sm space-y-6">
-      <h3 className="font-semibold text-lg">Filtro Devoluciones VENTAS</h3>
+    <div className="space-y-4">
 
-      {/* -------------------------------------- */}
-      {/* 🔹 BÚSQUEDA SIMPLE */}
-      {/* -------------------------------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <h3 className="text-base font-semibold">
+        Filtro devoluciones · Ventas
+      </h3>
+       <p className="text-sm sm:text-base font-medium text-gray-700">
+        Busca devolución hecha de una venta
+      </p>
+
+      {/* ---------------- SIMPLE ---------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
 
         <label className="flex flex-col gap-1">
-          <span>ID devolución</span>
-          <input name="id" value={filtros.id ?? ""} onChange={change} className={cls} />
+          <span className="text-sm">ID devolución</span>
+          <input name="id" value={filtros.id} onChange={change} className={cls} />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span>Código de barras</span>
-          <input name="codigoBarras" value={filtros.codigoBarras ?? ""} onChange={change} className={cls} />
+          <span className="text-sm">Código de barras</span>
+          <input name="codigoBarras" value={filtros.codigoBarras} onChange={change} className={cls} />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span>Tipo de devolución</span>
-          <select name="tipoDevolucion" value={filtros.tipoDevolucion ?? ""} onChange={change} className={cls}>
+          <span className="text-sm">Tipo devolución</span>
+          <select name="tipoDevolucion" value={filtros.tipoDevolucion} onChange={change} className={cls}>
             <option value="">Todas</option>
             <option value="TOTAL">TOTAL</option>
             <option value="PARCIAL">PARCIAL</option>
           </select>
         </label>
 
-        {/* Fechas */}
+        {/* FECHAS */}
         <div className="flex flex-col gap-1">
-          <span>Desde</span>
+          <span className="text-sm">Desde</span>
           <Popover open={openStart} onOpenChange={setOpenStart}>
             <PopoverTrigger asChild>
               <Button variant="outline" className={cls}>
@@ -146,7 +148,7 @@ const clear = () => {
         </div>
 
         <div className="flex flex-col gap-1">
-          <span>Hasta</span>
+          <span className="text-sm">Hasta</span>
           <Popover open={openEnd} onOpenChange={setOpenEnd}>
             <PopoverTrigger asChild>
               <Button variant="outline" className={cls}>
@@ -168,87 +170,70 @@ const clear = () => {
         </div>
       </div>
 
-      {/* -------------------------------------- */}
-      {/* 🔹 BÚSQUEDA AVANZADA */}
-      {/* -------------------------------------- */}
+      {/* ---------------- AVANZADO ---------------- */}
       {showAdvanced && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 border-t">
 
           <label className="flex flex-col gap-1">
-            <span>ID Venta</span>
-            <input name="ventaId" value={filtros.ventaId ?? ""} onChange={change} className={cls} />
+            <span className="text-sm">ID Venta</span>
+            <input name="ventaId" value={filtros.ventaId} onChange={change} className={cls} />
           </label>
 
-         <label className="flex flex-col gap-1">
-            <span>Usuario</span>
-            <select
-                name="username"
-                value={filtros.username ?? ""}
-                onChange={change}
-                className={cls}
-            >
-                <option value="">Todos</option>
-
-                {users.map((u) => (
-                <option key={u.id} value={u.email}> 
-                    {u.username ?? u.email}
+          <label className="flex flex-col gap-1">
+            <span className="text-sm">Usuario</span>
+            <select name="username" value={filtros.username} onChange={change} className={cls}>
+              <option value="">Todos</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.email}>
+                  {u.username ?? u.email}
                 </option>
-                ))}
+              ))}
             </select>
-            </label>
-
-          <label className="flex flex-col gap-1">
-            <span>Nombre del producto</span>
-            <input name="productName" value={filtros.productName ?? ""} onChange={change} className={cls} />
           </label>
 
-          {/* Monto */}
-          <input name="minMonto" placeholder="Monto mínimo" className={cls} value={filtros.minMonto ?? ""} onChange={change} />
-          <input name="maxMonto" placeholder="Monto máximo" className={cls} value={filtros.maxMonto ?? ""} onChange={change} />
+          <label className="flex flex-col gap-1">
+            <span className="text-sm">Producto</span>
+            <input name="productName" value={filtros.productName} onChange={change} className={cls} />
+          </label>
 
-          {/* Cantidad */}
-          <input name="minCantidad" placeholder="Cantidad mínima" className={cls} value={filtros.minCantidad ?? ""} onChange={change} />
-          <input name="maxCantidad" placeholder="Cantidad máxima" className={cls} value={filtros.maxCantidad ?? ""} onChange={change} />
+          <input name="minMonto" placeholder="Monto mínimo" value={filtros.minMonto} onChange={change} className={cls} />
+          <input name="maxMonto" placeholder="Monto máximo" value={filtros.maxMonto} onChange={change} className={cls} />
 
-          {/* Fecha por día, mes, año */}
+          <input name="minCantidad" placeholder="Cantidad mínima" value={filtros.minCantidad} onChange={change} className={cls} />
+          <input name="maxCantidad" placeholder="Cantidad máxima" value={filtros.maxCantidad} onChange={change} className={cls} />
+
           <div className="grid grid-cols-3 gap-2">
-            <input name="day" placeholder="Día" className={cls} value={filtros.day ?? ""} onChange={change} />
-            <input name="month" placeholder="Mes" className={cls} value={filtros.month ?? ""} onChange={change} />
-            <input name="year" placeholder="Año" className={cls} value={filtros.year ?? ""} onChange={change} />
+            <input name="day" placeholder="Día" value={filtros.day} onChange={change} className={cls} />
+            <input name="month" placeholder="Mes" value={filtros.month} onChange={change} className={cls} />
+            <input name="year" placeholder="Año" value={filtros.year} onChange={change} className={cls} />
           </div>
         </div>
       )}
 
-      {/* BOTONES */}
-      <div className="flex justify-end gap-2 pt-2">
-
-
-        {/* Buscar */}
-        <Button
-          onClick={apply}
-          className="bg-blue-600 text-white hover:bg-blue-700"
-        >
+      {/* ---------------- BOTONES ---------------- */}
+      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        <Button className="bg-blue-600 text-white w-full sm:w-auto" onClick={apply}>
           Buscar
         </Button>
 
-        {/* Limpiar */}
-       <Button
-        variant="outline"
-        onClick={() => {
-          clear();      // limpia inputs
-          onClear();    // limpia filtros + resultados en el padre
-        }}
-      >
-        Limpiar
-      </Button>
-        {/* Búsqueda avanzada */}
         <Button
           variant="outline"
-          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="w-full sm:w-auto"
+          onClick={() => {
+            clear();
+            onClear();
+          }}
         >
-          {showAdvanced ? "Ocultar búsqueda avanzada" : "Búsqueda avanzada"}
+          Limpiar
         </Button>
 
+        <Button
+          variant="ghost"
+          className="w-full sm:w-auto"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+        >
+          {showAdvanced ? "Ocultar avanzada" : "Búsqueda avanzada"}
+        </Button>
       </div>
     </div>
   );

@@ -9,24 +9,40 @@ export const Tabs = ({ tabs }: { tabs: Tab[] }) => {
   const [active, setActive] = useState(0);
 
   return (
-    <div>
-      {/* Headers */}
-      <div className="flex border-b mb-4">
+    <div className="w-full">
+      <div
+        className="
+          flex 
+          overflow-x-auto 
+          no-scrollbar 
+          border-b 
+          gap-2
+          pb-1
+        "
+      >
         {tabs.map((t, i) => (
           <button
             key={i}
-            className={`px-4 py-2 font-medium border-b-2 
-              ${active === i ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500"}
-            `}
             onClick={() => setActive(i)}
+            className={`
+              px-4 py-2 
+              text-sm sm:text-base 
+              whitespace-nowrap
+              transition-all
+              rounded-t-lg
+              
+              ${
+                active === i
+                  ? "text-blue-600 border-b-2 border-blue-600 font-semibold"
+                  : "text-gray-500 hover:text-gray-700 border-b-2 border-transparent"
+              }
+            `}
           >
             {t.label}
           </button>
         ))}
       </div>
-
-      {/* Content */}
-      <div>{tabs[active].content}</div>
+      <div className="mt-4">{tabs[active].content}</div>
     </div>
   );
 };

@@ -129,43 +129,74 @@ export function useCategories(opts: {
     return () => { alive = false; };
   }, [ready, url, token]);
 
-  // Si no está listo, reporta loading para no “parpadear” en /actual
   if (!ready) return { data: [], loading: true };
 
   return st;
 }
 
-/** Proveedores
- * SUPER_ADMIN: /proveedores?businessTypeId={id} | /proveedores (todos)
- * Otros:      /proveedores (filtrados por sesión)
- */
-export function useProviders(opts: { businessTypeId?: number | null; isSuper?: boolean }): StatusCatalog {
-  const { token } = useAuth() as unknown as { token: string };
-  const [st, setSt] = useState<StatusCatalog>({ data: [], loading: true });
+
+export function useProviders(opts: {
+  businessTypeId?: number | null;
+  branchId?: number | null;
+  isSuper?: boolean;
+}): StatusCatalog {
+  const { token } = useAuth() as { token: string };
+  const [st, setSt] = useState<StatusCatalog>({
+    data: [],
+    loading: false,
+  });
+  const canLoad =
+    Boolean(token) &&
+    (
+      (opts.isSuper && opts.businessTypeId != null) ||
+      (!opts.isSuper && opts.branchId != null)
+    );
 
   const url = useMemo(() => {
-    if (opts.isSuper) {
-      if (opts.businessTypeId != null) {
-        return `${BASE}/proveedores?businessTypeId=${opts.businessTypeId}`;
-      }
-      return `${BASE}/proveedores`;
+    if (!canLoad) return null;
+
+    if (opts.isSuper && opts.businessTypeId != null) {
+      return `${BASE}/proveedores?businessTypeId=${opts.businessTypeId}`;
     }
-    return `${BASE}/proveedores`;
-  }, [opts.isSuper, opts.businessTypeId]);
+    if (!opts.isSuper && opts.branchId != null) {
+      return `${BASE}/proveedores?branchId=${opts.branchId}`;
+    }
+
+    return null;
+  }, [canLoad, opts.isSuper, opts.businessTypeId, opts.branchId]);
 
   useEffect(() => {
+    if (!url || !token) {
+      setSt({ data: [], loading: false });
+      return;
+    }
+
     let alive = true;
+
     (async () => {
       try {
-        setSt((s) => ({ ...s, loading: true, error: undefined }));
+        setSt({ data: [], loading: true });
+
         const raw = await getJsonUnknown<unknown>(url, token);
         const data = toCatalogArray(raw);
-        if (alive) setSt({ data, loading: false });
+
+        if (alive) {
+          setSt({ data, loading: false });
+        }
       } catch (e) {
-        if (alive) setSt({ data: [], loading: false, error: (e as Error).message });
+        if (alive) {
+          setSt({
+            data: [],
+            loading: false,
+            error: (e as Error).message,
+          });
+        }
       }
     })();
-    return () => { alive = false; };
+
+    return () => {
+      alive = false;
+    };
   }, [url, token]);
 
   return st;
@@ -177,7 +208,6 @@ export function useBranches(opts: {
   oneBranchId?: number | null;
   isSuper?: boolean;
 }): StatusCatalog {
-  
   const { token, user, hasRole } = useAuth();
 
   const [st, setSt] = useState<StatusCatalog>({
@@ -185,33 +215,30 @@ export function useBranches(opts: {
     loading: true,
   });
 
-  const { oneBranchId, businessTypeId } = opts;
+  const authReady = Boolean(token && user);
 
-  // Esperamos a que user esté listo antes de decidir si es super
   const isSuper = useMemo(() => {
-    if (!user) return undefined; // auth no cargado todavía
+    if (!authReady) return false;
     return opts.isSuper ?? hasRole("SUPER_ADMIN");
-  }, [user, opts.isSuper, hasRole]);
+  }, [authReady, opts.isSuper, hasRole]);
 
-  // Construimos la URL
   const url = useMemo(() => {
-    if (isSuper === undefined) return null; // Esperar auth
+    if (!authReady) return null;
 
-    // ⭐ SUPER ADMIN
     if (isSuper) {
-      if (businessTypeId != null) {
-        return `${BASE}/sucursales/tipo-negocio/${businessTypeId}`;
+      if (opts.businessTypeId != null) {
+        return `${BASE}/sucursales/tipo-negocio/${opts.businessTypeId}`;
       }
-      return `${BASE}/sucursales`; // todas
+      return `${BASE}/sucursales`;
     }
-    if (oneBranchId != null) {
-      return `${BASE}/sucursales/${oneBranchId}`;
-    }
-    console.error("ERROR: Usuario normal sin oneBranchId. Esto no debe ocurrir.");
-    return null;
-  }, [isSuper, oneBranchId, businessTypeId]);
 
-  // Fetch
+    if (opts.oneBranchId != null) {
+      return `${BASE}/sucursales/${opts.oneBranchId}`;
+    }
+
+    return null;
+  }, [authReady, isSuper, opts.businessTypeId, opts.oneBranchId]);
+
   useEffect(() => {
     if (!url || !token) return;
 
@@ -223,11 +250,13 @@ export function useBranches(opts: {
 
         const raw = await getJsonUnknown(url, token);
 
-        const arr = Array.isArray(raw)
-          ? raw
-          : isPageResponse(raw)
-          ? raw.content
-          : [];
+      const arr = Array.isArray(raw)
+        ? raw
+        : isPageResponse(raw)
+        ? raw.content
+        : raw && typeof raw === "object"
+        ? [raw]
+        : [];
 
         const data = toCatalogArray(arr);
 
@@ -249,7 +278,6 @@ export function useBranches(opts: {
 
   return st;
 }
-
 /** Detalle de sucursal para derivar su businessTypeId */
 export async function fetchBranchInfo(
   branchId: number,
@@ -291,7 +319,7 @@ export function usePaymentMethods(params?: Record<string, unknown>) {
       const { data } = await api.get<PaymentMethod[]>("/metodo-pago", { params });
       return data;
     },
-    staleTime: 5 * 60_000, // 5 minutos en caché
+    staleTime: 5 * 60_000,
   });
 }
 /** Productos */
@@ -302,6 +330,6 @@ export function useProducts(params?: Record<string, unknown>) {
       const { data } = await api.get<CatalogItem[]>("/productos", { params });
       return data;
     },
-    staleTime: 5 * 60_000, // cache por 5 minutos
+    staleTime: 5 * 60_000, 
   });
 }

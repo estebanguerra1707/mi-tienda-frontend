@@ -36,8 +36,8 @@ export default function ProveedorForm({ initialData, onSubmit, isEditing }: Prop
   useEffect(() => {
     if (!initialData) return;
     reset({
-      nombre: initialData.nombre ?? "",
-      telefono: initialData.telefono ?? "",
+      nombre: initialData.name ?? "",
+      telefono: initialData.contact ?? "",
       email: initialData.email ?? "",
       direccion: initialData.direccion ?? "",
       tipoNegocioId: initialData.tipoNegocioId ?? 0,

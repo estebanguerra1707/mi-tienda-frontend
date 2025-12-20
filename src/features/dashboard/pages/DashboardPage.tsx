@@ -8,6 +8,7 @@ import { ProductosPorUsuarioChart } from "@/features/reportes/components/Product
 import { Tabs } from "@/components/ui/Tabs";
 import { useTopProductos } from "@/features/reportes/hooks/useTopProducts";
 
+
 export default function DashboardPage() {
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
@@ -45,20 +46,24 @@ export default function DashboardPage() {
     });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="px-4 sm:px-6 py-4 max-w-6xl mx-auto space-y-6">
 
       {/* ---------- HEADER ---------- */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6 mb-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500">Resumen general de actividad y ventas.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 text-sm sm:text-base">
+            Resumen general de actividad y ventas.
+          </p>
         </div>
 
         {isSuper && (
-          <div className="flex flex-col">
-            <label className="text-sm font-medium text-slate-700 mb-1">Sucursal</label>
+          <div className="flex flex-col w-full sm:w-auto">
+            <label className="text-sm font-medium text-slate-700 mb-1">
+              Sucursal
+            </label>
             <select
-              className="border rounded-xl px-3 py-2 shadow-sm bg-white focus:ring-2 focus:ring-blue-600 transition"
+              className="border rounded-xl px-3 py-2 shadow-sm bg-white focus:ring-2 focus:ring-blue-600 transition text-sm"
               value={branchId ?? ""}
               onChange={(e) =>
                 setBranchId(e.target.value ? Number(e.target.value) : null)
@@ -77,21 +82,23 @@ export default function DashboardPage() {
 
       {/* ---------- SIN SELECCIÓN ---------- */}
       {!branchId && (
-        <div className="text-slate-500 text-center py-12 bg-white rounded-xl shadow border">
+        <div className="text-slate-500 text-center py-10 bg-white rounded-xl shadow border text-sm sm:text-base">
           Selecciona una sucursal para ver el dashboard.
         </div>
       )}
 
       {/* ---------- LOADING ---------- */}
       {branchId && isLoading && (
-        <p className="text-slate-500 text-center py-6">Cargando datos…</p>
+        <p className="text-slate-500 text-center py-6 text-sm sm:text-base">
+          Cargando datos…
+        </p>
       )}
 
       {/* ---------- CONTENIDO PRINCIPAL ---------- */}
       {branchId && !isLoading && data && (
         <>
           {/* ---------- CARDS ---------- */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 pt-2">
             <Card titulo="Productos" valor={data.totalProductos} />
             <Card titulo="Stock crítico" valor={data.productosCriticos} />
             <Card titulo="Ventas hoy" valor={data.ventasHoy} />
@@ -99,7 +106,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ---------- TABS ---------- */}
-          <div className="border-b mt-8">
+          <div className="border-b mt-6 sm:mt-8 pb-1 overflow-x-auto">
             <Tabs
               active={activeTab}
               onChange={setActiveTab}
@@ -115,10 +122,10 @@ export default function DashboardPage() {
           {/* ---------- CONTENIDO DE CADA TAB ---------- */}
 
           {activeTab === "semana" && (
-            <div className="bg-white rounded-xl shadow p-6 border mt-6">
-              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+            <div className="bg-white rounded-xl shadow p-4 sm:p-6 border mt-4 sm:mt-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-800 mb-3 sm:mb-4">
                 Más vendidos (semana)
-                <span className="ml-2 text-slate-500 text-base font-normal">
+                <span className="ml-2 text-slate-500 text-sm font-normal">
                   ({format(inicioSemana)} – {format(finSemana)})
                 </span>
               </h2>
@@ -127,8 +134,8 @@ export default function DashboardPage() {
           )}
 
           {activeTab === "mes" && (
-            <div className="bg-white rounded-xl shadow p-6 border mt-6">
-              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+            <div className="bg-white rounded-xl shadow p-4 sm:p-6 border mt-4 sm:mt-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-800 mb-4">
                 Más vendidos (mes)
               </h2>
               <ProductosChart data={topMonth} />
@@ -136,8 +143,8 @@ export default function DashboardPage() {
           )}
 
           {activeTab === "Más vendidos" && (
-            <div className="bg-white rounded-xl shadow p-6 border mt-6">
-              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+            <div className="bg-white rounded-xl shadow p-4 sm:p-6 border mt-4 sm:mt-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-800 mb-4">
                 Más vendidos (consolidado)
               </h2>
               <ProductosChart data={consolidado} />
@@ -145,8 +152,8 @@ export default function DashboardPage() {
           )}
 
           {activeTab === "usuario" && isSuper && (
-            <div className="bg-white rounded-xl shadow p-6 border mt-6">
-              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+            <div className="bg-white rounded-xl shadow p-4 sm:p-6 border mt-4 sm:mt-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-800 mb-4">
                 Más vendidos por usuario
               </h2>
               <ProductosPorUsuarioChart data={porUsuario} />
@@ -157,3 +164,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

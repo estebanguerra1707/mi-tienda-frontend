@@ -7,6 +7,7 @@ export interface User {
   username: string;
   email: string;
   role: Role;
+  rol: Role;
   branchId?: number | null;
   branchName?: string | null;
   active: boolean;

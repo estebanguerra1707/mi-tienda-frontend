@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateProduct } from "@/features/productos/useMutations";
 import type { Product, ProductsQuery } from "@/features/productos/api";
+import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
 
 import { getInventarioDeProducto } from "@/features/productos/inventario.service";
 import { upsertInventory } from "@/features/inventario/api"; 
@@ -91,6 +92,8 @@ function getErrorMessage(err: unknown): string {
 
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
+
 
   useEffect(() => {
   if (!toast) return;
@@ -252,8 +255,14 @@ const cats = useCategories({
   businessTypeId: isSuper ? (derivedBT ?? undefined) : (auth.user?.businessType ?? undefined),
   // branchId: no lo pases; el hook lo resuelve con el auth si no eres super
 });
+
+
 const provs = useProviders({
-  businessTypeId: isSuper ? (derivedBT ?? undefined) : (auth.user?.businessType ?? undefined),
+  isSuper,
+  businessTypeId: isSuper ? derivedBT ?? undefined : undefined,
+  branchId: !isSuper
+    ? (auth.user?.branchId ?? product.branchId ?? null)
+    : undefined,
 });
 
 const onClose = useCallback(() => {
@@ -274,6 +283,11 @@ const onClose = useCallback(() => {
       cancelAnimationFrame(raf);
     };
   }, [open, setFocus, onClose]);
+
+  useEffect(() => {
+  if (!open) return;
+  setValue("providerId", product.providerId ?? 0);
+}, [open, product.providerId, setValue]);
 
 const onSubmit = async (values: FormValues) => {
   try {
@@ -399,11 +413,21 @@ const onSubmit = async (values: FormValues) => {
                   {/* Código de barras */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Código de barras</span>
+                   <div className="flex gap-2">
                     <input
-                      className="border rounded px-3 py-2"
+                      className="flex-1 border rounded px-3 py-2"
                       {...register("codigoBarras")}
                       inputMode="numeric"
                     />
+
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded bg-green-600 text-white"
+                      onClick={() => setShowScanner(true)}
+                    >
+                      📷
+                    </button>
+                  </div>
                     {errors.codigoBarras && (
                       <p className="text-red-600 text-xs">{errors.codigoBarras.message}</p>
                     )}
@@ -579,10 +603,38 @@ const onSubmit = async (values: FormValues) => {
                   </div>
                 </div>
               </form>
+              {showScanner && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[12000] flex items-center justify-center">
+                  <div className="bg-white rounded-xl p-4 w-[95%] max-w-md shadow-xl">
+                    <h2 className="text-xl font-semibold mb-3">
+                      Escanear código de barras
+                    </h2>
+
+                    <BarcodeCameraScanner
+                      onResult={(code: string) => {
+                        setValue("codigoBarras", code, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        });
+                        setShowScanner(false);
+                      }}
+                      onError={(e: unknown) => console.error("Error escáner:", e)}
+                    />
+
+                    <button
+                      onClick={() => setShowScanner(false)}
+                      className="mt-4 w-full bg-red-600 text-white py-2 rounded-xl"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>,
           document.body
         )}
     </>
+    
   );
 }
