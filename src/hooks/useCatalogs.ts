@@ -6,6 +6,17 @@ import { api } from "@/lib/api";
 /* ==== Tipos comunes ==== */
 export type CatalogItem = { id: number; name: string };
 
+export interface BranchItem {
+  id: number;
+  name: string;
+  usaInventarioPorDuenio: boolean;
+}
+export type BranchInfo = {
+  id: number;
+  name: string;
+  businessTypeId: number;
+  usaInventarioPorDuenio?: boolean;
+};
 
 export interface PaymentMethod {
   id: number;
@@ -28,6 +39,11 @@ export interface PageResponse<T> {
   size: number;
 }
 
+type BranchCatalog = {
+  data: BranchItem[];
+  loading: boolean;
+  error?: string;
+};
 type UnknownRecord = Record<string, unknown>;
 
 function isObject(x: unknown): x is UnknownRecord {
@@ -202,19 +218,45 @@ export function useProviders(opts: {
   return st;
 }
 
+function toBranchArray(raw: unknown): BranchItem[] {
+  const arr: RawAny[] = Array.isArray(raw) ? raw : [];
+
+  return arr
+    .map((o) => {
+      const id = Number(o.id ?? o.branchId ?? o.sucursalId);
+      const name = String(
+        o.name ??
+        o.nombre ??
+        o.nombreSucursal ??
+        ""
+      ).trim();
+
+      const usaInventarioPorDuenio  = Boolean(o.usaInventarioPorDuenio );
+
+      return Number.isFinite(id) && name
+        ? { id, name, usaInventarioPorDuenio  }
+        : undefined;
+    })
+    .filter((x): x is BranchItem => Boolean(x));
+}
 /** Sucursales**/
 export function useBranches(opts: {
   businessTypeId?: number | null;
   oneBranchId?: number | null;
   isSuper?: boolean;
-}): StatusCatalog {
+}): BranchCatalog {
+
+
+const [st, setSt] = useState<{
+  data: BranchItem[];
+  loading: boolean;
+  error?: string;
+}>({
+  data: [],
+  loading: true,
+});
+
   const { token, user, hasRole } = useAuth();
-
-  const [st, setSt] = useState<StatusCatalog>({
-    data: [],
-    loading: true,
-  });
-
   const authReady = Boolean(token && user);
 
   const isSuper = useMemo(() => {
@@ -258,7 +300,7 @@ export function useBranches(opts: {
         ? [raw]
         : [];
 
-        const data = toCatalogArray(arr);
+      const data = toBranchArray(arr);
 
         if (alive) setSt({ data, loading: false });
       } catch (e) {
@@ -282,9 +324,9 @@ export function useBranches(opts: {
 export async function fetchBranchInfo(
   branchId: number,
   token: string
-): Promise<{ id: number; name: string; businessTypeId: number }> {
+): Promise<BranchInfo> {
   const url = `${BASE}/sucursales/${branchId}`;
-  return getJsonUnknown(url, token) as Promise<{ id: number; name: string; businessTypeId: number }>;
+  return getJsonUnknown(url, token) as Promise<BranchInfo>;
 }
 
 export function useSucursales() {

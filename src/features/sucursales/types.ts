@@ -7,4 +7,5 @@ export interface Sucursal {
   isAlertaStockCritico: boolean;
   businessTypeId: number;
   businessTypeName:string;
+  usaInventarioPorDuenio: boolean;
 }

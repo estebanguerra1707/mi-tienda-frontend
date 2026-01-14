@@ -28,6 +28,7 @@ export interface BranchItem {
   businessTypeId: number;
   businessTypeName?: string;
   active?: boolean;
+  usaInventarioPorDuenio ?: boolean;
 }
 
 export  interface ResumenVenta {

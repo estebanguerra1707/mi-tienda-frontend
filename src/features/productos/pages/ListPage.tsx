@@ -6,22 +6,24 @@ import EditProductButton from "@/features/productos/components/EditProductButton
 import DeleteProductButton from "@/features/productos/components/DeleteProductButton";
 import { useAdvancedProducts } from "@/features/productos/useAdvancedProducts";
 import { buildFiltro, type ProductoFiltroDTO } from "@/features/productos/productos.api";
-import type { Product } from "@/features/productos/api";
 import AdvancedFilters from "@/features/productos/components/AdvancedFilters";
 import { ServerPagination } from "@/components/pagination/ServerPagination";
 import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
+import { BackendProductDTO } from "@/features/productos/productos.api";
 
 // Ordenamiento
 type SortKey =
   | "sku"
   | "codigoBarras"
   | "name"
+  | "stock"
   | "purchasePrice"
   | "categoryName"
   | "salePrice"
   | "creationDate"
   | "businessTypeName"
-  | "active";
+  | "active"
+  | "inventarioOwnerType";
 
 export default function ListPage() {
   const { params, setSearch, setParams } = useProductSearchParams();
@@ -81,21 +83,38 @@ export default function ListPage() {
 
   const q = params.get("barcodeName")?.trim() || undefined;
 
+  const min = params.get("min");
+  const max = params.get("max");
+  const categoryId = params.get("categoryId");
+  const available = params.get("available");
+  const withoutCategory = params.get("withoutCategory");
+  const branchId = params.get("branchId");
+  const businessTypeId = params.get("businessTypeId");
+
   const filtro: ProductoFiltroDTO = useMemo(
-    () =>
-      buildFiltro({
-        active: true,
-        barcodeName: q,
-        min: params.get("min") ? Number(params.get("min")) : undefined,
-        max: params.get("max") ? Number(params.get("max")) : undefined,
-        categoryId: params.get("categoryId") ? Number(params.get("categoryId")) : undefined,
-        available: params.get("available") === "true" ? true : undefined,
-        withoutCategory: params.get("withoutCategory") === "true" ? true : undefined,
-        branchId: params.get("branchId") ? Number(params.get("branchId")) : undefined,
-        businessTypeId: params.get("businessTypeId") ? Number(params.get("businessTypeId")) : undefined,
-      }),
-    [q, params]
-  );
+  () =>
+    buildFiltro({
+      active: true,
+      barcodeName: q,
+      min: min ? Number(min) : undefined,
+      max: max ? Number(max) : undefined,
+      categoryId: categoryId ? Number(categoryId) : undefined,
+      available: available === "true" ? true : undefined,
+      withoutCategory: withoutCategory === "true" ? true : undefined,
+      branchId: branchId ? Number(branchId) : undefined,
+      businessTypeId: businessTypeId ? Number(businessTypeId) : undefined,
+    }),
+  [
+    q,
+    min,
+    max,
+    categoryId,
+    available,
+    withoutCategory,
+    branchId,
+    businessTypeId,
+  ]
+);
 
   const pageUI = Number(params.get("page") ?? 1);
   const size = params.get("size") ? Number(params.get("size")) || 10 : 10;
@@ -113,7 +132,6 @@ export default function ListPage() {
         buffer = "";
         if (code.length > 2) {
           setSearch(code);
-          refetch();
         }
         return;
       }
@@ -126,61 +144,116 @@ export default function ListPage() {
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [setSearch, refetch]);
+  }, [setSearch]);
 
-  type BackendProduct = Omit<Product, "codigoBarras"> & {
-    codigoBarras?: string;
-    active?: boolean;
-    branchId?: number;
-  };
 
-  const items = useMemo(() => {
-    const backendItems = (data?.content ?? []) as BackendProduct[];
-    return backendItems.map((p) => ({
-      id: p.id,
-      name: p.name,
-      sku: p.sku,
-      codigoBarras: p.codigoBarras ?? "",
-      description: p.description,
-      purchasePrice: p.purchasePrice,
-      salePrice: p.salePrice,
-      categoryId: p.categoryId,
-      categoryName: p.categoryName,
-      providerId: p.providerId,
-      providerName: p.providerName,
-      businessTypeId: p.businessTypeId,
-      businessTypeName: p.businessTypeName,
-      creationDate: p.creationDate,
-      branchId: p.branchId ?? null,
-      active: p.active ?? true,
-    }));
-  }, [data]);
 
-  const sortedItems = useMemo(() => {
-    const mult = localSort.dir === "asc" ? 1 : -1;
+const sortedItems = useMemo(() => {
+  const content = (data?.content ?? []) as BackendProductDTO[];
 
-    return [...items].sort((a, b) => {
-      const av = a[localSort.key];
-      const bv = b[localSort.key];
+const unique = Array.from(
+  new Map(
+    content.map((p) => {
+      // NORMALIZA para que "F01..." y "F01... " o "F01...\u00A0" sean lo mismo
+      const barcode = (p.codigoBarras ?? "")
+        .trim()
+        .replace(/\s+/g, ""); // quita espacios internos y raros
 
-      switch (localSort.key) {
-        case "purchasePrice":
-          return (Number(av ?? 0) - Number(bv ?? 0)) * mult;
-        case "active":
-          return ((a.active ? 1 : 0) - (b.active ? 1 : 0)) * mult;
-        case "creationDate":
-          return (new Date(av as string).getTime() - new Date(bv as string).getTime()) * mult;
-        default:
-          return collator.compare(String(av ?? ""), String(bv ?? "")) * mult;
+      // Normaliza owner SIN any
+      const owner: "PROPIO" | "CONSIGNACION" =
+        p.inventarioOwnerType === "CONSIGNACION" ? "CONSIGNACION" : "PROPIO";
+
+      const key = `${barcode}-${owner}`;
+
+      return [
+        key,
+        {
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          codigoBarras: barcode,
+          description: p.description,
+          purchasePrice: Number(p.purchasePrice),
+          salePrice: Number(p.salePrice),
+          categoryId: p.categoryId,
+          categoryName: p.categoryName,
+          providerId: p.providerId,
+          providerName: p.providerName,
+          businessTypeId: p.businessTypeId,
+          businessTypeName: p.businessTypeName,
+          creationDate: p.creationDate,
+          branchId: p.branchId ?? null,
+          active: Boolean(p.active),
+          stock: Number(p.stock ?? 0),
+          usaInventarioPorDuenio: Boolean(p.usaInventarioPorDuenio),
+          inventarioOwnerType: owner,
+        },
+      ] as const;
+    })
+  ).values()
+);
+  const dir = localSort.dir === "asc" ? 1 : -1;
+  return [...unique].sort((a, b) => {
+    const av = a[localSort.key];
+    const bv = b[localSort.key];
+
+    if (av == null && bv == null) return 0;
+    if (av == null) return -1 * dir;
+    if (bv == null) return 1 * dir;
+
+    switch (localSort.key) {
+      case "stock":
+        return (Number(av) - Number(bv)) * dir;
+      case "purchasePrice":
+      case "inventarioOwnerType": {
+        const rank = (v: unknown) => (v === "PROPIO" ? 0 : 1);
+        return (rank(av) - rank(bv)) * dir;
       }
-    });
-  }, [items, localSort, collator]);
+      case "salePrice":
+        return (Number(av) - Number(bv)) * dir;
+
+      case "creationDate":
+        return (new Date(av as string).getTime() - new Date(bv as string).getTime()) * dir;
+
+      case "active":
+        return (Number(av) - Number(bv)) * dir;
+
+      default:
+        return collator.compare(String(av), String(bv)) * dir;
+    }
+  });
+}, [data?.content, localSort, collator]);
+
 
   const totalPages = data?.totalPages ?? 1;
   const [showScanner, setShowScanner] = useState(false);
 
   if (isPending) return <p className="p-4">Cargando…</p>;
   if (error) return <p className="p-4 text-red-600">{(error as Error).message}</p>;
+
+  function StockBadge({ stock }: { stock: number }) {
+  if (stock > 5) {
+    return <span className="text-green-700 font-semibold">{stock}</span>;
+  }
+
+  if (stock > 0) {
+    return <span className="text-yellow-600 font-semibold">{stock}</span>;
+  }
+
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
+      Sin inventario
+    </span>
+  );
+}
+  function stockTextClass(stock: number) {
+  return stock === 0
+    ? "text-red-600 font-bold"
+    : stock <= 5
+    ? "text-yellow-600 font-semibold"
+    : "text-green-700 font-medium";
+}
 
   return (
     <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -221,7 +294,11 @@ export default function ListPage() {
 
           <button
             className="col-span-6 h-11 rounded-2xl bg-blue-600 text-white font-semibold active:scale-[0.99] transition shadow-sm"
-            onClick={() => refetch()}
+             onClick={() => {
+                const sp = new URLSearchParams(params);
+                sp.set("page", "1");
+                setParams(sp);
+              }}
           >
             Buscar
           </button>
@@ -278,7 +355,11 @@ export default function ListPage() {
 
           <button
             className="col-span-12 sm:col-span-4 lg:col-span-2 h-11 rounded-2xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition shadow-sm"
-            onClick={() => refetch()}
+            onClick={() => {
+              const sp = new URLSearchParams(params);
+              sp.set("page", "1");
+              setParams(sp);
+            }}
           >
             Buscar
           </button>
@@ -307,6 +388,7 @@ export default function ListPage() {
               });
               setParams(sp);
             }}
+            onClose={() => setShowAdvanced(false)}
           />
         </div>
       )}
@@ -314,21 +396,34 @@ export default function ListPage() {
       {/* ===== Lista MOBILE (cards compactas) ===== */}
       <ul className="grid gap-3 md:hidden">
         {sortedItems.map((p) => (
-          <li key={p.id} className="rounded-2xl border bg-white p-4 shadow-sm active:scale-[0.995] transition">
+        <li 
+        key={`mobile-${p.id}-${p.branchId ?? 0}-${p.inventarioOwnerType ?? "PROPIO"}`}
+        className="rounded-2xl border bg-white p-4 shadow-sm active:scale-[0.995] transition">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold text-base text-slate-900 truncate">{p.name}</p>
-
-                <div className="mt-1 space-y-0.5">
-                  <p className="text-xs text-slate-500">SKU: <span className="text-slate-700">{p.sku || "-"}</span></p>
-                  <p className="text-xs text-slate-500">
-                    Código: <span className="text-slate-700">{p.codigoBarras || "-"}</span>
+                  <div className="mt-1 space-y-0.5">
+                   <p className="text-xs text-slate-500">
+                    Código de barras: <span className="text-slate-700">{p.codigoBarras || "-"}</span>
                   </p>
+                  <p className="text-xs text-slate-500">SKU: <span className="text-slate-700">{p.sku || "-"}</span></p>
                   {p.categoryName && (
                     <p className="text-xs text-slate-500">
                       Categoría: <span className="text-slate-700">{p.categoryName}</span>
                     </p>
                   )}
+                   <p className="text-[11px] flex items-center gap-1">
+                    Existencia:
+                    <span className={stockTextClass(p.stock)}>
+                    <StockBadge stock={p.stock} />
+                     </span>
+
+                    {p.stock === 0 && (
+                      <span className="ml-1 text-[10px] text-red-500 font-medium">
+                        (sin existencia)
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
 
@@ -369,43 +464,122 @@ export default function ListPage() {
         <table className="min-w-[1100px] w-full text-sm">
           <thead className="bg-slate-50 border-b sticky top-0 z-10">
             <tr>
-              {[
-                ["sku", "SKU"],
-                ["codigoBarras", "Código"],
-                ["name", "Nombre"],
-                ["purchasePrice", "Compra"],
-                ["salePrice", "Venta"],
-                ["categoryName", "Categoría"],
-                ["creationDate", "Alta"],
-              ].map(([k, label]) => (
-                <th key={k} className="px-4 py-3 font-semibold text-slate-700 text-left">
-                  <button
-                    onClick={() => toggleSort(k as SortKey)}
-                    className="flex items-center gap-1 hover:text-blue-600 transition"
-                  >
-                    {label} <Arrow k={k as SortKey} />
-                  </button>
-                </th>
-              ))}
+              <th className="px-4 py-3 text-left">
+                <button onClick={() => toggleSort("name")} className="flex items-center gap-1">
+                  Nombre <Arrow k="name" />
+                </button>
+              </th>
+              <th className="px-4 py-3 text-left">
+                <button onClick={() => toggleSort("codigoBarras")} className="flex items-center gap-1">
+                  Código <Arrow k="codigoBarras" />
+                </button>
+              </th>
+
+              <th className="px-4 py-3 text-left">
+                <button onClick={() => toggleSort("sku")} className="flex items-center gap-1">
+                  SKU <Arrow k="sku" />
+                </button>
+              </th>
+              <th className="px-4 py-3 text-left">
+                <button onClick={() => toggleSort("stock")} className="flex items-center gap-1">
+                  Existencia <Arrow k="stock" />
+                </button>
+              </th>
+              <th className="px-4 py-3 text-left">
+                <button onClick={() => toggleSort("purchasePrice")} className="flex items-center gap-1">
+                  Compra <Arrow k="purchasePrice" />
+                </button>
+              </th>
+
+              <th className="px-4 py-3 text-left">
+                <button onClick={() => toggleSort("salePrice")} className="flex items-center gap-1">
+                  Venta <Arrow k="salePrice" />
+                </button>
+              </th>
+
+              <th className="px-4 py-3 text-left">
+                <button onClick={() => toggleSort("categoryName")} className="flex items-center gap-1">
+                  Categoría <Arrow k="categoryName" />
+                </button>
+              </th>
+
+              <th className="px-4 py-3 text-left">
+                <button onClick={() => toggleSort("creationDate")} className="flex items-center gap-1">
+                  Alta <Arrow k="creationDate" />
+                </button>
+              </th>
 
               {isSuper && (
                 <>
-                  <th className="px-4 py-3 font-semibold text-slate-700 text-left">Negocio</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700 text-left">Activo</th>
+                  <th className="px-4 py-3 text-left">
+                    <button onClick={() => toggleSort("businessTypeName")} className="flex items-center gap-1">
+                      Negocio <Arrow k="businessTypeName" />
+                    </button>
+                  </th>
+
+                  <th className="px-4 py-3 text-left">
+                    <button onClick={() => toggleSort("active")} className="flex items-center gap-1">
+                      Activo <Arrow k="active" />
+                    </button>
+                  </th>
                 </>
               )}
-              {(isSuper || isAdmin) && (
-                <th className="px-4 py-3 font-semibold text-slate-700 text-left">Acciones</th>
-                  )}
-                  </tr>
-          </thead>
 
+              {(isSuper || isAdmin) && (
+                <th className="px-4 py-3 text-left">Acciones</th>
+              )}
+            </tr>
+          </thead>
           <tbody>
             {sortedItems.map((p) => (
-              <tr key={p.id} className="border-t hover:bg-slate-50 transition">
-                <td className="px-4 py-3">{p.sku}</td>
+              <tr 
+              key={`desktop-${p.id}-${p.branchId ?? 0}-${p.inventarioOwnerType ?? "PROPIO"}`}
+              className="border-t hover:bg-slate-50 transition">
+                <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>                
                 <td className="px-4 py-3">{p.codigoBarras ?? "-"}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
+                <td className="px-4 py-3">{p.sku}</td>
+                <td className="px-4 py-3">
+                {p.stock === 0 ? (
+                  <div
+                    className="
+                      flex flex-col items-start gap-1
+                      sm:flex-row sm:items-center sm:gap-2
+                    "
+                  >
+                    <span
+                      className={`
+                        text-[8px] sm:text-xs
+                        inline-flex items-center justify-center
+                        min-w-[28px] h-6 px-2 rounded-full
+                        bg-red-100
+                        ${stockTextClass(p.stock)}
+                      `}
+                    >
+                      {p.stock}
+                    </span>
+
+                    {/* Leyenda visual */}
+                    <span
+                      className="
+                        inline-flex items-center gap-1
+                        text-xs font-medium
+                        text-red-600
+                        bg-red-50
+                        px-2 py-1
+                        rounded-md
+                        border border-red-100
+                        whitespace-nowrap
+                      "
+                    >
+                       Compra más producto
+                    </span>
+                  </div>
+                ) : (
+                  <span className={stockTextClass(p.stock)}>
+                    <StockBadge stock={p.stock} />
+                  </span>
+                )}
+              </td>
                 <td className="px-4 py-3">{p.purchasePrice != null ? `$${p.purchasePrice.toFixed(2)}` : "-"}</td>
                 <td className="px-4 py-3 font-semibold text-blue-700">
                   {p.salePrice != null ? `$${p.salePrice.toFixed(2)}` : "-"}
@@ -467,7 +641,6 @@ export default function ListPage() {
                 onResult={(code) => {
                   setShowScanner(false);
                   setSearch(code);
-                  refetch();
                 }}
                 onError={(e) => console.error("Error escáner:", e)}
               />

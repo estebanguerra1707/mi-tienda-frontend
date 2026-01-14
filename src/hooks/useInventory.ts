@@ -14,12 +14,31 @@ import {
   type InventoryCreate,
   type InventoryUpdate,
 } from "@/features/inventario/api";
+import { InventarioOwnerType } from "@/features/inventario/api";
 
 /* ===== Claves (mismo patrón que products) ===== */
 export const inventoryKeys = {
   all: ["inventario"] as const,
   lists: () => [...inventoryKeys.all, "list"] as const,
-  list: (params: InventoryQuery) => [...inventoryKeys.lists(), params] as const,
+ list: (
+  branchId?: number,
+  businessTypeId?: number,
+  ownerType?: InventarioOwnerType,
+  q?: string,
+  onlyCritical?: boolean,
+  page?: number,
+  size?: number
+) =>
+  [
+    ...inventoryKeys.lists(),
+    branchId ?? "all",
+    businessTypeId ?? "all",
+    ownerType ?? "all",
+    q ?? "",
+    onlyCritical ?? false,
+    page ?? 0,
+    size ?? 20,
+  ] as const,
   branch: (branchId: number | string) => [...inventoryKeys.all, "branch", branchId] as const,
   product: (productId: number | string) => [...inventoryKeys.all, "product", productId] as const,
 };
@@ -78,16 +97,25 @@ export function useInventorySearchParams() {
 export function useInventory(filter: {
   branchId?: number;
   businessTypeId?: number;
+  ownerType?: InventarioOwnerType;
   q?: string;
   onlyCritical?: boolean;
   page?: number;
   size?: number;
 }) {
   return useQuery<InventoryPage, Error>({
-    queryKey: inventoryKeys.list(filter),
+    queryKey: inventoryKeys.list(
+      filter.branchId,
+      filter.businessTypeId,
+      filter.ownerType,
+      filter.q,
+      filter.onlyCritical,
+      filter.page,
+      filter.size
+    ),
     queryFn: () => fetchInventory(filter),
     staleTime: 30_000,
-    placeholderData: prev => prev,
+   placeholderData: (previousData) => previousData,
   });
 }
 /** Por sucursal: GET /inventario/sucursal/{branchId} */

@@ -125,8 +125,8 @@ const { data: providers = [] } = useProviders({
       {/* -------- FILTROS -------- */}
       <form onSubmit={submit} className="space-y-4">
 
-        <h3 className="text-base font-semibold">Filtros de compras</h3>
-          <p className="text-sm sm:text-base font-medium text-gray-700">
+        <h3 className="text-base font-semibold">Filtros · Compras</h3>
+          <p className="text-sm text-gray-500">
             Busca una compra, selecciona y haz devolución de producto
           </p>
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

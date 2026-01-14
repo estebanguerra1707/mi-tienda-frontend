@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { createCategoria } from "@/features/categorias/categorias.api";
+import { fetchBranchInfo } from "@/hooks/useCatalogs";
 
 type BusinessType = { id: number; name: string };
 
@@ -35,7 +36,7 @@ function getApiErrorMessage(err: unknown): string {
 }
 
 export default function AddCategoriaButton({ onCreated }: { onCreated?: () => void }) {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, token} = useAuth();
   const isSuper = (hasRole ? hasRole("SUPER_ADMIN") : user?.role === "SUPER_ADMIN") ?? false;
 
   const [open, setOpen] = useState(false);
@@ -81,13 +82,21 @@ export default function AddCategoriaButton({ onCreated }: { onCreated?: () => vo
     reset({});
   }, [reset]);
 
+  
+
   const onSubmit = async (values: FormValues) => {
+const resolvedBusinessTypeId = isSuper
+  ? values.businessTypeId
+  : (await fetchBranchInfo(user!.branchId!, token!))?.businessTypeId;
+
+  if (!resolvedBusinessTypeId) {
+    throw new Error("No se pudo determinar el tipo de negocio del usuario.");
+  }
     try {
       await createCategoria({
         name: values.name,
         description: values.description ?? "",
-        businessTypeId: (values.businessTypeId ??
-          (user?.businessType ?? 0)) as number,
+        businessTypeId: resolvedBusinessTypeId,
       });
       setToast({ type: "success", message: "Categoría creada." });
       onClose();

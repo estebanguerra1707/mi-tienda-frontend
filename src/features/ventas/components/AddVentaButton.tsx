@@ -42,6 +42,7 @@ const schema = z.object({
       z.object({
         productId: z.number().min(1, "Seleccione un producto válido"),
         quantity: z.number().min(1, "Cantidad inválida"),
+        ownerType: z.enum(["PROPIO", "CONSIGNACION"]).optional(),
       })
     )
     .min(1, "Debe agregar al menos un producto"),
@@ -61,6 +62,7 @@ type VentaForm = z.infer<typeof schema>;
 
 const makeZodResolver = <T extends object>(schema: ZodSchema<T>): Resolver<T> =>
   (zodResolver as unknown as (s: unknown) => unknown)(schema) as Resolver<T>;
+
 
 /* ---------- Componente ---------- */
 export default function AddVentaButton({ onCreated }: { onCreated: () => void }) {
@@ -104,20 +106,32 @@ const branchesHook = useBranches({
   oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
 });
 
-const branches = branchesHook.data ?? [];
+const branches = useMemo(
+  () => branchesHook.data ?? [],
+  [branchesHook.data]
+);
 
+const selectedBranch = useMemo(
+  () => branches.find((b) => b.id === selectedBranchId),
+  [branches, selectedBranchId]
+);
+
+const usaInventarioPorDuenio =
+  selectedBranch?.usaInventarioPorDuenio === true;
 const [isConfirming] = useState(false);
 
 
 const { data: productsRaw } = useProductsByBranch(
    selectedBranchId && selectedBranchId > 0 ? selectedBranchId : undefined
 );
+
 const products = useMemo(() => {
   if (!productsRaw) return [];
   if (Array.isArray(productsRaw)) return productsRaw;
   if ("content" in productsRaw) return productsRaw.content ?? [];
   return [];
 }, [productsRaw]);
+
 
 
 
@@ -154,6 +168,7 @@ const products = useMemo(() => {
   const [formError, setFormError] = useState("");
 
 const [showScanner, setShowScanner] = useState(false);
+
 
   /* ---------- Fecha automática ---------- */
   useEffect(() => {
@@ -374,14 +389,12 @@ const confirmarVentaFinal = async () => {
     details: v.details.map((d) => ({
       productId: d.productId,
       quantity: d.quantity,
+      ...(usaInventarioPorDuenio ? { ownerType: d.ownerType ?? "PROPIO" } : {}),
     })),
   };
 
   try {
-    // 🔥 AQUÍ capturas el error del backend
     const ventaCreada = await mutateAsync(payload);
-
-    // Si todo sale bien → continúas el flujo normal
     setVentaIdCreada(ventaCreada.id);
     setShowResumenModal(false);
     setShowSendEmailModal(true);
@@ -559,7 +572,11 @@ useEffect(() => {
                                   )
                                 );
                               } else {
-                                append({ productId: p.id, quantity: 1 });
+                             append({
+                                productId: p.id,
+                                quantity: 1,
+                                ...(usaInventarioPorDuenio ? { ownerType: "PROPIO" } : {}),
+                              });
                               }
 
                               trigger("details");
@@ -591,8 +608,16 @@ useEffect(() => {
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-4 gap-2 items-center font-semibold text-sm text-gray-700 border-b pb-2">
+                      <div
+                        className={`
+                          hidden md:grid
+                          ${usaInventarioPorDuenio ? "md:grid-cols-5" : "md:grid-cols-4"}
+                          gap-2 items-center
+                          font-semibold text-sm text-gray-700 border-b pb-2
+                        `}
+                      >
                         <div>Producto</div>
+                        {usaInventarioPorDuenio && <div>Tipo</div>}
                         <div>Cantidad</div>
                         <div className="text-center">Precio</div>
                         <div className="text-center">Acción</div>
@@ -602,34 +627,76 @@ useEffect(() => {
                         if (!prod) return null;
 
                         return (
-                          <div key={f.id} className="grid grid-cols-4 gap-2 items-center">
+                          <div
+                            key={f.id}
+                            className={`
+                              grid gap-3
+                              md:gap-2
+                              ${usaInventarioPorDuenio ? "md:grid-cols-5" : "md:grid-cols-4"}
+                              border rounded-lg p-3 md:p-0 md:border-0
+                            `}
+                          >
                             {/* Producto */}
-                            <div className="text-sm font-medium">{prod.name}</div>
+                            <div className="font-medium text-sm md:text-base">
+                              {prod.name}
+                            </div>
+
+                            {/* Tipo */}
+                            {usaInventarioPorDuenio && (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="accent-blue-600"
+                                  checked={(details[i]?.ownerType ?? "PROPIO") === "CONSIGNACION"}
+                                  onChange={(e) =>
+                                    setValue(
+                                      `details.${i}.ownerType`,
+                                      e.target.checked ? "CONSIGNACION" : "PROPIO",
+                                      { shouldValidate: true }
+                                    )
+                                  }
+                                />
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold
+                                    ${
+                                      (details[i]?.ownerType ?? "PROPIO") === "PROPIO"
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-blue-100 text-blue-700"
+                                    }`}
+                                >
+                                  {(details[i]?.ownerType ?? "PROPIO")}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Cantidad */}
                             <Input
                               type="number"
                               min="1"
+                              className="w-full md:w-24"
                               {...register(`details.${i}.quantity`, {
                                 valueAsNumber: true,
                                 onChange: async (e) => {
-                                  const qty = Number(e.target.value);
-                                  setValue(`details.${i}.quantity`, qty, { shouldValidate: true });
+                                  setValue(
+                                    `details.${i}.quantity`,
+                                    Number(e.target.value),
+                                    { shouldValidate: true }
+                                  );
                                   await trigger("details");
                                 },
                               })}
                             />
 
                             {/* Precio */}
-                            <div className="text-sm text-center">
-                              ${prod.salePrice?.toFixed(2) ?? "0.00"}
+                            <div className="text-sm md:text-center font-medium">
+                              ${prod.salePrice?.toFixed(2)}
                             </div>
 
                             {/* Acción */}
                             <Button
                               type="button"
                               variant="outline"
-                              className="text-red-500 border-red-400"
+                              className="text-red-500 border-red-400 w-full md:w-auto"
                               onClick={() => remove(i)}
                             >
                               Eliminar

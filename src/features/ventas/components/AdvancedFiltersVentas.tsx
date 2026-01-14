@@ -96,12 +96,12 @@ export default function AdvancedFiltersVentas({
     "w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1">
 
       <h3 className="text-base font-semibold">
-        Filtros de ventas
+        Filtros ·  ventas
       </h3>
-      <p className="text-sm sm:text-base font-medium text-gray-700">
+      <p className="text-sm text-gray-500">
         Busca una venta, selecciona y haz devolución de producto
       </p>
 

@@ -2,237 +2,274 @@
 
 import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/Button";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useUsers } from "@/hooks/useUsers"; 
+import { useUsers } from "@/hooks/useUsers";
 
 interface Props {
   onApply: (next: Record<string, string | undefined>) => void;
   onClear: () => void;
 }
 
-export default function AdvancedFiltersDevoluciones({ onApply, onClear }: Props) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
+export default function AdvancedFiltersDevoluciones({
+  onApply,
+  onClear,
+}: Props) {
   const { data: users = [] } = useUsers();
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const FILTROS_DEFAULT = {
+  const DEFAULT = {
     id: "",
     codigoBarras: "",
     tipoDevolucion: "",
     startDate: "",
     endDate: "",
-    username: "",
     ventaId: "",
+    username: "",
     productName: "",
-    day: "",
-    month: "",
-    year: "",
     minMonto: "",
     maxMonto: "",
     minCantidad: "",
     maxCantidad: "",
+    day: "",
+    month: "",
+    year: "",
   };
 
-  const [filtros, setFiltros] = useState(FILTROS_DEFAULT);
-
+  const [filtros, setFiltros] = useState(DEFAULT);
   const [openStart, setOpenStart] = useState(false);
   const [openEnd, setOpenEnd] = useState(false);
 
-  const parseLocalDate = (str?: string) => {
-    if (!str) return undefined;
-    const d = new Date(str);
+  const inputCls =
+    "w-full rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+  const parseDate = (v?: string) => {
+    if (!v) return undefined;
+    const d = new Date(v);
     return isNaN(d.getTime()) ? undefined : d;
   };
 
-  const startDate = parseLocalDate(filtros.startDate);
-  const endDate = parseLocalDate(filtros.endDate);
+  const startDate = parseDate(filtros.startDate);
+  const endDate = parseDate(filtros.endDate);
 
   const setDate = (key: "startDate" | "endDate", d?: Date) => {
-    if (!d) {
-      setFiltros((p) => ({ ...p, [key]: undefined }));
-      return;
-    }
+    if (!d) return;
+    const local = new Date(d);
+    local.setHours(
+      key === "startDate" ? 0 : 23,
+      key === "startDate" ? 0 : 59,
+      key === "startDate" ? 0 : 59,
+      key === "startDate" ? 0 : 999
+    );
 
-    const local = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    if (key === "startDate") local.setHours(0, 0, 0, 0);
-    else local.setHours(23, 59, 59, 999);
-
-    const pad = (n: number) => String(n).padStart(2, "0");
-
-    const formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(
-      local.getDate()
-    )}T${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(
-      local.getSeconds()
-    )}`;
-
-    setFiltros((p) => ({ ...p, [key]: formatted }));
+    setFiltros((p) => ({
+      ...p,
+      [key]: local.toISOString(),
+    }));
   };
 
-  const change = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const change = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFiltros((prev) => ({ ...prev, [name]: value }));
+    setFiltros((p) => ({ ...p, [name]: value }));
   };
 
   const apply = () => {
     const clean: Record<string, string> = {};
-    Object.entries(filtros).forEach(([key, value]) => {
-      if (value !== "" && value !== undefined) {
-        clean[key] = value;
-      }
+    Object.entries(filtros).forEach(([k, v]) => {
+      if (v) clean[k] = v;
     });
     onApply({ ...clean, page: "0", size: "20" });
   };
 
   const clear = () => {
-    setFiltros(FILTROS_DEFAULT);
+    setFiltros(DEFAULT);
+    onClear();
   };
 
-  const cls =
-    "w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
 
-      <h3 className="text-base font-semibold">
-        Filtro devoluciones · Ventas
-      </h3>
-       <p className="text-sm sm:text-base font-medium text-gray-700">
-        Busca devolución hecha de una venta
-      </p>
-
-      {/* ---------------- SIMPLE ---------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">ID devolución</span>
-          <input name="id" value={filtros.id} onChange={change} className={cls} />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">Código de barras</span>
-          <input name="codigoBarras" value={filtros.codigoBarras} onChange={change} className={cls} />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">Tipo devolución</span>
-          <select name="tipoDevolucion" value={filtros.tipoDevolucion} onChange={change} className={cls}>
-            <option value="">Todas</option>
-            <option value="TOTAL">TOTAL</option>
-            <option value="PARCIAL">PARCIAL</option>
-          </select>
-        </label>
-
-        {/* FECHAS */}
-        <div className="flex flex-col gap-1">
-          <span className="text-sm">Desde</span>
-          <Popover open={openStart} onOpenChange={setOpenStart}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cls}>
-                {startDate ? format(startDate, "dd MMM yyyy", { locale: es }) : "Seleccionar"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={(d) => {
-                  setDate("startDate", d || undefined);
-                  setOpenStart(false);
-                }}
-                locale={es}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <span className="text-sm">Hasta</span>
-          <Popover open={openEnd} onOpenChange={setOpenEnd}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cls}>
-                {endDate ? format(endDate, "dd MMM yyyy", { locale: es }) : "Seleccionar"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={(d) => {
-                  setDate("endDate", d || undefined);
-                  setOpenEnd(false);
-                }}
-                locale={es}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+      {/* HEADER */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-800">
+          Devoluciones · Ventas
+        </h3>
+        <p className="text-sm text-gray-500">
+          Encuentra devoluciones realizadas por cada venta
+        </p>
       </div>
 
-      {/* ---------------- AVANZADO ---------------- */}
-      {showAdvanced && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 border-t">
+      {/* BÚSQUEDA RÁPIDA */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">ID Venta</span>
-            <input name="ventaId" value={filtros.ventaId} onChange={change} className={cls} />
-          </label>
+        <input
+          name="id"
+          placeholder="ID devolución"
+          value={filtros.id}
+          onChange={change}
+          className={inputCls}
+        />
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Usuario</span>
-            <select name="username" value={filtros.username} onChange={change} className={cls}>
-              <option value="">Todos</option>
+        <input
+          name="codigoBarras"
+          placeholder="Código de barras"
+          value={filtros.codigoBarras}
+          onChange={change}
+          className={inputCls}
+        />
+
+        <select
+          name="tipoDevolucion"
+          value={filtros.tipoDevolucion}
+          onChange={change}
+          className={inputCls}
+        >
+          <option value="">Tipo de devolución</option>
+          <option value="TOTAL">TOTAL</option>
+          <option value="PARCIAL">PARCIAL</option>
+        </select>
+      </div>
+
+      {/* FECHAS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* DESDE */}
+        <Popover open={openStart} onOpenChange={setOpenStart}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={inputCls}>
+              {startDate
+                ? format(startDate, "dd MMM yyyy", { locale: es })
+                : "Desde"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="p-0">
+            <Calendar
+              mode="single"
+              selected={startDate}
+              onSelect={(d) => {
+                setDate("startDate", d);
+                setOpenStart(false);
+              }}
+              locale={es}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {/* HASTA */}
+        <Popover open={openEnd} onOpenChange={setOpenEnd}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={inputCls}>
+              {endDate
+                ? format(endDate, "dd MMM yyyy", { locale: es })
+                : "Hasta"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="p-0">
+            <Calendar
+              mode="single"
+              selected={endDate}
+              onSelect={(d) => {
+                setDate("endDate", d);
+                setOpenEnd(false);
+              }}
+              locale={es}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* AVANZADOS */}
+      <div className="border-t pt-4">
+        <button
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          {showAdvanced ? "Ocultar filtros avanzados" : "Mostrar filtros avanzados"}
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+            <input
+              name="ventaId"
+              placeholder="ID Venta"
+              value={filtros.ventaId}
+              onChange={change}
+              className={inputCls}
+            />
+
+            <select
+              name="username"
+              value={filtros.username}
+              onChange={change}
+              className={inputCls}
+            >
+              <option value="">Usuario</option>
               {users.map((u) => (
                 <option key={u.id} value={u.email}>
                   {u.username ?? u.email}
                 </option>
               ))}
             </select>
-          </label>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Producto</span>
-            <input name="productName" value={filtros.productName} onChange={change} className={cls} />
-          </label>
+            <input
+              name="productName"
+              placeholder="Producto"
+              value={filtros.productName}
+              onChange={change}
+              className={inputCls}
+            />
 
-          <input name="minMonto" placeholder="Monto mínimo" value={filtros.minMonto} onChange={change} className={cls} />
-          <input name="maxMonto" placeholder="Monto máximo" value={filtros.maxMonto} onChange={change} className={cls} />
+            <input
+              name="minMonto"
+              placeholder="Monto mínimo"
+              value={filtros.minMonto}
+              onChange={change}
+              className={inputCls}
+            />
 
-          <input name="minCantidad" placeholder="Cantidad mínima" value={filtros.minCantidad} onChange={change} className={cls} />
-          <input name="maxCantidad" placeholder="Cantidad máxima" value={filtros.maxCantidad} onChange={change} className={cls} />
+            <input
+              name="maxMonto"
+              placeholder="Monto máximo"
+              value={filtros.maxMonto}
+              onChange={change}
+              className={inputCls}
+            />
 
-          <div className="grid grid-cols-3 gap-2">
-            <input name="day" placeholder="Día" value={filtros.day} onChange={change} className={cls} />
-            <input name="month" placeholder="Mes" value={filtros.month} onChange={change} className={cls} />
-            <input name="year" placeholder="Año" value={filtros.year} onChange={change} className={cls} />
+            <input
+              name="minCantidad"
+              placeholder="Cantidad mínima"
+              value={filtros.minCantidad}
+              onChange={change}
+              className={inputCls}
+            />
+
+            <input
+              name="maxCantidad"
+              placeholder="Cantidad máxima"
+              value={filtros.maxCantidad}
+              onChange={change}
+              className={inputCls}
+            />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* ---------------- BOTONES ---------------- */}
-      <div className="flex flex-col sm:flex-row gap-2 pt-2">
-        <Button className="bg-blue-600 text-white w-full sm:w-auto" onClick={apply}>
+      {/* ACCIONES */}
+      <div className="flex flex-col sm:flex-row gap-3 pt-4">
+        <Button className="w-full sm:w-auto bg-blue-600 text-white" onClick={apply}>
           Buscar
         </Button>
 
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto"
-          onClick={() => {
-            clear();
-            onClear();
-          }}
-        >
+        <Button variant="outline" className="w-full sm:w-auto" onClick={clear}>
           Limpiar
-        </Button>
-
-        <Button
-          variant="ghost"
-          className="w-full sm:w-auto"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-        >
-          {showAdvanced ? "Ocultar avanzada" : "Búsqueda avanzada"}
         </Button>
       </div>
     </div>

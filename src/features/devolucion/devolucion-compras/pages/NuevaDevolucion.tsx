@@ -105,10 +105,15 @@ function NuevaDevolucionPageInner(
         </div>
       )}
 
-      {resultado && (
+     {resultado && (
         <DevolucionResultModal
           devolucion={resultado}
-          onClose={() => buscadorRef.current?.limpiar()}
+        onClose={() => {
+          setResultado(null);
+          setCompraCompleta(null);
+          setDetalle(null);
+          buscadorRef.current?.limpiar();
+        }}
         />
       )}
     </div>

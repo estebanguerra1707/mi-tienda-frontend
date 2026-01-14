@@ -7,11 +7,13 @@ type AdvancedFiltersProps = {
   params: URLSearchParams;
   onApply: (next: Record<string, string | undefined>) => void;
   loadingBranches?: boolean;
+  onClose: () => void;
 };
 
 export default function AdvancedFilters({
   params,
   onApply,
+  onClose,
 }: AdvancedFiltersProps) {
   const [min, setMin] = useState(params.get("min") ?? "");
   const [max, setMax] = useState(params.get("max") ?? "");
@@ -81,7 +83,7 @@ const branchesHook = useBranches({
   businessTypeId: isSuper
     ? (businessTypeId ? Number(businessTypeId) : undefined)
     : null,
-  oneBranchId: null,
+  oneBranchId: !isSuper ? user?.branchId ?? null : null,
 });
 
 useEffect(() => {
@@ -153,7 +155,7 @@ const branchName = useMemo(() => {
   return (
     <div className="rounded border p-3 grid gap-3 sm:grid-cols-3">
       <label className="flex flex-col gap-1">
-        <span className="text-sm">Precio mín.</span>
+        <span className="text-sm">Precio <b>mínimo</b> de venta</span>
         <input
           value={min}
           onChange={(e) => setMin(e.target.value)}
@@ -163,7 +165,7 @@ const branchName = useMemo(() => {
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-sm">Precio máx.</span>
+        <span className="text-sm">Precio <b>máximo</b> de venta</span>
         <input
           value={max}
           onChange={(e) => setMax(e.target.value)}
@@ -172,35 +174,33 @@ const branchName = useMemo(() => {
         />
       </label>
         {/* Sucursal */}
-       {(isVendor || isAdmin) ? (
         <label className="flex flex-col gap-1">
-            <span className="text-sm">Sucursal</span>
+          <span className="text-sm font-medium text-gray-700">Sucursal</span>
+
+          {isSuper ? (
+            <select
+          value={branchId}
+          onChange={(e) => setBranchId(e.target.value)}
+          className="border rounded-lg px-3 py-2 bg-white shadow-sm focus:ring-blue-500"
+          disabled={branchesHook.loading}
+        >
+          <option value="">
+            {branchesHook.loading ? "Cargando…" : "Todas…"}
+          </option>
+          {branchesHook.data.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+          ) : (
             <input
-            type="text"
-            readOnly
-            value={branchName || "Sucursal asignada"}
-            className="border rounded px-3 py-2 bg-slate-100 cursor-not-allowed"
+              readOnly
+              className="border rounded-lg px-3 py-2 bg-gray-100 text-gray-700"
+              value={branchName || "Sucursal asignada"}
             />
+          )}
         </label>
-        ) : (
-        <label className="flex flex-col gap-1">
-            <span className="text-sm">Sucursal</span>
-           <select
-                value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-                className="border rounded px-3 py-2 disabled:bg-slate-100"
-                disabled={branchesHook.loading}
-                >
-                <option value="">{branchesHook.loading ? "Cargando…" : "Todas…"}</option>
-                {branchesHook.data.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-                {!branchesHook.loading && branchesHook.data.length === 0 && (
-                    <option disabled>(sin sucursales)</option>
-                )}
-            </select>
-        </label>
-)}
 
       {/* Categoría */}
         <label className="flex flex-col gap-1">
@@ -272,16 +272,29 @@ const branchName = useMemo(() => {
         )}
      
       <div className="sm:col-span-3 flex gap-2 justify-end">
-        <button type="button" onClick={clear} className="px-3 py-2 border rounded">
-          Limpiar
-        </button>
-        <button
-          type="button"
-          onClick={apply}
-          className="px-3 py-2 rounded bg-blue-600 text-white"
-        >
-          Aplicar
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              clear(); 
+              onClose();
+            }}
+            className="px-3 py-2 border rounded bg-slate-100"
+          >
+            Ocultar filtros
+          </button>
+
+          <button type="button" onClick={clear} className="px-3 py-2 border rounded">
+            Limpiar
+          </button>
+
+          <button
+            type="button"
+            onClick={apply}
+            className="px-3 py-2 rounded bg-blue-600 text-white"
+          >
+            Aplicar
+          </button>
+
       </div>
     </div>
   );

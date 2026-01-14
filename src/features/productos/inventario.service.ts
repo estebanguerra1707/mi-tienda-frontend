@@ -25,7 +25,8 @@ export type UpsertInventarioDTO = {
 };
 
 export async function getInventarioDeProducto(branchId: number, productId: number) {
-  const { data } = await api.get<InventarioItem>(`/inventario/sucursal/${branchId}/producto/${productId}`);
+  const { data } = await api.get<InventarioItem>(`/inventario/sucursal/${branchId}/producto/${productId}`
+  );
   return data;
 }
 

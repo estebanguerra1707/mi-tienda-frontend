@@ -10,16 +10,15 @@ import { getErrorMessage } from "../getErrorMessage";
 import { useCreateInventory } from "../useMutations";
 import type { InventoryCreate } from "../api";
 
-// ===== Productos para dropdown (reusa tu fuente real) =====
 import { useAdvancedProducts } from "@/features/productos/useAdvancedProducts";
 import { buildFiltro } from "@/features/productos/productos.api";
 import type { Product } from "@/features/productos/api";
+import { InventarioOwnerType } from "../api";
 type ProductLite = Pick<Product, "id" | "name" | "sku">;
 
 type Role = "ADMIN" | "VENDOR" | "SUPER_ADMIN";
 const schema = z.object({
   productId: z.coerce.number().int().min(1, "Producto requerido"),
-  // branchId es requerido solo para SUPER (para otros lo inyectamos desde sesión)
   branchId: z.coerce.number().int().optional(),
   quantity: z.coerce.number().int().min(0, "Cantidad inválida"),
   minStock: z.coerce.number().int().min(0).optional(),
@@ -31,8 +30,21 @@ type FormValues = z.infer<typeof schema>;
 const makeResolver = <T extends object>(s: ZodSchema<T>): Resolver<T> =>
   (zodResolver as (s: ZodSchema<T>) => Resolver<T>)(s);
 
-export default function AddInventoryButton({ onCreated }: { onCreated?: () => void }) {
-  const { mutateAsync, isPending } = useCreateInventory();
+type Props = {
+  onCreated?: () => void;
+  defaultProductId?: number;
+  autoOpen?: boolean;
+  variant?: "primary" | "link";
+
+};
+
+export default function AddInventoryButton({
+  onCreated,
+  defaultProductId,
+  autoOpen = false,
+  variant = "primary",
+
+}: Props) {  const { mutateAsync, isPending } = useCreateInventory();
 
   const auth = useAuth() as {
     user?: { role?: Role; branchId?: number | null; businessType?: number | null };
@@ -45,62 +57,86 @@ export default function AddInventoryButton({ onCreated }: { onCreated?: () => vo
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 const [branchName, setBranchName] = useState<string>("");
 
-  // ------- Branches (catálogo) -------
+
   const branchesHook = useBranches({
     isSuper,
     businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
     oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
   });
 
-  // branch seleccionado en UI (para SUPER). Para ADMIN/VENDOR usamos el de sesión.
+
+
   const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>(
     isSuper ? undefined : (auth.user?.branchId ?? undefined)
   );
+  const [usesOwnerInventory, setUsesOwnerInventory] = useState(false);
+const [ownerType, setOwnerType] = useState<InventarioOwnerType>("PROPIO");
 
-  // Derivar BusinessType desde la sucursal (si quieres filtrar productos por BT en backend)
   const [derivedBT, setDerivedBT] = useState<number | null>(null);
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!open) return;
-      if (!isSuper) {
-        // no hace falta derivar; el hook de productos puede funcionar sin BT
-        setDerivedBT(null);
-        return;
-      }
-      if (!selectedBranchId) {
-        setDerivedBT(null);
-        return;
-      }
-      try {
-        const info = await fetchBranchInfo(Number(selectedBranchId), auth.token ?? "");
-        if (!alive) return;
-        setDerivedBT(info.businessTypeId ?? null);
-      } catch {
-        if (!alive) return;
-        setDerivedBT(null);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [open, isSuper, selectedBranchId, auth.token]);
+  const effectiveBranchId = isSuper ? selectedBranchId : auth.user?.branchId ?? undefined;
 
-  // ------- Productos por sucursal (o por BT derivado) -------
-  // Construimos un filtro sencillo: activos y por branchId (si hay)
-  const filtro = useMemo(
-    () =>
-      buildFiltro({
-        active: true,
-        branchId: selectedBranchId,
-        businessTypeId: isSuper ? (derivedBT ?? undefined) : undefined,
-      }),
-    [selectedBranchId, isSuper, derivedBT]
-  );
+  
+useEffect(() => {
+  let alive = true;
+
+  (async () => {
+    if (!open) return;
+
+    // Sucursal efectiva (super: seleccionada, no-super: la del usuario)
+    if (!effectiveBranchId) {
+      if (!alive) return;
+      setDerivedBT(null);
+      setUsesOwnerInventory(false);
+      setOwnerType("PROPIO");
+      return;
+    }
+
+    try {
+      const info = await fetchBranchInfo(Number(effectiveBranchId), auth.token ?? "");
+
+      if (!alive) return;
+
+      setDerivedBT(info.businessTypeId ?? null);
+      const enabled = Boolean(info.usaInventarioPorDuenio);
+      setUsesOwnerInventory(enabled);
+
+      // MISMO COMPORTAMIENTO QUE COMPRAS
+      if (enabled) {
+        setOwnerType("PROPIO");
+      } else {
+        setOwnerType("PROPIO"); // no se muestra, pero backend queda consistente
+      }
+
+
+    } catch {
+      if (!alive) return;
+      setDerivedBT(null);
+      setUsesOwnerInventory(false);
+      setOwnerType("PROPIO");
+    }
+  })();
+
+  return () => {
+    alive = false;
+  };
+}, [open, auth.token, effectiveBranchId]);
+
+
+const filtro = useMemo(
+  () =>
+    buildFiltro({
+      active: true,
+      branchId: effectiveBranchId,
+      businessTypeId: isSuper ? (derivedBT ?? undefined) : undefined,
+    }),
+  [effectiveBranchId, isSuper, derivedBT]
+);
+
+
   const { data: productsPage, isPending: productsLoading } = useAdvancedProducts(
     filtro,
-    0, // primera página
-    100 // tamaño razonable para dropdown
+    0,
+    100 
   );
   
 const productOptions = useMemo(() => {
@@ -118,14 +154,27 @@ const productOptions = useMemo(() => {
     defaultValues: { isStockCritico: false },
   });
 
-  // Cuando abrimos, inicializamos branchId si no es SUPER
+  useEffect(() => {
+  if (autoOpen && defaultProductId) {
+    setOpen(true);
+    setValue("productId", defaultProductId, { shouldDirty: false });
+  }
+}, [autoOpen, defaultProductId, setValue]);
+
+useEffect(() => {
+  if (!open) return;
+  if (!defaultProductId) return;
+
+  setValue("productId", defaultProductId, { shouldDirty: false });
+}, [open, defaultProductId, setValue]);
+
+
   useEffect(() => {
     if (!open) return;
     if (!isSuper) {
       setValue("branchId", auth.user?.branchId ?? undefined, { shouldDirty: false });
       setSelectedBranchId(auth.user?.branchId ?? undefined);
     } else {
-      // SUPER: limpiar para forzar selección
       setValue("branchId", undefined, { shouldDirty: false });
       setSelectedBranchId(undefined);
     }
@@ -140,10 +189,16 @@ const productOptions = useMemo(() => {
   const onClose = () => {
     setOpen(false);
       setBranchName("");
-    reset();
+    setUsesOwnerInventory(false);
+    setOwnerType("PROPIO");
+     reset();
   };
-
+  
   const onSubmit = async (v: FormValues) => {
+    if (usesOwnerInventory && !ownerType) {
+      setToast({ type: "error", message: "Debes seleccionar el tipo de dueño" });
+      return;
+    }
     try {
       const payload: InventoryCreate = {
         productId: Number(v.productId),
@@ -152,6 +207,8 @@ const productOptions = useMemo(() => {
         minStock: v.minStock != null ? Number(v.minStock) : undefined,
         maxStock: v.maxStock != null ? Number(v.maxStock) : undefined,
         isStockCritico: !!v.isStockCritico,
+        ownerType: usesOwnerInventory ? (ownerType ?? "PROPIO") : "PROPIO",
+
       };
       await mutateAsync(payload);
       setToast({ type: "success", message: "Inventario creado." });
@@ -175,10 +232,31 @@ useEffect(() => {
   }
 }, [open, isSuper, auth.user?.branchId, branchesHook.data]);
 
+useEffect(() => {
+  if (!open) return;
+  if (!defaultProductId) return;
+  if (productOptions.length === 0) return;
+
+  setValue("productId", defaultProductId, { shouldDirty: false });
+}, [open, defaultProductId, productOptions, setValue]);
+
+
   return (
     <>
-      <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={() => setOpen(true)}>
-        Agregar inventario
+      <button
+        className={
+          variant === "link"
+            ? "text-xs text-blue-600 hover:underline font-semibold"
+            : "px-3 py-2 rounded bg-emerald-600 text-white"
+        }
+        onClick={() => {
+          setOpen(true);
+          if (defaultProductId) {
+            setValue("productId", defaultProductId, { shouldDirty: false });
+          }
+        }}
+      >
+        {variant === "link" ? "Agregar stock" : "Agregar inventario"}
       </button>
 
       {toast &&
@@ -231,16 +309,62 @@ useEffect(() => {
                   <select
                     className="border rounded px-3 py-2 w-full"
                     {...register("productId", { valueAsNumber: true })}
-                    disabled={!selectedBranchId || productsLoading}
+                    disabled={!effectiveBranchId || productsLoading}
                   >
-                    <option value="">{!selectedBranchId ? "Selecciona una sucursal…" : (productsLoading ? "Cargando…" : "Selecciona…")}</option>
+                    <option value="">{!effectiveBranchId ? "Selecciona una sucursal…" : (productsLoading ? "Cargando…" : "Selecciona…")}</option>
                     {productOptions.map((p) => (
                       <option key={p.id} value={p.id}>{p.label}</option>
                     ))}
                   </select>
                   {errors.productId && <p className="text-xs text-red-600">{errors.productId.message}</p>}
                 </label>
+                {usesOwnerInventory && (
+                  <div
+                    className="
+                      flex flex-col gap-2
+                      sm:flex-row sm:items-center sm:gap-4
+                    "
+                  >
+                    {/* Label */}
+                    <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                      Tipo de dueño
+                    </span>
 
+                    {/* Switch + badge */}
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="
+                          accent-blue-600
+                          w-4 h-4
+                          cursor-pointer
+                        "
+                        checked={ownerType === "CONSIGNACION"}
+                        onChange={(e) =>
+                          setOwnerType(e.target.checked ? "CONSIGNACION" : "PROPIO")
+                        }
+                      />
+
+                      <span
+                        className={`
+                          inline-flex items-center justify-center
+                          min-w-[96px]
+                          px-2.5 py-1
+                          rounded-full
+                          text-[11px] font-semibold
+                          transition-colors
+                          ${
+                            ownerType === "PROPIO"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-blue-100 text-blue-700"
+                          }
+                        `}
+                      >
+                        {ownerType}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 {/* Cantidad / min / max */}
                 <label className="block">
                   <span className="text-sm">Cantidad</span>

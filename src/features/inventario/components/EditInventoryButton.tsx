@@ -142,6 +142,21 @@ export default function EditInventarioButton({
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="px-4 py-3 space-y-3 overflow-y-auto">
+                 {/* Tipo de dueño (solo lectura) */}
+              {row.ownerType && (
+                <div className="rounded-md bg-slate-50 border px-3 py-2">
+                  <span className="text-xs text-slate-500">Tipo de dueño</span>
+                  <div
+                    className={`inline-flex mt-1 px-2 py-1 rounded-full text-xs font-semibold
+                      ${row.ownerType === "CONSIGNACION"
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-blue-100 text-blue-700"}
+                    `}
+                  >
+                    {row.ownerType === "CONSIGNACION" ? "Consignación" : "Propio"}
+                  </div>
+                </div>
+              )}
               <input
                 type="hidden"
                 {...register("quantity")}

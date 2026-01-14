@@ -47,6 +47,16 @@ export default function DetalleCompraCard({
               <p className="text-xs text-gray-600">
                 Cant: {d.quantity} · ${d.unitPrice.toFixed(2)}
               </p>
+              <span
+                className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold
+                  ${
+                    d.ownerType === "PROPIO"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+              >
+                {d.ownerType}
+              </span>
             </div>
 
             {/* INDICADOR TÁCTIL */}

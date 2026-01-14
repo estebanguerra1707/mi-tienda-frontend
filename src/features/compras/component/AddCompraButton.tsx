@@ -40,10 +40,14 @@ const schema = z.object({
       z.object({
         productId: z.number().min(1, "Selecciona un producto válido"),
         quantity: z.number().min(1, "Cantidad inválida"),
+            ownerType: z.enum(["PROPIO", "CONSIGNACION"]).optional(),
+
       })
     )
     .min(1, "Agrega al menos un producto válido"),
 });
+
+type OwnerType = "PROPIO" | "CONSIGNACION";
 
 const makeZodResolver = <T extends object>(schema: ZodSchema<T>): Resolver<T> =>
   (zodResolver as unknown as (s: unknown) => unknown)(schema) as Resolver<T>;
@@ -110,6 +114,13 @@ export default function AddCompraButton({ onCreated }: { onCreated?: () => void 
       ? null
       : (user?.branchId ?? null),
   });
+
+const selectedBranch = branches.data?.find(
+  (b) => b.id === selectedBranchId
+);
+
+const usaInventarioPorDuenio = selectedBranch?.usaInventarioPorDuenio === true;
+
     const providers = useProviders({
       isSuper: isSuperAdmin,
       branchId: !isSuperAdmin ? selectedBranchId : null,
@@ -118,6 +129,16 @@ export default function AddCompraButton({ onCreated }: { onCreated?: () => void 
   const paymentMethods = usePaymentMethods();
   const { data: products, isLoading, error } = useProductsByBranch(
     selectedBranchId ?? undefined
+  );
+  const buildDetalle = useCallback(
+    (productId: number, ownerType?: OwnerType) => ({
+      productId,
+      quantity: 1,
+      ...(usaInventarioPorDuenio
+        ? { ownerType: ownerType ?? "PROPIO" }
+        : {}),
+    }),
+    [usaInventarioPorDuenio]
   );
 
   const {
@@ -202,6 +223,15 @@ const normalizeProducts = (
     setFechaCompraLocal(dayjs(now).format("YYYY-MM-DDTHH:mm:ss"));
   }, []);
 
+  useEffect(() => {
+  if (!isSuperAdmin && selectedBranchId) {
+    setValue("branchId", selectedBranchId, {
+      shouldValidate: true,
+      shouldDirty: false,
+    });
+  }
+}, [isSuperAdmin, selectedBranchId, setValue]);
+
   /* ---------- Escaneo ---------- */
   useEffect(() => {
     if (!barcode || !products) return;
@@ -219,11 +249,15 @@ const normalizeProducts = (
           )
         );
       } else {
-        setValue("details", [...details, { productId: found.id, quantity: 1 }]);
+     setValue(
+        "details",
+        [...details, buildDetalle(found.id)],
+        { shouldValidate: true }
+      );
       }
       setValue("barcode", "");
     }
-  }, [barcode, products, details, setValue]);
+  }, [barcode, products, details, setValue, buildDetalle]);
 
   /* ---------- Cambio ---------- */
   useEffect(() => {
@@ -241,6 +275,7 @@ useEffect(() => {
     setFilteredProducts([]);
     return;
   }
+  
 
   const list = normalizeProducts(products);
   const term = searchTerm.toLowerCase();
@@ -380,6 +415,7 @@ useEffect(() => {
       details: v.details.map((d) => ({
         productId: d.productId,
         quantity: d.quantity,
+        ...(usaInventarioPorDuenio ? { ownerType: d.ownerType ?? "PROPIO" } : {}),
       })),
     };
 
@@ -510,6 +546,17 @@ const resetearFormularioCompra = () => {
     }
   }, [errors]);
 
+  useEffect(() => {
+  if (!usaInventarioPorDuenio && details.length > 0) {
+    details.forEach((_, i) => {
+      setValue(`details.${i}.ownerType`, "PROPIO", {
+        shouldValidate: false,
+        shouldDirty: false,
+      });
+    });
+  }
+}, [usaInventarioPorDuenio, details, setValue]);
+
   const [showScanner, setShowScanner] = useState(false);
 
   /* ---------- Render ---------- */
@@ -624,7 +671,7 @@ const resetearFormularioCompra = () => {
                             } else {
                               setValue(
                                 "details",
-                                [...details, { productId: p.id, quantity: 1 }],
+                                [...details, buildDetalle(p.id)],
                                 { shouldValidate: true }
                               );
                             }
@@ -677,100 +724,231 @@ const resetearFormularioCompra = () => {
                 </FormSelect>
 
                 {/* Tabla de productos */}
-                <div className="space-y-2">
-                  {isLoading && <p>Cargando productos...</p>}
-                  {error && <p className="text-red-600">Error al cargar productos</p>}
-                  {!isLoading && !error && (
-                    <table className="w-full text-sm border">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="p-2 text-left">Producto</th>
-                          <th>SKU</th>
-                          <th>Descripción</th>
-                          <th>Cantidad</th>
-                          <th>Precio</th>
-                          {isSuperAdmin && <th>Fecha Creación</th>}
-                          {isSuperAdmin && <th>Tipo de negocio</th>}
-                          <th>Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {details.map((d, i) => {
-                          const list = Array.isArray(products)
-                            ? products
-                            : products?.content ?? [];
-                          const prod = list.find((p) => p.id === Number(d.productId));
-                          return (
-                            <tr key={i} className="border-t">
-                              
-                              <td className="p-2">
-                                  {/* campo oculto pero registrado en el form */}
-                                  <input
-                                    type="hidden"
-                                    {...register(`details.${i}.productId` as const, { valueAsNumber: true })}
-                                  />
+              <div className="space-y-3">
+                {isLoading && <p>Cargando productos...</p>}
+                {error && <p className="text-red-600">Error al cargar productos</p>}
 
-                                  {/* mostramos solo el nombre del producto */}
-                                  <span className="font-medium">
-                                    {prod?.name ?? "Producto sin seleccionar"}
-                                  </span>
+                {!isLoading && !error && (
+                  <>
+                    {/* ================= DESKTOP TABLE ================= */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-sm border">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="p-2 text-left">Producto</th>
+                            {usaInventarioPorDuenio && <th className="text-center">Tipo</th>}
+                            <th className="text-center">SKU</th>
+                            <th className="text-center">Descripción</th>
+                            <th className="text-center">Cantidad</th>
+                            <th className="text-center">Precio</th>
+                            {isSuperAdmin && <th className="text-center">Fecha</th>}
+                            {isSuperAdmin && <th className="text-center">Negocio</th>}
+                            <th className="text-center">Acción</th>
+                          </tr>
+                        </thead>
 
-                                  {/* mensaje de error si no hay producto */}
-                                  {errors.details?.[i]?.productId && (
-                                    <p className="text-red-600 text-xs mt-1">
-                                      {errors.details[i]?.productId?.message as string}
-                                    </p>
-                                  )}
+                        <tbody>
+                          {details.map((d, i) => {
+                            const list = Array.isArray(products)
+                              ? products
+                              : products?.content ?? [];
+                            const prod = list.find((p) => p.id === Number(d.productId));
+                            if (!prod) return null;
+
+                            return (
+                              <tr key={i} className="border-t">
+                                <td className="p-2 font-medium">{prod.name}</td>
+
+                                {usaInventarioPorDuenio && (
+                                  <td className="w-40 text-center align-middle">
+                                    <div className="flex items-center justify-center gap-2 min-w-[140px]">
+                                      <input
+                                        type="checkbox"
+                                        className="accent-blue-600 shrink-0"
+                                        checked={(d.ownerType ?? "PROPIO") === "CONSIGNACION"}
+                                        onChange={(e) => {
+                                          setValue(
+                                            `details.${i}.ownerType`,
+                                            e.target.checked ? "CONSIGNACION" : "PROPIO",
+                                            { shouldValidate: true }
+                                          );
+                                        }}
+                                      />
+
+                                      <span
+                                        className={`inline-flex items-center justify-center
+                                          min-w-[95px] px-2 py-0.5
+                                          rounded-full text-[10px] font-semibold
+                                          transition-none
+                                          ${
+                                            (d.ownerType ?? "PROPIO") === "PROPIO"
+                                              ? "bg-green-100 text-green-700"
+                                              : "bg-blue-100 text-blue-700"
+                                          }`}
+                                      >
+                                        {(d.ownerType ?? "PROPIO")}
+                                      </span>
+                                    </div>
+                                  </td>
+                                )}
+
+                                <td className="text-center">{prod.sku ?? "—"}</td>
+                                <td className="text-center">{prod.description ?? "—"}</td>
+
+                                <td className="text-center">
+                                  <div className="flex justify-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setValue(
+                                          `details.${i}.quantity`,
+                                          Math.max(1, (d.quantity ?? 1) - 1)
+                                        )
+                                      }
+                                    >
+                                      −
+                                    </button>
+                                    <input
+                                      type="number"
+                                      className="w-14 text-center border rounded"
+                                      {...register(`details.${i}.quantity` as const)}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setValue(`details.${i}.quantity`, (d.quantity ?? 0) + 1)
+                                      }
+                                    >
+                                      +
+                                    </button>
+                                  </div>
                                 </td>
-                              <td className="text-center">{prod?.sku ?? "—"}</td>
-                              <td className="text-center">{prod?.description || "Sin descripción"}</td>
-                              <td className="text-center">
-                                <div className="flex items-center justify-center gap-2">
+
+                                <td className="text-center">
+                                  ${(prod.purchasePrice ?? 0).toFixed(2)}
+                                </td>
+
+                                {isSuperAdmin && (
+                                  <td className="text-center">
+                                    {prod.creationDate?.split("T")[0]}
+                                  </td>
+                                )}
+                                {isSuperAdmin && (
+                                  <td className="text-center">
+                                    {prod.businessTypeName ?? "—"}
+                                  </td>
+                                )}
+
+                                <td className="text-center">
                                   <button
                                     type="button"
-                                    className="px-2 border rounded"
-                                    onClick={() =>
-                                      setValue(
-                                        `details.${i}.quantity`,
-                                        Math.max(1, (Number(d.quantity) || 1) - 1)
-                                      )
-                                    }
-                                  >−</button>
-                                  <input
-                                    type="number"
-                                    className="w-14 text-center border rounded"
-                                    {...register(`details.${i}.quantity` as const)}
-                                  />
-                                  <button
-                                    type="button"
-                                    className="px-2 border rounded"
-                                    onClick={() =>
-                                      setValue(`details.${i}.quantity`, (Number(d.quantity) || 0) + 1)
-                                    }
-                                  >+</button>
-                                </div>
-                              </td>
-                              <td className="text-center">
-                                ${(prod?.purchasePrice ?? 0).toFixed(2)}
-                              </td>
-                              {isSuperAdmin && <td className="text-center">{prod?.creationDate?.split("T")[0]}</td>}
-                              {isSuperAdmin && <td className="text-center">{prod?.businessTypeName ?? "—"}</td>}
-                              <td className="text-center">
+                                    onClick={() => removeDetail(i)}
+                                    className="text-red-600"
+                                  >
+                                    ✕
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* ================= MOBILE CARDS ================= */}
+                    <div className="md:hidden space-y-3">
+                      {details.map((d, i) => {
+                        const list = Array.isArray(products)
+                          ? products
+                          : products?.content ?? [];
+                        const prod = list.find((p) => p.id === Number(d.productId));
+                        if (!prod) return null;
+
+                        return (
+                          <div
+                            key={i}
+                            className="border rounded-lg p-3 shadow-sm space-y-2"
+                          >
+                            <div className="font-semibold">{prod.name}</div>
+
+                            <div className="text-xs text-gray-500">
+                              SKU: {prod.sku ?? "—"}
+                            </div>
+
+                            {usaInventarioPorDuenio && (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={(d.ownerType ?? "PROPIO") === "CONSIGNACION"}
+                                  onChange={(e) =>
+                                    setValue(
+                                      `details.${i}.ownerType`,
+                                      e.target.checked ? "CONSIGNACION" : "PROPIO"
+                                    )
+                                  }
+                                />
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold
+                                    ${
+                                      (d.ownerType ?? "PROPIO") === "PROPIO"
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-blue-100 text-blue-700"
+                                    }`}
+                                >
+                                  {d.ownerType ?? "PROPIO"}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between">
+                              <span>Cantidad</span>
+                              <div className="flex gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => removeDetail(i)}
-                                  className="text-red-600 hover:text-red-800"
+                                  onClick={() =>
+                                    setValue(
+                                      `details.${i}.quantity`,
+                                      Math.max(1, (d.quantity ?? 1) - 1)
+                                    )
+                                  }
                                 >
-                                  ✕
+                                  −
                                 </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
+                                <input
+                                  type="number"
+                                  className="w-16 text-center border rounded"
+                                  {...register(`details.${i}.quantity` as const)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setValue(`details.${i}.quantity`, (d.quantity ?? 0) + 1)
+                                  }
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between font-medium">
+                              <span>Precio</span>
+                              <span>${(prod.purchasePrice ?? 0).toFixed(2)}</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeDetail(i)}
+                              className="w-full text-red-600 border rounded py-1"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
 
                 {/* Total y pago */}
                 <div className="flex flex-col items-end gap-2 mt-4 border-t pt-3">

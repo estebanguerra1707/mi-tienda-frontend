@@ -40,10 +40,10 @@ export default function DevolucionesPage() {
       {/* ------------------- TABS MOBILE-FIRST (SIN CARD) ------------------- */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
         {[
-          { key: "compras", label: "Compras" },
-          { key: "Filtrar devoluciones compras", label: "Filtro Compras" },
-          { key: "ventas", label: "Ventas" },
-          { key: "Filtrar devoluciones ventas", label: "Filtro Ventas" },
+          { key: "compras", label: "Filtro Compras" },
+          { key: "Filtrar devoluciones compras", label: "Devolución Compras" },
+          { key: "ventas", label: "Filtro Ventas" },
+          { key: "Filtrar devoluciones ventas", label: "Devolución Ventas" },
         ].map((t) => (
           <button
             key={t.key}

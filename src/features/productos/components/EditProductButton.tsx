@@ -206,7 +206,10 @@ useEffect(() => {
       isSuper
         ? fetchBranchInfo(Number(effectiveBranchId), auth.token ?? "")
         : null,
-      getInventarioDeProducto(Number(effectiveBranchId), product.id)
+      getInventarioDeProducto(
+          Number(effectiveBranchId),
+          product.id,
+        )
         .catch(() => null),
     ]);
 
@@ -476,7 +479,7 @@ const onSubmit = async (values: FormValues) => {
                   
                     {/* Stock (solo lectura, viene del inventario por sucursal) */}
                     <label className="flex flex-col gap-1">
-                    <span className="text-sm">Stock</span>
+                    <span className="text-sm">En existencia</span>
                     <input
                         type="number"
                         inputMode="numeric"
@@ -493,7 +496,7 @@ const onSubmit = async (values: FormValues) => {
                     <input
                       type="number"
                       className="border rounded px-3 py-2"
-                      {...register("minStock", { valueAsNumber: true })}
+                      {...register("minStock", { valueAsNumber: true })} readOnly
                     />
                   </label>
 
@@ -503,7 +506,7 @@ const onSubmit = async (values: FormValues) => {
                     <input
                       type="number"
                       className="border rounded px-3 py-2"
-                      {...register("maxStock", { valueAsNumber: true })}
+                      {...register("maxStock", { valueAsNumber: true })} readOnly
                     />
                   </label>
                   {/* Categoría */}

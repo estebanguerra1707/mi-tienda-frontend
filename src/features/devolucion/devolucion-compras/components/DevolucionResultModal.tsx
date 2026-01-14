@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Devolucion } from "../types/Devolucion";
 
 interface Props {
@@ -11,35 +12,51 @@ export default function DevolucionResultModal({
   devolucion,
   onClose,
 }: Props) {
-  const fechaFormateada = new Date(
-    devolucion.fechaDevolucion
-  ).toLocaleString("es-MX", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const fechaFormateada = new Date(devolucion.fechaDevolucion).toLocaleString(
+    "es-MX",
+    { dateStyle: "medium", timeStyle: "short" }
+  );
+
+  // Cerrar con ESC
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center">
-
+    <div
+      className="
+        fixed inset-0 z-50
+        bg-black/40 backdrop-blur-sm
+        flex items-end sm:items-center justify-center
+      "
+      onClick={onClose} // click fuera cierra
+    >
       {/* CONTENEDOR */}
       <div
+        onClick={(e) => e.stopPropagation()} // evita cerrar al click interno
         className="
           bg-white w-full sm:max-w-md
           rounded-t-2xl sm:rounded-2xl
-          px-4 py-5
+          px-5 py-6
+          shadow-xl
           animate-slideUp
+          max-h-[90vh] overflow-y-auto
         "
       >
         {/* HEADER */}
         <div className="text-center space-y-2">
-          <div className="text-3xl">✅</div>
-          <h2 className="text-lg font-semibold">
+          <div className="text-4xl">✅</div>
+          <h2 className="text-lg sm:text-xl font-semibold">
             Devolución registrada
           </h2>
         </div>
 
         {/* INFO */}
-        <div className="mt-4 space-y-1 text-sm text-gray-700">
+        <div className="mt-5 space-y-1 text-sm sm:text-base text-gray-700">
           <p><b>ID:</b> {devolucion.id}</p>
           <p><b>Tipo:</b> {devolucion.tipoDevolucion}</p>
           <p>
@@ -54,10 +71,10 @@ export default function DevolucionResultModal({
           <button
             onClick={onClose}
             className="
-              w-full py-3 rounded-lg
+              w-full py-3 rounded-xl
               bg-blue-600 text-white
-              hover:bg-blue-700
-              transition
+              hover:bg-blue-700 active:bg-blue-800
+              transition font-medium
             "
           >
             Cerrar

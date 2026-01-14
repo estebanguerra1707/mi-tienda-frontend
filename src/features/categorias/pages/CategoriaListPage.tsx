@@ -39,7 +39,7 @@ const getCreationIso = (c: Categoria): string | undefined =>
     : "-";
 
     
-  const { hasRole } = useAuth();
+  const { isAdmin, hasRole } = useAuth();
   const isSuper = hasRole("SUPER_ADMIN");
 
   const [items, setItems] = useState<Categoria[]>([]);
@@ -109,7 +109,7 @@ const getCreationIso = (c: Categoria): string | undefined =>
         Categorías
       </h1>
 
-      {isSuper && (
+      {(isSuper || isAdmin) && (
         <div>
           <AddCategoriaButton onCreated={() => loadData()} />
         </div>

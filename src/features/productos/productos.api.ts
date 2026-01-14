@@ -28,6 +28,44 @@ export type Producto = {
   businessTypeName?: string;
   active:boolean;
 };
+export type BackendProductDTO = {
+  id: number;
+  name: string;
+  sku: string;
+  description: string;
+  purchasePrice: number;
+  salePrice: number;
+  categoryId: number;
+  categoryName: string;
+  providerId: number;
+  providerName: string;
+  businessTypeId: number;
+  businessTypeName: string;
+  creationDate: string;
+  codigoBarras?: string;
+  branchId?: number;
+  active: boolean;
+  stock: number;
+  usaInventarioPorDuenio?: boolean;
+  inventarioOwnerType?: "PROPIO" | "CONSIGNACION";
+};
+
+export type ProductRow = {
+  id: number;
+  name: string;
+  sku: string;
+  codigoBarras: string;
+  purchasePrice: number;
+  salePrice: number;
+  categoryName: string;
+  businessTypeName: string;
+  creationDate: string;
+  active: boolean;
+  stock: number;
+  usaInventarioPorDuenio: boolean;
+  inventarioOwnerType: "PROPIO" | "CONSIGNACION";
+};
+
 
 export type ProductoFiltroDTO = {
   active?: boolean;

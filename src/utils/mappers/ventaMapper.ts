@@ -16,5 +16,7 @@ export function mapVentaDetalleToDTO(
     branchName: d.branchName,
     businessTypeId: d.businessTypeId,
     businessTypeName: d.businessTypeName,
+    inventarioOwnerType: d.inventarioOwnerType,
+    usaInventarioPorDuenio: d.usaInventarioPorDuenio,
   };
 }

@@ -1,4 +1,6 @@
 import { api } from "@/lib/api";
+
+type OwnerType = "PROPIO" | "CONSIGNACION";
 export interface VentaItem {
   id: number;
   clientName: string;
@@ -106,6 +108,9 @@ export interface VentaDetalleItem {
   businessTypeId:number;
   branchId:number;
   branchName:string;
+ inventarioOwnerType?:OwnerType;
+   usaInventarioPorDuenio: boolean;
+
 }
 
 // ✅ Listar ventas (GET /ventas)

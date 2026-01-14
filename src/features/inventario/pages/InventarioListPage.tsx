@@ -9,6 +9,8 @@ import AddInventoryButton from "@/features/inventario/components/AddInventoryBut
 import MarkCriticalButton from "@/features/inventario/components/MarkCriticalButton";
 import EditInventarioButton from "@/features/inventario/components/EditInventoryButton";
 import { useDebounced } from "@/hooks/useDebounced";
+import { InventarioOwnerType } from "@/features/inventario/api";
+
 
 const PAGE_SIZE = 20;
 
@@ -56,6 +58,8 @@ const { user, isAdmin, isSuper } = useAuth();
   const [onlyCritical, setOnlyCritical] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounced(search, 350);
+  const [ownerType, setOwnerType] = useState<InventarioOwnerType | undefined>(undefined);
+
 
   // SUPER: seleccionar BT y sucursal
   const [btId, setBtId] = useState<number | undefined>(undefined);
@@ -68,26 +72,39 @@ const { user, isAdmin, isSuper } = useAuth();
     oneBranchId: !isSuper ? (user?.branchId ?? null) : null,
   });
 
-  // ==== DATA ====
- const filtro = useMemo(
+const userBranchId = user?.branchId;
+const userBusinessTypeId = user?.businessType;
+
+const filtro = useMemo(
   () => ({
     branchId:
-      branchId !== null && branchId !== undefined
+      branchId !== undefined && branchId !== null
         ? branchId
-        : user?.branchId ?? undefined,
+        : userBranchId ?? undefined,
 
     businessTypeId:
-      btId !== null && btId !== undefined
+      btId !== undefined && btId !== null
         ? btId
-        : user?.businessType ?? undefined,
+        : userBusinessTypeId ?? undefined,
 
+    ownerType,
     q: debouncedSearch.trim() || undefined,
     onlyCritical,
     page,
     size: PAGE_SIZE,
   }),
-  [branchId, btId, debouncedSearch, onlyCritical, page, user]
+  [
+    branchId,
+    btId,
+    ownerType,
+    debouncedSearch,
+    onlyCritical,
+    page,
+    userBranchId,
+    userBusinessTypeId,
+  ]
 );
+
   const allInv = useInventory(filtro);
 
   const rows: InventoryItem[] = useMemo(() => {
@@ -144,7 +161,6 @@ const { user, isAdmin, isSuper } = useAuth();
         Inventario
       </h1>
 
-      {/* FILTROS UI PRO */}
       <div className="
         grid gap-4 
         sm:grid-cols-2 
@@ -239,6 +255,23 @@ const { user, isAdmin, isSuper } = useAuth();
           />
           <span className="text-sm font-medium text-gray-700">Solo críticos</span>
         </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">Tipo de inventario</span>
+          <select
+            value={ownerType ?? ""}
+            onChange={(e) => {
+              setOwnerType(
+                e.target.value ? (e.target.value as InventarioOwnerType) : undefined
+              );
+              setPage(0);
+            }}
+            className="border rounded-lg px-3 py-2 bg-white shadow-sm"
+          >
+            <option value="">Todos</option>
+            <option value="PROPIO">Propio</option>
+            <option value="CONSIGNACION">Consignación</option>
+          </select>
+        </label>
       </div>
 
       {/* Botón agregar */}
@@ -272,6 +305,9 @@ const { user, isAdmin, isSuper } = useAuth();
                   <button onClick={() => toggleSort("branchName")} className="flex items-center gap-1 font-semibold hover:text-blue-600">
                     Sucursal <Arrow k="branchName" />
                   </button>
+                </th>
+                <th className="px-4 py-3 text-left flex items-center gap-1 font-semibold hover:text-blue-600">
+                    Dueño
                 </th>
 
                 <th className="px-4 py-3 text-right">
@@ -326,7 +362,7 @@ const { user, isAdmin, isSuper } = useAuth();
 
               {sortedRows.map((row) => (
                 <tr
-                  key={row.id}
+                  key={`${row.productId}-${row.branchId}-${row.ownerType}`}
                   className="hover:bg-blue-50 transition cursor-pointer"
                 >
                   <td className="px-4 py-3">{row.productId}</td>
@@ -336,7 +372,17 @@ const { user, isAdmin, isSuper } = useAuth();
                   </td>
 
                   <td className="px-4 py-3">{row.branchName}</td>
-
+                  <td className="px-4 py-3">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-semibold
+                        ${row.ownerType === "PROPIO"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-blue-100 text-blue-700"}
+                      `}
+                    >
+                      {row.ownerType === "PROPIO" ? "Propio" : "Consignación"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {row.stock}
                   </td>

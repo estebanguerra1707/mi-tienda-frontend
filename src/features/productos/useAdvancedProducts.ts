@@ -7,8 +7,8 @@ export function useAdvancedProducts(
   size: number
 ) {
   return useQuery<PageResp<Producto>>({
-    queryKey: ["advanced-products", filtro, page, size],        // 🔁 refetch auto al cambiar filtros
-    queryFn: () => buscarProductosAvanzado(filtro, { page, size }), // ✅ la API recibe (filtro, {page,size})
-    placeholderData: keepPreviousData,                           // ✅ v5
+    queryKey: ["advanced-products", filtro, page, size],
+    queryFn: () => buscarProductosAvanzado(filtro, { page, size }),
+    placeholderData: keepPreviousData,
   });
 }

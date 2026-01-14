@@ -17,6 +17,15 @@ interface Props {
   onSuccess: (resp: Devolucion) => void;
 }
 
+type OwnerType = "PROPIO" | "CONSIGNACION";
+
+type DetalleCompraWithOwner = DetalleCompraResponseDTO & {
+  ownerType?: OwnerType;
+  inventarioOwnerType?: OwnerType;
+  usaInventarioPorDuenio?: boolean;
+};
+
+
 const baseSchema = z.object({
   cantidad: z.number().min(1, "Debe ser mayor a 0"),
   motivo: z.string().min(3, "El motivo debe tener al menos 3 caracteres"),
@@ -51,8 +60,32 @@ export default function DetalleProductoModal({
   });
 
   if (!detalle) return null;
+  const normalizedDetalle = detalle as DetalleCompraWithOwner;
+
+    const ownerType: OwnerType =
+      normalizedDetalle.ownerType ??
+      normalizedDetalle.inventarioOwnerType ??
+      "PROPIO";
+
+    const usaInventarioPorDuenio =
+      normalizedDetalle.usaInventarioPorDuenio === true;
+  
 
   const submit = async (data: z.infer<typeof schema>) => {
+     if (!ownerType) {
+        throw new Error("No se pudo determinar el tipo de inventario del producto.");
+      }
+
+      if (!usaInventarioPorDuenio && ownerType !== "PROPIO") {
+        throw new Error(
+          "Esta sucursal no maneja inventario por consignación."
+        );
+      }
+
+      if (ownerType !== "PROPIO" && ownerType !== "CONSIGNACION") {
+        throw new Error("Tipo de inventario inválido.");
+      }
+
     const payload = {
       compraId: compra.id,
       detalleId: detalle.id,
@@ -62,6 +95,7 @@ export default function DetalleProductoModal({
       businessTypeId: detalle.businessTypeId,
       codigoBarras: detalle.codigoBarras,
       motivo: data.motivo,
+      ownerType,
     };
 
     const resp = await crearDevolucion.mutateAsync(payload);
@@ -80,6 +114,21 @@ export default function DetalleProductoModal({
         {/* INFO PRODUCTO */}
         <div className="text-sm text-gray-700 space-y-1">
           <p className="font-medium">{detalle.productName}</p>
+          {usaInventarioPorDuenio && (
+            <p className="text-xs">
+              <b>Tipo de producto:</b>{" "}
+              <span
+                className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold
+                  ${
+                    ownerType === "PROPIO"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+              >
+                {ownerType}
+              </span>
+            </p>
+          )}
           <p className="text-xs text-gray-600">
             {detalle.codigoBarras} · SKU {detalle.sku}
           </p>

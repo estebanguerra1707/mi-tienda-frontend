@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import type { Page } from "@/types/api";
-
+export type InventarioOwnerType = "PROPIO" | "CONSIGNACION";
 export interface CompraDetalle {
   productId: number;
   quantity: number;
@@ -51,6 +51,8 @@ export interface DetalleCompraResponseDTO {
   quantity: number;
   unitPrice: number;
   subTotal: number;
+  ownerType: InventarioOwnerType;
+  usaInventarioPorDuenio: boolean;
 }
 
 export interface CompraSearchFiltro {

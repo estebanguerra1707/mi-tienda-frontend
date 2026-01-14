@@ -33,6 +33,8 @@ export interface DevolucionItem {
   productName: string;
   productCode: string;
   branchName: string;
+  cantidadDevuelta:number;
+  motivo: string;
 }
 
 export interface DevolucionPage {

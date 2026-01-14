@@ -94,10 +94,10 @@ export default function AdvancedFiltersDevolucionesCompras({
     <div className="space-y-4">
 
       <h3 className="text-base font-semibold">
-        Filtro devoluciones · Compras
+        Devoluciones · Compras
       </h3>
-      <p className="text-sm sm:text-base font-medium text-gray-700">
-        Busca una devolución hecha de una compra
+      <p className="text-sm text-gray-500">
+         Encuentra devoluciones realizadas por cada compra
       </p>
 
       {/* ---------------- SIMPLE ---------------- */}

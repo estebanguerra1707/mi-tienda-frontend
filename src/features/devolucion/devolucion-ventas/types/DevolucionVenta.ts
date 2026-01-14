@@ -1,3 +1,4 @@
+export type InventarioOwnerType = "PROPIO" | "CONSIGNACION";
 export interface DetalleVentaResponseDTO {
   id: number;
   productName: string;
@@ -10,6 +11,8 @@ export interface DetalleVentaResponseDTO {
   branchName: string;
   businessTypeId: number;
   businessTypeName: string;
+  inventarioOwnerType?: InventarioOwnerType;
+  usaInventarioPorDuenio?:boolean;
 }
 
 export interface VentaItem {

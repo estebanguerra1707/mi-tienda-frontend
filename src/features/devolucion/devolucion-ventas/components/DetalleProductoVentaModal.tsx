@@ -17,6 +17,7 @@ interface Props {
   onClose: () => void;
   onSuccess: (resp: DevolucionVenta) => void;
 }
+type OwnerType = "PROPIO" | "CONSIGNACION";
 
 const baseSchema = z.object({
   cantidad: z.number().min(1, "Debe ser mayor a 0"),
@@ -52,8 +53,28 @@ export default function DetalleProductoVentaModal({
   });
 
   if (!details) return null;
+const usaInventarioPorDuenio = details.usaInventarioPorDuenio === true;
+
+const ownerType: OwnerType = usaInventarioPorDuenio
+  ? (details.inventarioOwnerType ?? details.inventarioOwnerType ?? "PROPIO")
+  : "PROPIO";
 
   const submit = async (data: z.infer<typeof dynamicSchema>) => {
+    if (!ownerType) {
+        throw new Error("No se pudo determinar el tipo de inventario del producto.");
+      }
+      if (!usaInventarioPorDuenio && ownerType !== "PROPIO") {
+        throw new Error(
+          "Esta sucursal no maneja inventario por consignación."
+        );
+      }
+
+      if (
+        ownerType !== "PROPIO" &&
+        ownerType !== "CONSIGNACION"
+      ) {
+        throw new Error("Tipo de inventario inválido.");
+      }
     const payload = {
       ventaId: venta.id,
       detalleId: details.id,
@@ -63,6 +84,7 @@ export default function DetalleProductoVentaModal({
       sku: details.sku,
       branchId: details.branchId,
       businessTypeId: details.businessTypeId,
+      ownerType,
     };
 
     const resp = await crearDevolucion.mutateAsync(payload);
@@ -85,7 +107,21 @@ export default function DetalleProductoVentaModal({
         <div className="text-sm text-gray-700 space-y-1">
           <p><b>Código:</b> {details.codigoBarras}</p>
           <p><b>SKU:</b> {details.sku}</p>
-
+          {usaInventarioPorDuenio && (
+            <p>
+              <b>Tipo de producto:</b>{" "}
+              <span
+                className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold
+                  ${
+                      ownerType === "PROPIO"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+              >
+                {ownerType}
+              </span>
+            </p>
+          )}
           {isSuperAdmin && (
             <>
               <p><b>Sucursal:</b> {details.branchName}</p>

@@ -1,5 +1,7 @@
 import { api } from "@/lib/api";
 
+export type InventarioOwnerType = "PROPIO" | "CONSIGNACION";
+
 /* ===== Tipos ===== */
 export type InventoryItem = {
   id: number;
@@ -14,6 +16,7 @@ export type InventoryItem = {
   lastUpdated?: string;
   updatedBy?:string;
   businessTypeId?:number;
+  ownerType: InventarioOwnerType;
 };
 
 export type InventoryPage = {
@@ -31,6 +34,8 @@ export type InventoryCreate = {
   minStock?: number;
   maxStock?: number;
   isStockCritico?: boolean;
+  ownerType?: InventarioOwnerType;
+
 };
 
 export type InventoryUpdate = {
@@ -87,17 +92,30 @@ export async function updateInventory(id: number | string, payload: InventoryUpd
 /* ===== Helpers opcionales ===== */
 
 /** Busca el registro de inventario por (productId, branchId) a partir de /inventario/producto/{id} */
-export async function findInventoryRecord(productId: number, branchId: number) {
+export async function findInventoryRecord(
+  productId: number,
+  branchId: number,
+  ownerType: InventarioOwnerType
+) {
   const list = await fetchInventoryByProduct(productId);
-  return list.find(x => x.branchId === branchId);
+  return list.find(
+    x => x.branchId === branchId && x.ownerType === ownerType
+  );
 }
 
 /** UPSERT: crea si no existe; si existe hace PUT con los campos mutables */
 export async function upsertInventory(payload: InventoryCreate): Promise<InventoryItem> {
-  const existing = await findInventoryRecord(payload.productId, payload.branchId);
+  if (!payload.ownerType) {
+    throw new Error("ownerType es obligatorio para inventario");
+  }
+
+  const existing = await findInventoryRecord(
+    payload.productId,
+    payload.branchId,
+    payload.ownerType
+  );
 
   if (existing) {
-    // Construye solo lo que sí acepta el PUT
     const updatePayload: InventoryUpdate = {
       quantity: payload.quantity,
       minStock: payload.minStock,
