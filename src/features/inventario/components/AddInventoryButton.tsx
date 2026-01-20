@@ -57,14 +57,14 @@ export default function AddInventoryButton({
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 const [branchName, setBranchName] = useState<string>("");
 
-
-  const branchesHook = useBranches({
-    isSuper,
-    businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
-    oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
-  });
-
-
+const {
+  data: branches = [],
+  isLoading: branchesLoading,
+} = useBranches({
+  isSuper,
+  businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
+  oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
+});
 
   const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>(
     isSuper ? undefined : (auth.user?.branchId ?? undefined)
@@ -101,12 +101,7 @@ useEffect(() => {
       setUsesOwnerInventory(enabled);
 
       // MISMO COMPORTAMIENTO QUE COMPRAS
-      if (enabled) {
         setOwnerType("PROPIO");
-      } else {
-        setOwnerType("PROPIO"); // no se muestra, pero backend queda consistente
-      }
-
 
     } catch {
       if (!alive) return;
@@ -224,13 +219,13 @@ useEffect(() => {
   const branchId = auth.user?.branchId;
   if (!branchId) return;
 
-  if (branchesHook.data.length === 0) return;
+  if (branches.length === 0) return;
 
-  const branch = branchesHook.data.find((b) => b.id === branchId);
+  const branch = branches.find((b) => b.id === branchId);
   if (branch) {
     setBranchName(branch.name);
   }
-}, [open, isSuper, auth.user?.branchId, branchesHook.data]);
+}, [open, isSuper, auth.user?.branchId, branches]);
 
 useEffect(() => {
   if (!open) return;
@@ -281,17 +276,26 @@ useEffect(() => {
                 {isSuper ? (
                   <label className="block">
                     <span className="text-sm">Sucursal</span>
-                    <select
-                      className="border rounded px-3 py-2 w-full"
-                      {...register("branchId", { valueAsNumber: true })}
-                      onChange={(e) => setSelectedBranchId(e.target.value ? Number(e.target.value) : undefined)}
-                      disabled={branchesHook.loading}
-                    >
-                      <option value="">{branchesHook.loading ? "Cargando…" : "Selecciona…"}</option>
-                      {branchesHook.data.map((b) => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
+                   <select
+                        className="border rounded px-3 py-2 w-full"
+                        {...register("branchId", { valueAsNumber: true })}
+                        onChange={(e) =>
+                          setSelectedBranchId(
+                            e.target.value ? Number(e.target.value) : undefined
+                          )
+                        }
+                        disabled={branchesLoading}
+                      >
+                        <option value="">
+                          {branchesLoading ? "Cargando…" : "Selecciona…"}
+                        </option>
+
+                        {branches.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name}
+                          </option>
+                        ))}
+                      </select>
                     {errors.branchId && <p className="text-xs text-red-600">{String(errors.branchId.message)}</p>}
                   </label>
                 ) : (

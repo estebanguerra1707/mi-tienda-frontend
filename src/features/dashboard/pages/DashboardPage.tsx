@@ -13,23 +13,41 @@ export default function DashboardPage() {
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
 
-  const branchesHook = useBranches({
-    isSuper,
-    businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
-    oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
-  });
+  const {
+  data: branches = [],
+  isLoading: branchesLoading,
+} = useBranches({
+  isSuper,
+  businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
+  oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
+});
 
-  const [branchId, setBranchId] = useState<number | null>(
-    isSuper ? null : auth.user?.branchId ?? null
-  );
+const initialBranchId = isSuper ? null : auth.user?.branchId ?? null;
+const [branchId, setBranchId] = useState<number | null>(initialBranchId);
 
   const [activeTab, setActiveTab] = useState("semana");
 
-  const { data, topWeek, topMonth, loading } = useDashboard(branchId);
-  const { consolidado, porUsuario, loading: loadingTop } =
-    useTopProductos(branchId, isSuper);
+const {
+  data: dashboardData,
+  isLoading: dashboardLoading,
+} = useDashboard(branchId);
 
-  const isLoading = loading || loadingTop;
+const resumen = dashboardData?.data;
+const topWeek = dashboardData?.topWeek ?? [];
+const topMonth = dashboardData?.topMonth ?? [];
+
+const {
+  data: topData,
+  isLoading: loadingTop,
+} = useTopProductos(branchId, isSuper);
+
+const consolidado = topData?.consolidado ?? [];
+const porUsuario = topData?.porUsuario ?? [];
+
+const isLoading = dashboardLoading || loadingTop;
+
+
+
 
   // Fechas
   const hoy = new Date();
@@ -63,14 +81,17 @@ export default function DashboardPage() {
               Sucursal
             </label>
             <select
+            disabled={branchesLoading}
               className="border rounded-xl px-3 py-2 shadow-sm bg-white focus:ring-2 focus:ring-blue-600 transition text-sm"
               value={branchId ?? ""}
               onChange={(e) =>
                 setBranchId(e.target.value ? Number(e.target.value) : null)
               }
             >
-              <option value="">Selecciona una sucursal…</option>
-              {branchesHook.data.map((b) => (
+              <option value="">
+                 {branchesLoading ? "Cargando…" : "Selecciona una sucursal…"}
+                </option>
+              {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
@@ -81,8 +102,8 @@ export default function DashboardPage() {
       </div>
 
       {/* ---------- SIN SELECCIÓN ---------- */}
-      {!branchId && (
-        <div className="text-slate-500 text-center py-10 bg-white rounded-xl shadow border text-sm sm:text-base">
+      {isSuper && !branchId && (
+        <div className="text-slate-500 text-center py-10 bg-white rounded-xl shadow border">
           Selecciona una sucursal para ver el dashboard.
         </div>
       )}
@@ -95,14 +116,14 @@ export default function DashboardPage() {
       )}
 
       {/* ---------- CONTENIDO PRINCIPAL ---------- */}
-      {branchId && !isLoading && data && (
+      {branchId && !isLoading && resumen && (
         <>
           {/* ---------- CARDS ---------- */}
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 pt-2">
-            <Card titulo="Productos" valor={data.totalProductos} />
-            <Card titulo="Stock crítico" valor={data.productosCriticos} />
-            <Card titulo="Ventas hoy" valor={data.ventasHoy} />
-            <Card titulo="Ingresos mes" valor={`$${data.ingresosMes}`} />
+            <Card titulo="Productos" valor={resumen?.totalProductos ?? 0} />
+            <Card titulo="Stock crítico" valor={resumen?.productosCriticos ?? 0} />
+            <Card titulo="Ventas hoy" valor={resumen?.ventasHoy ?? 0} />
+            <Card titulo="Ingresos mes" valor={`$${resumen?.ingresosMes ?? 0}`} />
           </div>
 
           {/* ---------- TABS ---------- */}

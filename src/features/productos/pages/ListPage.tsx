@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useProductSearchParams } from "@/hooks/useProducts";
 import { useAuth } from "@/hooks/useAuth";
 import AddProductButton from "@/features/productos/components/AddProductButton";
@@ -31,32 +31,37 @@ export default function ListPage() {
   const isSuper = user?.role === "SUPER_ADMIN";
   const isAdmin = user?.role === "ADMIN";
 
-  // Limpieza inicial de filtros
-  useEffect(() => {
-    const filtroKeys = [
-      "min",
-      "max",
-      "categoryId",
-      "available",
-      "withoutCategory",
-      "branchId",
-      "businessTypeId",
-      "barcodeName",
-      "page",
-      "sort",
-    ];
-    const sp = new URLSearchParams(params);
-    let changed = false;
+const cleanedRef = useRef(false);
 
-    filtroKeys.forEach((k) => {
-      if (sp.has(k)) {
-        sp.delete(k);
-        changed = true;
-      }
-    });
+useEffect(() => {
+  if (cleanedRef.current) return;
+  cleanedRef.current = true;
 
-    if (changed) setParams(sp);
-  }, []); // eslint-disable-line
+  const filtroKeys = [
+    "min",
+    "max",
+    "categoryId",
+    "available",
+    "withoutCategory",
+    "branchId",
+    "businessTypeId",
+    "barcodeName",
+    "page",
+    "sort",
+  ];
+
+  const sp = new URLSearchParams(params);
+  let changed = false;
+
+  filtroKeys.forEach((k) => {
+    if (sp.has(k)) {
+      sp.delete(k);
+      changed = true;
+    }
+  });
+
+  if (changed) setParams(sp);
+}, []); // eslint-disable-line
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 

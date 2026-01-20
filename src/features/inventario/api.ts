@@ -45,6 +45,10 @@ export type InventoryUpdate = {
   isStockCritico?: boolean;
 };
 
+export type AddStockForm = {
+  quantity: number;
+}
+
 
 /* ===== API ===== */
 
@@ -95,19 +99,22 @@ export async function updateInventory(id: number | string, payload: InventoryUpd
 export async function findInventoryRecord(
   productId: number,
   branchId: number,
-  ownerType: InventarioOwnerType
+  ownerType?: InventarioOwnerType
 ) {
   const list = await fetchInventoryByProduct(productId);
-  return list.find(
-    x => x.branchId === branchId && x.ownerType === ownerType
-  );
+
+  // ✅ Si viene ownerType, buscamos exacto (modo por dueño)
+  if (ownerType) {
+    return list.find(x => x.branchId === branchId && x.ownerType === ownerType);
+  }
+
+  // ✅ Si NO viene ownerType, buscamos por sucursal (modo normal)
+  // (asumimos que solo hay un registro por product+branch cuando usaInventarioPorDuenio=false)
+  return list.find(x => x.branchId === branchId);
 }
 
 /** UPSERT: crea si no existe; si existe hace PUT con los campos mutables */
 export async function upsertInventory(payload: InventoryCreate): Promise<InventoryItem> {
-  if (!payload.ownerType) {
-    throw new Error("ownerType es obligatorio para inventario");
-  }
 
   const existing = await findInventoryRecord(
     payload.productId,

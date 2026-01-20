@@ -1,54 +1,25 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { reportesApi } from "../dashboardApi";
-import { TopProductoDTO } from "@/features/dashboard/components/ProductChart";
 
-export function useTopProductos(branchId: number | null, isSuper: boolean) {
-  const [consolidado, setConsolidado] = useState<TopProductoDTO[]>([]);
-  const [porUsuario, setPorUsuario] = useState<TopProductoDTO[]>([]);
-  const [loading, setLoading] = useState(false);
+export function useTopProductos(
+  branchId: number | null,
+  isSuper: boolean
+) {
+  return useQuery({
+    queryKey: ["top-productos", branchId, isSuper],
+    queryFn: async () => {
+      if (!branchId) throw new Error("branchId requerido");
 
-  useEffect(() => {
-    if (!branchId) {
-      setConsolidado([]);
-      setPorUsuario([]);
-      return;
-    }
+      const consolidado = await reportesApi.getTopConsolidado(branchId);
 
-    let isMounted = true;
+      const porUsuario = isSuper
+        ? await reportesApi.getTopPorUsuario(branchId)
+        : [];
 
-    const load = async () => {
-      try {
-        setLoading(true);
-
- 
-        const conso = await reportesApi.getTopConsolidado(branchId);
-        if (isMounted) setConsolidado(conso);
-
-        if (isSuper) {
-          const users = await reportesApi.getTopPorUsuario(branchId);
-          if (isMounted) setPorUsuario(users);
-        } else {
-          if (isMounted) setPorUsuario([]);
-        }
-
-      } catch (error) {
-        console.error("Error cargando top productos:", error);
-        if (isMounted) {
-          setConsolidado([]);
-          setPorUsuario([]);
-        }
-
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [branchId, isSuper]);
-
-  return { consolidado, porUsuario, loading };
+      return { consolidado, porUsuario };
+    },
+    enabled: !!branchId,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
 }

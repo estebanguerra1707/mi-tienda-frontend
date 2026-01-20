@@ -93,7 +93,8 @@ function getErrorMessage(err: unknown): string {
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showScanner, setShowScanner] = useState(false);
-
+const [ownerType, setOwnerType] =
+  useState<"PROPIO" | "CONSIGNACION">("PROPIO");
 
   useEffect(() => {
   if (!toast) return;
@@ -143,15 +144,19 @@ function getErrorMessage(err: unknown): string {
 
   // Observa la sucursal elegida en el form (o la inicial del producto)
   const watchedBranchId = watch("branchId"); // number | undefined
-const branches = useBranches({
+const {
+  data: branches = [],
+  isLoading: branchesLoading,
+} = useBranches({
   isSuper,
   businessTypeId: isSuper
-    ? undefined                // SUPER_ADMIN ve todas
-    : auth.user?.businessType ?? undefined,  // ADMIN / VENDOR
+    ? undefined
+    : auth.user?.businessType ?? undefined,
   oneBranchId: isSuper
-    ? null                     // super no filtra por sucursal específica
+    ? null
     : auth.user?.branchId ?? product.branchId ?? null,
 });
+
 
 const effectiveBranchId = useMemo<number | undefined>(() => {
   if (isSuper) return watchedBranchId ?? undefined;
@@ -161,9 +166,9 @@ const effectiveBranchId = useMemo<number | undefined>(() => {
 // Nombre legible para mostrar cuando NO es super
 const branchName = useMemo(() => {
   if (!effectiveBranchId) return "—";
-  const found = branches.data.find(b => b.id === effectiveBranchId);
+  const found = branches.find(b => b.id === effectiveBranchId);
   return found?.name ?? "—";
-}, [branches.data, effectiveBranchId]);
+}, [branches, effectiveBranchId]);
 
 
 
@@ -222,6 +227,9 @@ useEffect(() => {
     setValue("stock", inv?.stock ?? 0);
     setValue("minStock", inv?.minStock ?? 0);
     setValue("maxStock", inv?.maxStock ?? 0);
+    if (inv?.ownerType) {
+        setOwnerType(inv.ownerType);
+      }
 
   } catch {
     if (!alive) return;
@@ -246,19 +254,15 @@ useEffect(() => {
 ]);
 
 
-useEffect(() => {
-  if (!isSuper) {
-    // asegura que el hidden lleve el branchId correcto
-    setValue("branchId", effectiveBranchId as unknown as number | undefined, { shouldDirty: false });
-  }
-}, [isSuper, effectiveBranchId, setValue]);
-
   // Catálogos (filtrados por BT derivado cuando aplica)
-const cats = useCategories({
-  businessTypeId: isSuper ? (derivedBT ?? undefined) : (auth.user?.businessType ?? undefined),
-  // branchId: no lo pases; el hook lo resuelve con el auth si no eres super
+const {
+  data: categories = [],
+  isLoading: catsLoading,
+} = useCategories({
+  businessTypeId: isSuper
+    ? (derivedBT ?? undefined)
+    : (auth.user?.businessType ?? undefined),
 });
-
 
 const provs = useProviders({
   isSuper,
@@ -324,6 +328,7 @@ const onSubmit = async (values: FormValues) => {
       quantity: Number(values.stock ?? 0), // <-- ESTE ES EL CORRECTO
       minStock: Number(values.minStock ?? 0),
       maxStock: Number(values.maxStock ?? 0),
+      ownerType: ownerType
 });
     }
 
@@ -515,10 +520,11 @@ const onSubmit = async (values: FormValues) => {
                     <select
                       className="border rounded px-3 py-2"
                       {...register("categoryId", { valueAsNumber: true })}
-                      disabled={cats.loading || disableCatsProv}
+                      disabled={catsLoading || disableCatsProv}
                     >
                       <option value="">Selecciona…</option>
-                      {cats.data.map((c) => (
+
+                      {categories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
@@ -535,10 +541,10 @@ const onSubmit = async (values: FormValues) => {
                     <select
                       className="border rounded px-3 py-2"
                       {...register("providerId", { valueAsNumber: true })}
-                      disabled={provs.loading || disableCatsProv}
+                        disabled={provs.isLoading || disableCatsProv}
                     >
                       <option value="">Selecciona…</option>
-                      {provs.data.map((p) => (
+                      {provs.data?.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name}
                         </option>
@@ -556,10 +562,10 @@ const onSubmit = async (values: FormValues) => {
                         <select
                         className="border rounded px-3 py-2"
                         {...register("branchId", { valueAsNumber: true })}
-                        disabled={branches.loading}
+                        disabled={branchesLoading}
                         >
                         <option value="">Selecciona…</option>
-                        {branches.data.map((b) => (
+                        {branches.map((b) => (
                             <option key={b.id} value={b.id}>{b.name}</option>
                         ))}
                         </select>

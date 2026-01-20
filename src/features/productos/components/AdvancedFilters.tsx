@@ -46,9 +46,10 @@ const isVendor = hasRole?.("VENDOR") ?? false;
 const disableCats = isSuper && !branchId;
 
 
-const btHook = useBusinessTypes(); // asume hook disponible
-const businessTypes = btHook.data ?? [];
-const loadingBusinessTypes = btHook.isLoading;
+const {
+  data: businessTypes = [],
+  isLoading: loadingBusinessTypes,
+} = useBusinessTypes();
 
 
 const [derivedBT, setDerivedBT] = useState<number | null>(null);
@@ -69,16 +70,19 @@ useEffect(() => {
 }, [isSuper, branchId, token]);
 
 
-const categoriesHook = useCategories({
+const {
+  data: categories = [],
+  isLoading: categoriesLoading,
+} = useCategories({
   businessTypeId: isSuper
     ? (derivedBT ?? (businessTypeId ? Number(businessTypeId) : undefined))
     : (isAdmin ? user?.businessTypeId : undefined),
-  // branchId: para VENDOR no lo pases (el hook usa su sucursal de sesión).
-  //           para ADMIN que elige sucursal en este panel, sí pásalo:
   branchId: (!isSuper && !isVendor && branchId) ? Number(branchId) : undefined,
 });
-
-const branchesHook = useBranches({
+const {
+  data: branches = [],
+  isLoading: branchesLoading,
+} = useBranches({
   isSuper,
   businessTypeId: isSuper
     ? (businessTypeId ? Number(businessTypeId) : undefined)
@@ -146,12 +150,12 @@ const branchName = useMemo(() => {
 
   if (!user?.branchId) return "";
 
-  const branch = branchesHook.data.find(
+  const branch = branches.find(
     (b) => b.id === user.branchId
   );
 
   return branch?.name ?? "";
-}, [isSuper, user?.branchId, branchesHook.data]);
+}, [isSuper, user?.branchId, branches]);
   return (
     <div className="rounded border p-3 grid gap-3 sm:grid-cols-3">
       <label className="flex flex-col gap-1">
@@ -182,12 +186,12 @@ const branchName = useMemo(() => {
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
           className="border rounded-lg px-3 py-2 bg-white shadow-sm focus:ring-blue-500"
-          disabled={branchesHook.loading}
+          disabled={branchesLoading}
         >
           <option value="">
-            {branchesHook.loading ? "Cargando…" : "Todas…"}
+            {branchesLoading  ? "Cargando…" : "Todas…"}
           </option>
-          {branchesHook.data.map((b) => (
+          {branches.map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
             </option>
@@ -209,15 +213,15 @@ const branchName = useMemo(() => {
         value={categoryId}
         onChange={(e) => setCategoryId(e.target.value)}
         className="border rounded px-3 py-2 disabled:bg-slate-100"
-        disabled={disableCats || categoriesHook.loading}
+        disabled={disableCats || categoriesLoading}
         >
         <option value="">
-            {disableCats ? "Selecciona sucursal…" : categoriesHook.loading ? "Cargando…" : "Todas…"}
+            {disableCats ? "Selecciona sucursal…" : categoriesLoading ? "Cargando…" : "Todas…"}
         </option>
-        {categoriesHook.data.map(c => (
+        {categories.map(c => (
             <option key={c.id} value={c.id}>{c.name}</option>
         ))}
-        {!categoriesHook.loading && categoriesHook.data.length === 0 && (
+        {!categoriesLoading && categories.length === 0 && (
             <option disabled>(sin categorías)</option>
         )}
         </select>

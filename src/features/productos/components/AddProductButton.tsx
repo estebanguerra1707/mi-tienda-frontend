@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useForm, Resolver } from "react-hook-form";
 import { z } from "zod";
@@ -10,8 +10,7 @@ import {
   useCategories,
   useProviders,
   useBranches,
-  fetchBranchInfo,
-  CatalogItem,
+  fetchBranchInfo
 } from "@/hooks/useCatalogs";
 import type { FieldErrors } from "react-hook-form";
 import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
@@ -95,6 +94,27 @@ function getErrorMessage(err: unknown): string {
   }
 
   return "Ocurrió un error al crear el producto.";
+}
+
+function getApiFieldError(err: unknown): { field?: string; message?: string } {
+  if (err && typeof err === "object") {
+    const e = err as {
+      response?: {
+        data?: {
+          message?: string;
+          details?: { field?: string };
+        };
+      };
+    };
+
+    if (e.response?.data?.details?.field) {
+      return {
+        field: e.response.data.details.field,
+        message: e.response.data.message,
+      };
+    }
+  }
+  return {};
 }
 
 /* Toast mini */
@@ -183,28 +203,43 @@ const onInvalid = (errors: FieldErrors<FormValues>) => {
 
 
   // catálogos por rol / BT
-const categories = useCategories({
+const {
+  data: categories = [],
+  isLoading: categoriesLoading,
+} = useCategories({
   businessTypeId: isSuper ? (derivedBT ?? undefined) : undefined,
 });
 
-const providers = useProviders({
+const {
+  data: providers = [],
+  isLoading: providersLoading,
+} = useProviders({
   isSuper,
   businessTypeId: isSuper ? derivedBT ?? undefined : undefined,
   branchId: !isSuper ? user?.branchId : undefined,
 });
 
 
-const branches = useBranches({
+const {
+  data: branches = [],
+  isLoading: branchesLoading,
+} = useBranches({
   isSuper,
-  businessTypeId: isSuper ? (derivedBT ?? undefined) : user?.businessTypeId ?? undefined,
+  businessTypeId: isSuper
+    ? (derivedBT ?? undefined)
+    : user?.businessTypeId ?? undefined,
   oneBranchId: !isSuper ? user?.branchId ?? null : null,
 });
+
+
 
   // formulario
  const {
   register,
   handleSubmit,
   reset,
+  setValue,
+  setError,
   formState: { errors },
   setFocus,
   watch,
@@ -225,14 +260,16 @@ const branches = useBranches({
 
   const branchId = watch("branchId");
 
-  useEffect(() => {
+ useEffect(() => {
+  if (!open) return;
+  if (!isSuper) return;
+  if (!branchId) {
+    setDerivedBT(null);
+    return;
+  }
+
   let alive = true;
   (async () => {
-    if (!isSuper) return;
-    if (!branchId) {
-      setDerivedBT(null);
-      return;
-    }
     try {
       const info = await fetchBranchInfo(branchId, token);
       if (alive) setDerivedBT(info.businessTypeId);
@@ -240,16 +277,27 @@ const branches = useBranches({
       if (alive) setDerivedBT(null);
     }
   })();
+
   return () => {
     alive = false;
   };
-}, [isSuper, branchId, token]);
+}, [open, isSuper, branchId, token]);
+
+
 
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+ useEffect(() => {
+  if (!isSuper) return;
+
+  setValue("categoryId", undefined, { shouldDirty: true });
+  setValue("providerId", undefined, { shouldDirty: true });
+}, [branchId, isSuper, setValue]);
+
 
   const resetForm = useCallback(() => {
   reset({
@@ -323,11 +371,30 @@ const onClose = useCallback(() => {
       onClose();
       onCreated?.();
     } catch (err) {
+      const apiError = getApiFieldError(err);
+
+      if (apiError.field && apiError.message) {
+        // 🔥 Marca error en el campo específico
+        setError(apiError.field as keyof FormValues, {
+          type: "server",
+          message: apiError.message,
+        });
+
+        // 🎯 enfoca el campo
+        setFocus(apiError.field as keyof FormValues);
+
+        return; // 👈 MUY IMPORTANTE (no mostrar toast genérico)
+      }
+
+      // fallback genérico
       setToast({ type: "error", message: getErrorMessage(err) });
     }
   };
 
-  const disableCatsProv = isSuper && !branchId;
+  const disableCatsProv = useMemo(
+  () => isSuper && !branchId,
+  [isSuper, branchId]
+);
 
   return (
     <>
@@ -451,6 +518,7 @@ const onClose = useCallback(() => {
                       <span className="text-sm">Sucursal</span>
                         <select
                           className="border rounded px-3 py-2"
+                          disabled={branchesLoading}
                           value={watch("branchId") ?? ""}
                           onChange={(e) => {
                             const newValue = e.target.value === "" ? undefined : Number(e.target.value);
@@ -460,8 +528,10 @@ const onClose = useCallback(() => {
                             });
                           }}
                         >
-                          <option value="">Selecciona…</option>
-                          {branches.data.map((b) => (
+                          <option value="">
+                          {branchesLoading ? "Cargando…" : "Selecciona…"}
+                        </option>
+                          {branches.map((b) => (
                             <option key={b.id} value={b.id}>{b.name}</option>
                           ))}
                         </select>
@@ -474,21 +544,26 @@ const onClose = useCallback(() => {
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Categoría</span>
                     <select
-                      disabled={disableCatsProv}
-                      className={`border rounded px-3 py-2 ${
-                        disableCatsProv ? "bg-gray-100 cursor-not-allowed" : ""
-                      }`}
-                      {...register("categoryId")}
-                    >
-                      <option value="">
-                        {disableCatsProv ? "Selecciona una sucursal…" : "Selecciona…"}
-                      </option>
-                      {categories.data.map((c: CatalogItem) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
+                        disabled={disableCatsProv || categoriesLoading}
+                        className={`border rounded px-3 py-2 ${
+                          disableCatsProv || categoriesLoading ? "bg-gray-100 cursor-not-allowed" : ""
+                        }`}
+                        {...register("categoryId")}
+                      >
+                        <option value="">
+                          {disableCatsProv
+                            ? "Selecciona una sucursal…"
+                            : categoriesLoading
+                            ? "Cargando…"
+                            : "Selecciona…"}
                         </option>
-                      ))}
-                    </select>
+
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
                     {errors.categoryId && (
                       <p className="text-red-600 text-xs">{errors.categoryId.message}</p>
                     )}
@@ -498,13 +573,15 @@ const onClose = useCallback(() => {
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Proveedor</span>
                   <select
-                    className="border rounded px-3 py-2 disabled:bg-slate-100"
                     {...register("providerId")}
+                    disabled={providersLoading}
+                    className="border rounded px-3 py-2 disabled:bg-slate-100"
                   >
                     <option value="">
-                      {disableCatsProv ? "Selecciona proveedor" : "Selecciona…"}
+                      {providersLoading ? "Cargando…" : "Selecciona…"}
                     </option>
-                    {providers.data.map((p: CatalogItem) => (
+
+                    {providers.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
                       </option>

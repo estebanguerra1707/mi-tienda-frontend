@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBusinessTypes, type BusinessType } from "@/features/productos/api";
@@ -22,11 +21,6 @@ export interface PaymentMethod {
   id: number;
   name: string;
 }
-type StatusCatalog = {
-  data: CatalogItem[];
-  loading: boolean;
-  error?: string;
-};
 export type Sucursal = { id: number; name: string };
 
 type RawAny = Record<string, unknown>; // para leer llaves con type-guard
@@ -39,23 +33,13 @@ export interface PageResponse<T> {
   size: number;
 }
 
-type BranchCatalog = {
-  data: BranchItem[];
-  loading: boolean;
-  error?: string;
-};
-type UnknownRecord = Record<string, unknown>;
 
-function isObject(x: unknown): x is UnknownRecord {
-  return typeof x === "object" && x !== null;
-}
 
-function isPageResponse<T>(x: unknown): x is PageResponse<T> {
-  if (!isObject(x)) return false;
-  const c = (x as { content?: unknown }).content;
-  return Array.isArray(c);
-}
+
 const BASE = import.meta.env.VITE_API_BASE_URL;
+const CATALOG_STALE_TIME = 15 * 24 * 60 * 60_000;
+const CACHE_TIME = 30 * 24 * 60 * 60_000;
+const ISRFEFECTHON = false;
 if (!BASE) throw new Error("VITE_API_BASE_URL no está definido");
 
 /* ==== Utilidades ==== */
@@ -86,81 +70,58 @@ async function getJsonUnknown<T = unknown>(url: string, token: string): Promise<
 }
 
 /* ==== Hooks de catálogos ==== */
-export function useCategories(opts: { 
-  businessTypeId?: number | null; 
-  isSuper?: boolean; 
-  branchId?: number | null; 
-}): StatusCatalog {
-
-  const { token, isSuper: isSuperFromAuth, user } = useAuth(); // user ayuda a saber si el auth ya cargó
-  const [st, setSt] = useState<StatusCatalog>({ data: [], loading: true });
-
+export function useCategories(opts: {
+  businessTypeId?: number | null;
+  isSuper?: boolean;
+  branchId?: number | null;
+}) {
+  const { token, isSuper: isSuperFromAuth, user } = useAuth();
   const isSuper = opts.isSuper ?? isSuperFromAuth;
 
+  const ready = Boolean(token && (opts.isSuper !== undefined || user));
 
-  const url = useMemo(() => {
-    if (isSuper) {
-      if (opts.businessTypeId != null) {
-        return `${BASE}/categorias/tipo-negocio/${opts.businessTypeId}`;
+  return useQuery<CatalogItem[]>({
+    queryKey: [
+      "categories",
+      isSuper ? "super" : "normal",
+      opts.businessTypeId ?? null,
+      opts.branchId ?? null,
+    ],
+    enabled: ready,
+    queryFn: async () => {
+      let url: string;
+
+      if (isSuper) {
+        if (opts.businessTypeId != null) {
+          url = `/categorias/tipo-negocio/${opts.businessTypeId}`;
+        } else {
+          url = `/categorias`;
+        }
+      } else if (opts.branchId != null) {
+        url = `/categorias/sucursal/${opts.branchId}`;
+      } else if (opts.businessTypeId != null) {
+        url = `/categorias/tipo-negocio/${opts.businessTypeId}`;
+      } else {
+        url = `/categorias/actual`;
       }
-      return `${BASE}/categorias`; // todas
-    }
-    if (opts.branchId != null) {
-      return `${BASE}/categorias/sucursal/${opts.branchId}`;
-    }
-    if (opts.businessTypeId != null) {
-      return `${BASE}/categorias/tipo-negocio/${opts.businessTypeId}`;
-    }
-    return `${BASE}/categorias/actual`; // fallback
-  }, [isSuper, opts.businessTypeId, opts.branchId]);
 
-  // Evita el fetch mientras el auth aún no está listo
-  const ready = Boolean(token && (opts.isSuper !== undefined || user)); 
-  // ^ si el caller mandó isSuper, no dependemos de user; si no, esperamos a que user exista.
-
-
-  useEffect(() => {
-    if (!ready) return;
-
-    let alive = true;
-    (async () => {
-      try {
-        setSt(s => ({ ...s, loading: true, error: undefined }));
-        const raw = await getJsonUnknown<unknown>(url, token!);
-
-        const payload: unknown[] =
-          Array.isArray(raw)
-            ? raw
-            : isPageResponse<unknown>(raw)
-              ? (raw as PageResponse<unknown>).content
-              : [];
-
-        const data = toCatalogArray(payload);
-        if (alive) setSt({ data, loading: false });
-      } catch (e) {
-        if (alive) setSt({ data: [], loading: false, error: (e as Error).message });
-      }
-    })();
-
-    return () => { alive = false; };
-  }, [ready, url, token]);
-
-  if (!ready) return { data: [], loading: true };
-
-  return st;
+      const { data } = await api.get(url);
+      return toCatalogArray(data);
+    },
+    staleTime: CATALOG_STALE_TIME,
+    gcTime: CACHE_TIME,
+    refetchOnWindowFocus: ISRFEFECTHON,
+    retry: 1,
+  });
 }
-
 
 export function useProviders(opts: {
   businessTypeId?: number | null;
   branchId?: number | null;
   isSuper?: boolean;
-}): StatusCatalog {
-  const { token } = useAuth() as { token: string };
-  const [st, setSt] = useState<StatusCatalog>({
-    data: [],
-    loading: false,
-  });
+}) {
+  const { token } = useAuth();
+
   const canLoad =
     Boolean(token) &&
     (
@@ -168,55 +129,29 @@ export function useProviders(opts: {
       (!opts.isSuper && opts.branchId != null)
     );
 
-  const url = useMemo(() => {
-    if (!canLoad) return null;
+  const queryKey = [
+  "providers",
+  opts.isSuper ? "super" : "branch",
+  opts.isSuper ? opts.businessTypeId : opts.branchId,
+];
 
-    if (opts.isSuper && opts.businessTypeId != null) {
-      return `${BASE}/proveedores?businessTypeId=${opts.businessTypeId}`;
-    }
-    if (!opts.isSuper && opts.branchId != null) {
-      return `${BASE}/proveedores?branchId=${opts.branchId}`;
-    }
+  return useQuery<CatalogItem[]>({
+    queryKey,
+    enabled: canLoad,
+    queryFn: async () => {
+      const url = opts.isSuper
+        ? `/proveedores?businessTypeId=${opts.businessTypeId}`
+        : `/proveedores?branchId=${opts.branchId}`;
 
-    return null;
-  }, [canLoad, opts.isSuper, opts.businessTypeId, opts.branchId]);
-
-  useEffect(() => {
-    if (!url || !token) {
-      setSt({ data: [], loading: false });
-      return;
-    }
-
-    let alive = true;
-
-    (async () => {
-      try {
-        setSt({ data: [], loading: true });
-
-        const raw = await getJsonUnknown<unknown>(url, token);
-        const data = toCatalogArray(raw);
-
-        if (alive) {
-          setSt({ data, loading: false });
-        }
-      } catch (e) {
-        if (alive) {
-          setSt({
-            data: [],
-            loading: false,
-            error: (e as Error).message,
-          });
-        }
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [url, token]);
-
-  return st;
+      const { data } = await api.get(url);
+      return toCatalogArray(data);
+    },
+    staleTime: CATALOG_STALE_TIME,
+    gcTime: CACHE_TIME,
+    refetchOnWindowFocus: ISRFEFECTHON, 
+  });
 }
+
 
 function toBranchArray(raw: unknown): BranchItem[] {
   const arr: RawAny[] = Array.isArray(raw) ? raw : [];
@@ -244,81 +179,45 @@ export function useBranches(opts: {
   businessTypeId?: number | null;
   oneBranchId?: number | null;
   isSuper?: boolean;
-}): BranchCatalog {
-
-
-const [st, setSt] = useState<{
-  data: BranchItem[];
-  loading: boolean;
-  error?: string;
-}>({
-  data: [],
-  loading: true,
-});
-
+}) {
   const { token, user, hasRole } = useAuth();
   const authReady = Boolean(token && user);
 
-  const isSuper = useMemo(() => {
-    if (!authReady) return false;
-    return opts.isSuper ?? hasRole("SUPER_ADMIN");
-  }, [authReady, opts.isSuper, hasRole]);
+  const isSuper = opts.isSuper ?? hasRole("SUPER_ADMIN");
 
-  const url = useMemo(() => {
-    if (!authReady) return null;
+  return useQuery<BranchItem[]>({
+    queryKey: [
+      "branches",
+      isSuper ? "super" : "single",
+      opts.businessTypeId ?? null,
+      opts.oneBranchId ?? null,
+    ],
+    enabled: authReady,
+    queryFn: async () => {
+      let url: string;
 
-    if (isSuper) {
-      if (opts.businessTypeId != null) {
-        return `${BASE}/sucursales/tipo-negocio/${opts.businessTypeId}`;
+      if (isSuper) {
+        if (opts.businessTypeId != null) {
+          url = `/sucursales/tipo-negocio/${opts.businessTypeId}`;
+        } else {
+          url = `/sucursales`;
+        }
+      } else if (opts.oneBranchId != null) {
+        url = `/sucursales/${opts.oneBranchId}`;
+      } else {
+        return [];
       }
-      return `${BASE}/sucursales`;
-    }
 
-    if (opts.oneBranchId != null) {
-      return `${BASE}/sucursales/${opts.oneBranchId}`;
-    }
+      const { data } = await api.get(url);
 
-    return null;
-  }, [authReady, isSuper, opts.businessTypeId, opts.oneBranchId]);
-
-  useEffect(() => {
-    if (!url || !token) return;
-
-    let alive = true;
-
-    (async () => {
-      try {
-        setSt({ data: [], loading: true });
-
-        const raw = await getJsonUnknown(url, token);
-
-      const arr = Array.isArray(raw)
-        ? raw
-        : isPageResponse(raw)
-        ? raw.content
-        : raw && typeof raw === "object"
-        ? [raw]
-        : [];
-
-      const data = toBranchArray(arr);
-
-        if (alive) setSt({ data, loading: false });
-      } catch (e) {
-        if (alive)
-          setSt({
-            data: [],
-            loading: false,
-            error: String(e),
-          });
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [url, token]);
-
-  return st;
+      const arr = Array.isArray(data) ? data : [data];
+      return toBranchArray(arr);
+    },
+    staleTime: CATALOG_STALE_TIME,
+    gcTime: CACHE_TIME,
+    refetchOnWindowFocus: ISRFEFECTHON,  
+    retry: 1,
+  });
 }
 /** Detalle de sucursal para derivar su businessTypeId */
 export async function fetchBranchInfo(
@@ -339,7 +238,7 @@ export function useSucursales() {
     initialData: [],
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: ISRFEFECTHON,
     retry: 1,
   });
 }
@@ -348,7 +247,9 @@ export function useBusinessTypes() {
   return useQuery<BusinessType[], Error>({
     queryKey: ["business-types"],
     queryFn: fetchBusinessTypes,
-    staleTime: 5 * 60_000,
+    staleTime: CATALOG_STALE_TIME,
+    gcTime: CACHE_TIME,    // 👈
+    refetchOnWindowFocus: ISRFEFECTHON,  
   });
 }
 
@@ -361,14 +262,16 @@ export function usePaymentMethods(params?: Record<string, unknown>) {
       const { data } = await api.get<PaymentMethod[]>("/metodo-pago", { params });
       return data;
     },
-    staleTime: 5 * 60_000,
+    staleTime: CATALOG_STALE_TIME,
+    gcTime: CACHE_TIME,    // 👈
+    refetchOnWindowFocus: ISRFEFECTHON,  
   });
 }
 /** Productos */
 export function useProducts(params?: Record<string, unknown>) {
-  return useQuery<CatalogItem[]>({
-    queryKey: ["products", params],
-    queryFn: async () => {
+ return useQuery<CatalogItem[]>({
+  queryKey: ["products", JSON.stringify(params ?? {})],
+  queryFn: async () => {
       const { data } = await api.get<CatalogItem[]>("/productos", { params });
       return data;
     },

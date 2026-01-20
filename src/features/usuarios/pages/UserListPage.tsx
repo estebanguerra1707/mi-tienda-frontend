@@ -121,6 +121,7 @@ export default function UsersListPage() {
             <th className="px-4 py-3 text-left font-semibold">Nombre</th>
             <th className="px-4 py-3 text-left font-semibold">Email</th>
             <th className="px-4 py-3 text-left font-semibold">Rol</th>
+            <th className="px-4 py-3 text-left font-semibold">Sucursal</th>
             <th className="px-4 py-3 text-right font-semibold w-40">Acciones</th>
           </tr>
         </thead>
@@ -145,6 +146,7 @@ export default function UsersListPage() {
                 <td className="px-4 py-3">{u.username}</td>
                 <td className="px-4 py-3">{u.email}</td>
                 <td className="px-4 py-3">{u.role}</td>
+                <td className="px-4 py-3">{u.branchName}</td>
 
                 {/* ACCIONES */}
                 <td className="px-4 py-3 text-right">

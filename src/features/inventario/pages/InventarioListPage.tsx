@@ -66,11 +66,24 @@ const { user, isAdmin, isSuper } = useAuth();
   const [branchId, setBranchId] = useState<number | undefined>(undefined);
 
   const btHook = useBusinessTypes();
-  const branchesHook = useBranches({
-    isSuper,
-    businessTypeId: isSuper ? (btId ?? user?.businessType ?? null) : null,
-    oneBranchId: !isSuper ? (user?.branchId ?? null) : null,
-  });
+
+const {
+  data: branches = [],
+  isLoading: branchesLoading,
+} = useBranches({
+  isSuper,
+  businessTypeId: isSuper ? (btId ?? user?.businessType ?? null) : null,
+  oneBranchId: !isSuper ? (user?.branchId ?? null) : null,
+});
+
+const usaInventarioPorDuenio = useMemo(() => {
+  const activeBranchId = branchId ?? user?.branchId;
+  if (!activeBranchId) return false;
+
+  return (
+    branches.find(b => b.id === activeBranchId)?.usaInventarioPorDuenio ?? false
+  );
+}, [branches, branchId, user?.branchId]);
 
 const userBranchId = user?.branchId;
 const userBusinessTypeId = user?.businessType;
@@ -210,9 +223,9 @@ const filtro = useMemo(
               className="border rounded-lg px-3 py-2 bg-white shadow-sm focus:ring-blue-500"
             >
               <option value="">
-                {branchesHook.loading ? "Cargando…" : "Todas…"}
+                {branchesLoading ? "Cargando…" : "Todas…"}
               </option>
-              {branchesHook.data.map((b) => (
+              {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
             </select>
@@ -221,7 +234,7 @@ const filtro = useMemo(
               readOnly
               className="border rounded-lg px-3 py-2 bg-gray-100 text-gray-700"
               value={
-                branchesHook.data.find(b => b.id === user?.branchId)?.name
+                branches.find(b => b.id === user?.branchId)?.name
                   ?? "Sucursal asignada"
               }
             />
@@ -306,10 +319,12 @@ const filtro = useMemo(
                     Sucursal <Arrow k="branchName" />
                   </button>
                 </th>
+                {usaInventarioPorDuenio && (
                 <th className="px-4 py-3 text-left flex items-center gap-1 font-semibold hover:text-blue-600">
-                    Dueño
+                    tipo de dueño
                 </th>
-
+                )}
+                
                 <th className="px-4 py-3 text-right">
                   <button onClick={() => toggleSort("stock")} className="flex items-center justify-end gap-1 font-semibold hover:text-blue-600 w-full">
                     Cantidad <Arrow k="stock" />
@@ -370,19 +385,22 @@ const filtro = useMemo(
                   <td className="px-4 py-3 max-w-[220px] truncate font-medium">
                     {row.productName}
                   </td>
-
+                
                   <td className="px-4 py-3">{row.branchName}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-semibold
-                        ${row.ownerType === "PROPIO"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-blue-100 text-blue-700"}
-                      `}
-                    >
-                      {row.ownerType === "PROPIO" ? "Propio" : "Consignación"}
-                    </span>
-                  </td>
+                  {usaInventarioPorDuenio && (
+
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold
+                          ${row.ownerType === "PROPIO"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-blue-100 text-blue-700"}
+                        `}
+                      >
+                        {row.ownerType === "PROPIO" ? "Propio" : "Consignación"}
+                      </span>
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right tabular-nums">
                     {row.stock}
                   </td>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBranches } from "@/hooks/useCatalogs";
 
@@ -26,8 +26,12 @@ const hace30 = new Date(Date.now() - 30 * 86400000)
 export default function ReportesPage() {
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
+  
 
-  const branchesHook = useBranches({
+  const {
+  data: branches = [],
+  isLoading: branchesLoading,
+  }= useBranches({
     isSuper,
     businessTypeId: isSuper ? undefined : auth.user?.businessType ?? null,
     oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
@@ -38,50 +42,42 @@ export default function ReportesPage() {
   );
   const [start, setStart] = useState(hace30);
   const [end, setEnd] = useState(hoy);
-  const [shouldLoad, setShouldLoad] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
 
-  const onBuscar = () => {
-    setShouldLoad(true);
-    setDataLoaded(false);
-  };
+  const canLoad =
+  !!branchId &&
+  !!start &&
+  !!end &&
+  new Date(start) <= new Date(end);
 
-  const { resumen, diario, loading } = useGanancias({
-    startDate: shouldLoad ? start : null,
-    endDate: shouldLoad ? end : null,
-    branchId: shouldLoad ? branchId ?? null : null,
+
+
+  const { resumen, diario } = useGanancias({
+    startDate: canLoad ? start : null,
+    endDate: canLoad ? end : null,
+    branchId: canLoad ? branchId ?? null : null,
   });
 
   const { brutas, netas, loading: loadingBrutasNetas } = useBrutasNetas({
-    startDate: shouldLoad ? start : null,
-    endDate: shouldLoad ? end : null,
-    branchId: shouldLoad ? branchId ?? null : null,
+    startDate: canLoad ? start : null,
+    endDate: canLoad ? end : null,
+    branchId: canLoad ? branchId ?? null : null,
   });
+  
 
   const [ventaIdInput, setVentaIdInput] = useState("");
   const ventaIdNumber = ventaIdInput ? Number(ventaIdInput) : null;
-  const [shouldLoadVenta, setShouldLoadVenta] = useState(false);
+
+  const canLoadVenta = !!ventaIdNumber && !!branchId;
 
   const { ganancia, loading: loadingVenta } = useGananciaPorVenta(
-    shouldLoadVenta ? ventaIdNumber : null,
-    branchId ?? null
+    canLoadVenta ? ventaIdNumber : null,
+    canLoadVenta ? branchId : null
   );
 
-  const onBuscarVenta = () => {
-    if (ventaIdNumber) {
-      setShouldLoadVenta(true);
-    }
-  };
 
   const rangoInvalido =
     !start || !end || new Date(start) > new Date(end) || !branchId;
 
-  useEffect(() => {
-    if (!loading && shouldLoad) {
-      setDataLoaded(true);
-      setShouldLoad(false);
-    }
-  }, [loading, shouldLoad]);
 
   const serieDia = transformarGanancias(diario, "day");
   const serieSemana = transformarGanancias(diario, "week");
@@ -98,12 +94,12 @@ const branchName = useMemo(() => {
 
   if (!auth.user?.branchId) return "";
 
-  const branch = branchesHook.data.find(
+  const branch = branches.find(
     (b) => b.id === auth.user?.branchId
   );
 
   return branch?.name ?? "";
-}, [isSuper, auth.user?.branchId, branchesHook.data]);
+}, [isSuper, auth.user?.branchId, branches]);
   const tabs = [
     {
       label: "Ganancias",
@@ -111,7 +107,7 @@ const branchName = useMemo(() => {
         <div className="space-y-6">
           <IndicadorHoy valor={resumen?.hoy ?? 0} />
 
-          {dataLoaded ? (
+          {canLoad ? (
             <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
               <Tabs tabs={subtabsGanancia} />
             </div>
@@ -126,7 +122,7 @@ const branchName = useMemo(() => {
 
     {
       label: "Brutas / Netas",
-      content: dataLoaded ? (
+      content: canLoad ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
           <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
             <h2 className="text-lg font-semibold mb-4">Resumen de Ganancias</h2>
@@ -164,22 +160,20 @@ const branchName = useMemo(() => {
                 value={ventaIdInput}
                 onChange={(e) => {
                   setVentaIdInput(e.target.value);
-                  setShouldLoadVenta(false);
                 }}
                 placeholder="Ej: 15"
               />
             </div>
-
             <button
-              onClick={onBuscarVenta}
-              className="px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition w-full sm:w-auto"
-              disabled={!ventaIdNumber}
-            >
-              Buscar
-            </button>
+                type="button"
+                disabled={!ventaIdNumber}
+                className="px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition w-full sm:w-auto"
+              >
+                Buscar
+              </button>
           </div>
 
-          {!shouldLoadVenta ? (
+          {!canLoadVenta ? (
             <p className="text-gray-500">Ingresa un ID y presiona <strong>Buscar</strong>.</p>
           ) : loadingVenta ? (
             <p>Cargando...</p>
@@ -213,14 +207,17 @@ const branchName = useMemo(() => {
 
             {isSuper ? (
               <select
+                disabled={branchesLoading}
                 className="border rounded-lg px-3 py-2 shadow-sm"
                 value={branchId ?? ""}
                 onChange={(e) =>
                   setBranchId(e.target.value ? Number(e.target.value) : undefined)
                 }
               >
-                <option value="">Selecciona…</option>
-                {branchesHook.data.map((b) => (
+                <option value="">
+                  {branchesLoading ? "Cargando sucursales…" : "Selecciona…"}
+                </option>
+                {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
                   </option>
@@ -256,7 +253,6 @@ const branchName = useMemo(() => {
           </div>
 
           <button
-            onClick={onBuscar}
             className="px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 disabled:bg-gray-300 transition w-full sm:w-auto"
             disabled={rangoInvalido}
           >
@@ -269,7 +265,7 @@ const branchName = useMemo(() => {
         )}
       </div>
 
-      {dataLoaded && (
+      {canLoad && (
         <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
           <Tabs tabs={tabs} />
         </div>

@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+export type InventarioOwnerType = "PROPIO" | "CONSIGNACION";
 
 export type InventarioItem = {
    id: number;
@@ -13,6 +14,7 @@ export type InventarioItem = {
   isStockCritico: boolean;
   lastUpdated: string | null;
   updatedBy: string | null;
+  ownerType: InventarioOwnerType| null;
 };
 
 export type UpsertInventarioDTO = {
@@ -22,6 +24,7 @@ export type UpsertInventarioDTO = {
   stock: number;
   minStock: number;
   maxStock: number;
+  ownerType: InventarioOwnerType
 };
 
 export async function getInventarioDeProducto(branchId: number, productId: number) {

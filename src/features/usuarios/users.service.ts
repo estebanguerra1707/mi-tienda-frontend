@@ -20,8 +20,16 @@ export interface CreateUserDto {
   role: Role;
   branchId?: number | null;
 }
+export interface UpdateUserDto {
+  username?: string;
+  email?: string;
+  role?: Role;
+  branchId?: number | null;
 
-export type UpdateUserDto = Partial<Omit<CreateUserDto, "password">>;
+  // solo si cambia contraseña
+  currentPassword?: string;
+  newPassword?: string;
+}
 
 export async function fetchUsers(): Promise<User[]> {
   const { data } = await api.get<User[]>("/usuarios");

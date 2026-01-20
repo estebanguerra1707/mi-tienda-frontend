@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useUserById } from "@/features/usuarios/useUserById";
 import { useUpdateUser } from "@/features/usuarios/useUpdateUser";
 import { toast } from "react-hot-toast";
-import { UpdateUserPayload } from "@/types/catalogs";
+import { UpdateUserDto } from "../users.service";
 
 const ROLES = ["ADMIN", "VENDOR", "SUPER_ADMIN"] as const;
 
@@ -14,6 +14,7 @@ const userSchema = z.object({
   username: z.string().min(1, "El nombre es obligatorio"),
   email: z.string().email("Email inválido"),
   role: z.enum(ROLES),
+  branchName: z.string().optional(),
   changePassword: z.boolean(),
   currentPassword: z.string().optional(),
   newPassword: z.string().optional(),
@@ -79,12 +80,15 @@ export default function UserEditPage() {
         username: user.username,
         email: user.email,
         role: user.role,
+        branchName: user.branchName ?? "",
+        changePassword: false
       });
+
     }
   }, [user, reset]);
 
   const onSubmit = async (values: FormValues) => {
-    const payload: UpdateUserPayload = {
+    const payload: UpdateUserDto = {
       username: values.username,
       email: values.email,
       role: values.role,
@@ -95,7 +99,7 @@ export default function UserEditPage() {
       payload.newPassword = values.newPassword;
     }
     try {
-      await updateUser({ id: Number(id), payload: values });
+      await updateUser({ id: Number(id), payload });
       toast.success("Usuario actualizado correctamente");
       navigate("/usuarios");
     } catch {
@@ -136,6 +140,11 @@ export default function UserEditPage() {
             <option value="VENDOR">VENDOR</option>
           </select>
           {errors.role && <p className="text-red-600 text-xs">{errors.role.message}</p>}
+        </div>
+        {/* Sucursal */}
+        <div>
+          <label className="block text-sm mb-1">Sucursal</label>
+          <input className="border rounded px-3 py-2 w-full" {...register("branchName")} readOnly/>
         </div>
 
         {/* Switch cambio contraseña */}
