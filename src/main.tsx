@@ -37,8 +37,10 @@ const router = createBrowserRouter([
         path: '/',
         element: <AppLayout />, 
         children: [
-          { index: true, element: <DashboardPage /> },
-
+          {
+            path: 'dashboard',
+            element: <DashboardPage />,
+          },
           {
             path: 'productos',
             lazy: async () => ({ Component: (await import('@/features/productos/pages/ListPage')).default }),
@@ -97,6 +99,10 @@ const router = createBrowserRouter([
                   }),
                 },
                 {
+                  path: 'clientes',
+                  lazy: async () => ({ Component: (await import('@/features/clientes/pages/ClienteListPage')).default }),
+                },
+                {
                   children: [
                     {
                       path: "proveedores",
@@ -107,13 +113,13 @@ const router = createBrowserRouter([
                     {
                       path: "proveedores/nuevo",
                       lazy: async () => ({
-                        Component: (await import("@/features/proveedores/pages/ProveedorCreatePage")).default,
+                        Component: (await import("@/features/proveedores/components/ProveedorCreatePage")).default,
                       }),
                     },
                     {
                       path: "proveedores/:id/editar",
                       lazy: async () => ({
-                        Component: (await import("@/features/proveedores/pages/ProveedoresEditPage")).default,
+                        Component: (await import("@/features/proveedores/components/ProveedoresEditPage")).default,
                       }),
                     },
                   ],

@@ -3,17 +3,18 @@ export interface Proveedor {
   name: string;
   contact?: string | null;
   email?: string | null;
-  direccion?: string | null;
-  tipoNegocioId: number;
-  tipoNegocioNombre?: string | null;
+  sucursales: SucursalLite[];
 }
 
 export interface CreateProveedorDto {
-  nombre: string;
-  telefono?: string | null;
+  name: string;
+  contact?: string | null;
   email?: string | null;
-  direccion?: string | null;
-  tipoNegocioId: number;
+  branchIds: number[];
+}
+export interface SucursalLite {
+  id: number;
+  name: string;
 }
 
-export type UpdateProveedorDto = Partial<CreateProveedorDto>;
+export type UpdateProveedorDto = Partial<Omit<CreateProveedorDto, "branchId">>;

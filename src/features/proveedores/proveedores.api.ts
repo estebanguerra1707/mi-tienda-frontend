@@ -1,9 +1,5 @@
 import { api } from "@/lib/api";
-import {
-  Proveedor,
-  CreateProveedorDto,
-  UpdateProveedorDto,
-} from "./types";
+import type { Proveedor, CreateProveedorDto, UpdateProveedorDto } from "./types";
 
 export async function fetchProveedores(): Promise<Proveedor[]> {
   const { data } = await api.get<Proveedor[]>("/proveedores");
@@ -20,7 +16,10 @@ export async function createProveedor(payload: CreateProveedorDto): Promise<Prov
   return data;
 }
 
-export async function updateProveedor(id: number, payload: UpdateProveedorDto): Promise<Proveedor> {
+export async function updateProveedor(
+  id: number,
+  payload: UpdateProveedorDto
+): Promise<Proveedor> {
   const { data } = await api.put<Proveedor>(`/proveedores/${id}`, payload);
   return data;
 }

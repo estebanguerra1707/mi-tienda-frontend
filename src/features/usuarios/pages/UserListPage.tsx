@@ -5,6 +5,9 @@ import { useDeleteUser } from "@/features/usuarios/useDeleteUser";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { User } from "../users.service";
 
+type SortKey = "username" | "email" | "role" | "branchName";
+
+
 export default function UsersListPage() {
   const navigate = useNavigate();
   const [sp, setSp] = useSearchParams();
@@ -13,18 +16,59 @@ export default function UsersListPage() {
   const q = sp.get("q") ?? "";
 
   const { data, isLoading, error } = useUsers();
+  
+ const [localSort, setLocalSort] = useState<{
+  key: SortKey;
+  dir: "asc" | "desc";
+}>({
+  key: "username",
+  dir: "asc",
+});
 
-  const filtered: User[] = useMemo(() => {
-    const list: User[] = Array.isArray(data) ? data : [];
-    if (!q) return list;
-    const needle = q.toLowerCase();
-    return list.filter(
-      (u) =>
-        (u.username ?? "").toLowerCase().includes(needle) ||
-        (u.email ?? "").toLowerCase().includes(needle)
-    );
-  }, [data, q]);
+const toggleSort = (key: SortKey) =>
+  setLocalSort((s) =>
+    s.key === key
+      ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+      : { key, dir: "asc" }
+  );
 
+const collator = useMemo(
+  () => new Intl.Collator("es", { sensitivity: "base" }),
+  []
+);
+
+const Arrow = ({ k }: { k: SortKey }) =>
+  localSort.key !== k ? (
+    <span className="opacity-40">↕︎</span>
+  ) : localSort.dir === "asc" ? (
+    <>▲</>
+  ) : (
+    <>▼</>
+  );
+
+const filtered: User[] = useMemo(() => {
+  const list: User[] = Array.isArray(data) ? data : [];
+
+  const filteredList = q
+    ? list.filter((u) => {
+        const needle = q.toLowerCase();
+        return (
+          (u.username ?? "").toLowerCase().includes(needle) ||
+          (u.email ?? "").toLowerCase().includes(needle)
+        );
+      })
+    : list;
+
+  const mult = localSort.dir === "asc" ? 1 : -1;
+
+  return [...filteredList].sort((a, b) => {
+    const key = localSort.key;
+    return collator.compare(
+      String(a[key] ?? ""),
+      String(b[key] ?? "")
+    ) * mult;
+  });
+}, [data, q, localSort, collator]);
   const del = useDeleteUser();
 
   const handleDelete = (id: number) => {
@@ -37,6 +81,7 @@ export default function UsersListPage() {
       del.mutate(selectedId, { onSettled: () => setOpen(false) });
     }
   };
+
 
  return (
   <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -118,10 +163,41 @@ export default function UsersListPage() {
             tracking-wide 
             border-b
           ">
-            <th className="px-4 py-3 text-left font-semibold">Nombre</th>
-            <th className="px-4 py-3 text-left font-semibold">Email</th>
-            <th className="px-4 py-3 text-left font-semibold">Rol</th>
-            <th className="px-4 py-3 text-left font-semibold">Sucursal</th>
+            <th className="px-4 py-3 text-left font-semibold">
+              <button
+                onClick={() => toggleSort("username")}
+                className="flex items-center gap-1 hover:text-blue-600"
+              >
+                Nombre <Arrow k="username" />
+              </button>
+            </th>
+
+            <th className="px-4 py-3 text-left font-semibold">
+              <button
+                onClick={() => toggleSort("email")}
+                className="flex items-center gap-1 hover:text-blue-600"
+              >
+                Email <Arrow k="email" />
+              </button>
+            </th>
+
+            <th className="px-4 py-3 text-left font-semibold">
+              <button
+                onClick={() => toggleSort("role")}
+                className="flex items-center gap-1 hover:text-blue-600"
+              >
+                Rol <Arrow k="role" />
+              </button>
+            </th>
+
+            <th className="px-4 py-3 text-left font-semibold">
+              <button
+                onClick={() => toggleSort("branchName")}
+                className="flex items-center gap-1 hover:text-blue-600"
+              >
+                Sucursal <Arrow k="branchName" />
+              </button>
+            </th>
             <th className="px-4 py-3 text-right font-semibold w-40">Acciones</th>
           </tr>
         </thead>

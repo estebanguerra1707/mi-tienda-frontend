@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import ProveedorForm from "../components/ProveedoresForm";
+import ProveedorForm from "./ProveedoresForm";
 import { useProveedorById, useUpdateProveedor } from "@/hooks/useProveedores";
 import type { UpdateProveedorDto } from "../types";
 
