@@ -150,24 +150,27 @@ useEffect(() => {
           </div>
         </header>
 
-      <div className="flex">
+      <div className="flex min-w-0 overflow-x-hidden">
         {/* SIDEBAR — SOLO DESKTOP */}
         <aside className="hidden md:block w-64 shrink-0">
           <Sidebar items={NAV_ITEMS} />
         </aside>
         {/* MAIN */}
-        <main
-          className="
-            flex-1
-            bg-slate-50
-            px-3 sm:px-4 md:px-6 lg:px-10
-            pt-4
-            pb-6
-            min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-72px)]
-          "
-        >
+          <main
+            className="
+              flex-1
+              min-w-0
+              max-w-full
+              overflow-x-hidden
+              bg-slate-50
+              px-3 sm:px-4 md:px-6 lg:px-10
+              pt-4
+              pb-6
+              min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-72px)]
+            "
+>
           {/* Home launcher solo en / y mobile */}
-         <div className="block md:hidden">
+      <div className="block md:hidden max-w-full overflow-x-hidden">
           {location.pathname === "/dashboard" && !fromLauncher && (
             <HomeLauncher items={NAV_ITEMS} />
           )}

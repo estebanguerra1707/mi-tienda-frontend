@@ -10,6 +10,7 @@ import MarkCriticalButton from "@/features/inventario/components/MarkCriticalBut
 import EditInventarioButton from "@/features/inventario/components/EditInventoryButton";
 import { useDebounced } from "@/hooks/useDebounced";
 import { InventarioOwnerType } from "@/features/inventario/api";
+import InventarioCard from "@/features/inventario/components/InventarioCard";
 
 
 const PAGE_SIZE = 20;
@@ -293,10 +294,33 @@ const filtro = useMemo(
           <AddInventoryButton onCreated={refetchList} />
         )}
       </div>
+            {/* MOBILE CARDS */}
+      <div className="block md:hidden space-y-3">
+        {allInv.isLoading && (
+          <div className="rounded-xl border bg-white p-4 text-center text-gray-500">
+            Cargando…
+          </div>
+        )}
 
+        {!allInv.isLoading && !sortedRows.length && (
+          <div className="rounded-xl border bg-white p-4 text-center text-gray-500">
+            Sin registros
+          </div>
+        )}
+
+        {sortedRows.map((row) => (
+          <InventarioCard
+            key={`${row.productId}-${row.branchId}-${row.ownerType}`}
+            row={row}
+            usaInventarioPorDuenio={usaInventarioPorDuenio}
+            canEdit={isSuper || isAdmin}
+            onUpdated={refetchList}
+          />
+        ))}
+      </div>
       {/* TABLA PRO */}
      
-      <div className="rounded-xl border bg-white shadow overflow-hidden">
+      <div className="hidden md:block rounded-xl border bg-white shadow overflow-hidden">
         <div className="overflow-x-auto no-scrollbar">
           <table className="min-w-[1000px] w-full text-sm text-gray-700">
             <thead className="bg-slate-100 border-b sticky top-0 z-10">

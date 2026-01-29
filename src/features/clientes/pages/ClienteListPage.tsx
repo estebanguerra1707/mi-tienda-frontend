@@ -60,9 +60,11 @@ export default function ClienteListPage() {
                     key={c.id}
                     className="p-4 space-y-2 active:bg-slate-50"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-semibold">{c.name}</p>
+                        <p className="font-semibold break-words">
+                          {c.name}
+                        </p>
                         <p className="text-sm text-slate-600">
                           {c.phone ?? "Sin teléfono"}
                         </p>
@@ -72,7 +74,7 @@ export default function ClienteListPage() {
                       </div>
 
                       {canEditOrDeleteCliente(c) ? (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 sm:shrink-0">
                           <EditClienteButton id={c.id} />
                           <DeleteClienteButton id={c.id} name={c.name} />
                         </div>

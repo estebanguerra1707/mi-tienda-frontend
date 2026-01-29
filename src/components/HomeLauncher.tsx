@@ -37,7 +37,7 @@ export default function HomeLauncher({ items }: { items: NavItem[] }) {
   const nav = useNavigate();
 
   return (
-    <div className="mx-auto max-w-md p-4">
+    <div className="mx-auto w-full max-w-md p-4 overflow-x-hidden">
       <h1 className="mb-4 text-xl font-semibold">Menú</h1>
 
       <div className="grid grid-cols-2 gap-3">
