@@ -349,7 +349,6 @@ function VentaCard(props: {
 }
 
 /* ------------------ Desktop Table ------------------ */
-
 function VentasTable(props: {
   isLoading: boolean;
   rows: VentaItem[];
