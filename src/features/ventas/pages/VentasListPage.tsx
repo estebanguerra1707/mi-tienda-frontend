@@ -266,12 +266,26 @@ function VentaCard(props: {
   formatMoney: (n?: number | null) => string;
   formatDate: (iso: string, withTime: boolean) => string;
 }) {
-  const { v, isSuperAdmin, onOpen, onDeleted, formatMoney, formatDate } = props;
+  const {
+    v,
+    isSuperAdmin,
+    onOpen,
+    onDeleted,
+    formatMoney,
+    formatDate,
+  } = props;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       className="
         w-full text-left
         rounded-2xl border border-slate-200 bg-white
@@ -279,8 +293,11 @@ function VentaCard(props: {
         active:scale-[0.99]
         hover:bg-slate-50
         transition
+        cursor-pointer
+        focus:outline-none focus:ring-2 focus:ring-blue-500
       "
     >
+      {/* HEADER */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -309,24 +326,25 @@ function VentaCard(props: {
         </div>
       </div>
 
+      {/* FOOTER SUPER ADMIN */}
       {isSuperAdmin && (
         <div className="mt-3 flex items-center justify-between gap-3">
           <div className="text-sm text-slate-600 truncate">
             <span className="text-slate-500">Vendido por:</span>{" "}
-            <span className="font-medium text-slate-800">{v.userName}</span>
+            <span className="font-medium text-slate-800">
+              {v.userName}
+            </span>
           </div>
 
           <div
             className="shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
+            onClick={(e) => e.stopPropagation()}
           >
             <DeleteVentaButton id={v.id} onDeleted={onDeleted} />
           </div>
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
