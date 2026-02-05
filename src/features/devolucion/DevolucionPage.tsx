@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 
 import NuevaDevolucionPage from "@/features/devolucion/devolucion-compras/pages/NuevaDevolucion";
 import NuevaDevolucionVentaPage from "@/features/devolucion/devolucion-ventas/pages/NuevaDevolucionVentaPage";
@@ -18,8 +18,30 @@ type TabName =
   | "ventas"
   | "Filtrar devoluciones ventas";
 
+type StoredUser = {
+  rol?: string;
+  role?: string;
+};
+
+function getRole(): string {
+  const raw = localStorage.getItem("user");
+  if (!raw) return "";
+  try {
+    const user = JSON.parse(raw) as StoredUser;
+    return user.rol ?? user.role ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export default function DevolucionesPage() {
-  const [tab, setTab] = useState<TabName>("compras");
+  const role = getRole();
+  const isVendor = role === "VENDOR";
+
+  // 👉 tab inicial seguro según rol
+  const [tab, setTab] = useState<TabName>(
+    isVendor ? "ventas" : "compras"
+  );
 
   const refCompras = useRef<{ limpiar: () => void }>(null);
   const refVentas = useRef<{ limpiar: () => void }>(null);
@@ -34,20 +56,32 @@ export default function DevolucionesPage() {
     refSearchCompras.current?.limpiar?.();
   };
 
+  // ✅ Tabs visibles según rol
+  const TABS = useMemo(
+    () => [
+      !isVendor && { key: "compras", label: "Filtro Compras" },
+      !isVendor && {
+        key: "Filtrar devoluciones compras",
+        label: "Devolución Compras",
+      },
+      { key: "ventas", label: "Filtro Ventas" },
+      {
+        key: "Filtrar devoluciones ventas",
+        label: "Devolución Ventas",
+      },
+    ].filter(Boolean) as { key: TabName; label: string }[],
+    [isVendor]
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-4">
 
-      {/* ------------------- TABS MOBILE-FIRST (SIN CARD) ------------------- */}
+      {/* ------------------- TABS ------------------- */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-        {[
-          { key: "compras", label: "Filtro Compras" },
-          { key: "Filtrar devoluciones compras", label: "Devolución Compras" },
-          { key: "ventas", label: "Filtro Ventas" },
-          { key: "Filtrar devoluciones ventas", label: "Devolución Ventas" },
-        ].map((t) => (
+        {TABS.map((t) => (
           <button
             key={t.key}
-            onClick={() => cambiarTab(t.key as TabName)}
+            onClick={() => cambiarTab(t.key)}
             className={`
               px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
               transition
@@ -63,10 +97,10 @@ export default function DevolucionesPage() {
         ))}
       </div>
 
-      {/* ------------------- CONTENIDO (UNA SOLA CARD SUAVE) ------------------- */}
+      {/* ------------------- CONTENIDO ------------------- */}
       <div className="bg-white rounded-xl border p-3 sm:p-5">
 
-        {tab === "compras" && (
+        {!isVendor && tab === "compras" && (
           <NuevaDevolucionPage ref={refCompras} />
         )}
 
@@ -84,7 +118,7 @@ export default function DevolucionesPage() {
           />
         )}
 
-        {tab === "Filtrar devoluciones compras" && (
+        {!isVendor && tab === "Filtrar devoluciones compras" && (
           <BusquedaDevolucionesComprasPage ref={refSearchCompras} />
         )}
 

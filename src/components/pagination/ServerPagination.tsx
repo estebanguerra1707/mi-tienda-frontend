@@ -1,48 +1,36 @@
 type Props = {
-  page: number;        // página actual (1-based)
-  totalPages: number;  // total
-  onChange: (page: number) => void;
+  page: number;
+  totalPages: number;
+  onChange: (nextPage: number) => void;
 };
 
 export function ServerPagination({ page, totalPages, onChange }: Props) {
-  if (totalPages <= 1) return null;
+  const safeTotal = Math.max(1, totalPages);
+  const safePage = Math.min(Math.max(1, page), safeTotal);
 
-  const go = (n: number) =>
-    onChange(Math.min(Math.max(n, 1), totalPages));
+  const canPrev = safePage > 1;
+  const canNext = safePage < safeTotal;
 
   return (
-    <div className="flex items-center justify-end gap-2 mt-4">
-
+    <div className="w-full flex items-center justify-between gap-3">
       <button
-        className="px-3 py-1 border rounded bg-white disabled:opacity-40"
-        disabled={page <= 1}
-        onClick={() => go(page - 1)}
+        type="button"
+        onClick={() => onChange(safePage - 1)}
+        disabled={!canPrev}
+        className="h-10 px-3 rounded-xl border bg-white disabled:opacity-40"
       >
         ←
       </button>
 
-      {[...Array(totalPages)].map((_, i) => {
-        const num = i + 1;
-        const active = num === page;
-        return (
-          <button
-            key={num}
-            onClick={() => go(num)}
-            className={`px-3 py-1 rounded border text-sm ${
-              active
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white hover:bg-gray-100"
-            }`}
-          >
-            {num}
-          </button>
-        );
-      })}
+      <div className="flex-1 text-center text-sm font-medium text-slate-700">
+        Página {safePage} de {safeTotal}
+      </div>
 
       <button
-        className="px-3 py-1 border rounded bg-white disabled:opacity-40"
-        disabled={page >= totalPages}
-        onClick={() => go(page + 1)}
+        type="button"
+        onClick={() => onChange(safePage + 1)}
+        disabled={!canNext}
+        className="h-10 px-3 rounded-xl border bg-white disabled:opacity-40"
       >
         →
       </button>

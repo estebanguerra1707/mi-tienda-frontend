@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { getErrorMessage } from "@/features/inventario/getErrorMessage";
 import { updateInventory } from "@/features/inventario/api";
 import type { InventoryItem } from "@/hooks/useInventory";
+import { Pencil } from "lucide-react";
 
 type FormValues = {
   quantity: number;
@@ -118,10 +119,21 @@ export default function EditInventarioButton({
   return (
     <>
       <button
-        className="px-2 py-1 text-xs rounded border hover:bg-slate-100"
+        type="button"
         onClick={() => setOpen(true)}
+        title="Editar"
+        aria-label="Editar"
+        className="
+          inline-flex items-center justify-center
+          h-10 w-10
+          rounded-xl
+          bg-slate-200 text-slate-900
+          hover:bg-slate-300
+          active:scale-[0.98]
+          transition
+        "
       >
-        Editar
+        <Pencil className="h-4 w-4" />
       </button>
 
       <Toast toast={toast} onClose={() => setToast(null)} />

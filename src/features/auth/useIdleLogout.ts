@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { logout } from "@/features/auth/authService";
 
-const IDLE_LIMIT = 5 * 60 * 1000; // 5 minutos en milisegundos
+const IDLE_LIMIT = 60 * 60 * 1000; // inactividad 1h
 
 export function useIdleLogout() {
   const timer = useRef<number | null>(null);
@@ -14,17 +14,16 @@ export function useIdleLogout() {
 
     timer.current = window.setTimeout(() => {
       console.warn("⏳ Sesión cerrada por inactividad");
-      logout(); // limpia tokens + redirige al login
+      logout(); 
     }, IDLE_LIMIT);
   };
 
   useEffect(() => {
-    // Eventos que reinician el temporizador
     const events = ["mousemove", "keydown", "click", "scroll"];
 
     events.forEach((e) => window.addEventListener(e, resetTimer));
 
-    resetTimer(); // al cargar la app
+    resetTimer();
 
     return () => {
       events.forEach((e) =>

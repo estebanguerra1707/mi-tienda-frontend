@@ -42,8 +42,9 @@ export default function BarcodeCameraScanner({ onResult, onError }: Props) {
   const scanningRef = useRef(false);
   const startCameraRef = useRef<() => void>(() => {});
   const failCountRef = useRef(0);
+  const [showOrientationHint, setShowOrientationHint] = useState(true);
 
-  /** FIX REAL → evitar warning de React sin romper nada */
+
   const onErrorRef = useRef(onError);
   useEffect(() => {
     onErrorRef.current = onError;
@@ -60,7 +61,6 @@ export default function BarcodeCameraScanner({ onResult, onError }: Props) {
     return /Mac|Win|Linux/i.test(platform) && !/Android|iPhone|iPad/i.test(ua);
   }, []);
 
-  /** Hints ZXing */
   const hints = useMemo(() => {
     const h = new Map();
     h.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -130,7 +130,7 @@ export default function BarcodeCameraScanner({ onResult, onError }: Props) {
       await track.applyConstraints(constraints as MediaTrackConstraints);
     } catch (err) {
       console.error("Camera error:", err);
-      onErrorRef.current?.(String(err));  // FIX CORRECTO
+      onErrorRef.current?.(String(err));
       setFocusing(false);
     }
   }, []);
@@ -160,7 +160,8 @@ export default function BarcodeCameraScanner({ onResult, onError }: Props) {
       if (!video) return;
       video.srcObject = stream;
       await video.play();
-
+      setShowOrientationHint(true);
+      setTimeout(() => setShowOrientationHint(false), 3500);
       setTimeout(() => setFocusing(false), 600);
 
       const canvas =
@@ -337,7 +338,24 @@ export default function BarcodeCameraScanner({ onResult, onError }: Props) {
           Enfocando…
         </div>
       )}
-
+      {showOrientationHint && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 px-4">
+          <div className="
+            bg-black/80
+            text-white
+            text-sm
+            sm:text-base
+            font-medium
+            rounded-xl
+            px-4 py-2
+            shadow-lg
+            backdrop-blur
+            animate-fade-in
+          ">
+            📷 Coloca el código de barras en horizontal (acostado)
+          </div>
+        </div>
+      )}
       {detected && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-xl shadow-xl text-lg font-semibold animate-bounce">
           Código: {detected}
@@ -349,6 +367,14 @@ export default function BarcodeCameraScanner({ onResult, onError }: Props) {
           0% { top: 0%; }
           100% { top: 100%; }
         }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+
+          .animate-fade-in {
+            animation: fade-in .35s ease-out;
+          }
       `}</style>
     </div>
   );

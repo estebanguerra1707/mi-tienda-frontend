@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useDisableCliente } from "../useClients";
+import { Trash2 } from "lucide-react";
 
 type Props = {
   id: number;
@@ -48,13 +49,28 @@ export default function DeleteClienteButton({ id, name }: Props) {
 
   return (
     <>
-      <button
+     <button
         type="button"
         onClick={() => setOpen(true)}
         disabled={delMutation.isPending}
-        className="text-red-600 font-semibold hover:underline disabled:opacity-50"
+        title="Eliminar"
+        aria-label="Eliminar"
+        className="
+          inline-flex items-center justify-center
+          px-2 py-1
+          rounded
+          bg-red-600 text-white
+          hover:bg-red-700
+          active:scale-[0.98]
+          disabled:opacity-50 disabled:cursor-not-allowed
+          transition
+        "
       >
-        {delMutation.isPending ? "Eliminando…" : "Eliminar"}
+        {delMutation.isPending ? (
+          <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" />
+        ) : (
+          <Trash2 className="h-4 w-4" />
+        )}
       </button>
 
       <ConfirmDialog

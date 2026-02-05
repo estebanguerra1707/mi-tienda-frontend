@@ -15,8 +15,9 @@ import {
   type InventoryUpdate,
 } from "@/features/inventario/api";
 import { InventarioOwnerType } from "@/features/inventario/api";
+import { keepPreviousData } from "@tanstack/react-query";
 
-/* ===== Claves (mismo patrón que products) ===== */
+
 export const inventoryKeys = {
   all: ["inventario"] as const,
   lists: () => [...inventoryKeys.all, "list"] as const,
@@ -115,7 +116,7 @@ export function useInventory(filter: {
     ),
     queryFn: () => fetchInventory(filter),
     staleTime: 30_000,
-   placeholderData: (previousData) => previousData,
+    placeholderData: keepPreviousData,
   });
 }
 /** Por sucursal: GET /inventario/sucursal/{branchId} */

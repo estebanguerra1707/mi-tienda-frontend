@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { deleteCategoria } from "@/features/categorias/categorias.api";
+import { Trash2 } from "lucide-react";
 
 function getErrorMessage(err: unknown): string {
   if (typeof err === "string") return err;
@@ -58,10 +59,24 @@ export default function DeleteCategoriaButton({
         type="button"
         onClick={() => setOpen(true)}
         disabled={loading}
-        className="px-2 py-1 text-xs rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
         title="Eliminar"
+        aria-label="Eliminar"
+        className="
+          inline-flex items-center justify-center
+          px-2 py-1
+          rounded
+          bg-red-600 text-white
+          hover:bg-red-700
+          active:scale-[0.98]
+          transition
+          disabled:opacity-50 disabled:cursor-not-allowed
+        "
       >
-        {loading ? "Eliminando…" : "Eliminar"}
+        {loading ? (
+          <span className="h-4 w-4 rounded-full border-2 border-red-300 border-t-red-700 animate-spin" />
+        ) : (
+          <Trash2 className="h-4 w-4" />
+        )}
       </button>
 
       <ConfirmDialog

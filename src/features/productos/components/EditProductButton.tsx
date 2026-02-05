@@ -9,7 +9,7 @@ import type { Product, ProductsQuery } from "@/features/productos/api";
 import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
 
 import { getInventarioDeProducto } from "@/features/productos/inventario.service";
-import { upsertInventory } from "@/features/inventario/api"; 
+import { Pencil } from "lucide-react";
 
 
 import {
@@ -72,16 +72,24 @@ function getErrorMessage(err: unknown): string {
   return "Ocurrió un error al actualizar el producto.";
 }
 
- export default function EditProductButton({
-   product,
-   onUpdated,
-   paramsActuales,
- }: {
-   product: EditableProduct;
-   onUpdated?: () => void;
-   paramsActuales?: ProductsQuery;
+export default function EditProductButton({
+  product,
+  onUpdated,
+  paramsActuales,
 
- }) {
+  // ✅ NUEVO (control modal desde afuera)
+  open: controlledOpen,
+  hideTrigger,
+  onOpenChange,
+}: {
+  product: EditableProduct;
+  onUpdated?: () => void;
+  paramsActuales?: ProductsQuery;
+
+  open?: boolean;
+  hideTrigger?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
  const { mutateAsync, isPending } = useUpdateProduct(paramsActuales);
  const auth = useAuth();
  
@@ -90,11 +98,20 @@ function getErrorMessage(err: unknown): string {
   // Derivado de la sucursal elegida
   const [derivedBT, setDerivedBT] = useState<number | null>(null);
 
-  const [open, setOpen] = useState(false);
+  const isControlled = typeof controlledOpen === "boolean";
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!isControlled) setUncontrolledOpen(next);
+      onOpenChange?.(next);
+    },
+    [isControlled, onOpenChange]
+  );
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showScanner, setShowScanner] = useState(false);
-const [ownerType, setOwnerType] =
-  useState<"PROPIO" | "CONSIGNACION">("PROPIO");
 
   useEffect(() => {
   if (!toast) return;
@@ -227,9 +244,6 @@ useEffect(() => {
     setValue("stock", inv?.stock ?? 0);
     setValue("minStock", inv?.minStock ?? 0);
     setValue("maxStock", inv?.maxStock ?? 0);
-    if (inv?.ownerType) {
-        setOwnerType(inv.ownerType);
-      }
 
   } catch {
     if (!alive) return;
@@ -274,9 +288,36 @@ const provs = useProviders({
 
 const onClose = useCallback(() => {
   setOpen(false);
-}, []);
+}, [setOpen]);
 
 
+useEffect(() => {
+  if (!open) return;
+
+  const categoryId = product.categoryId;
+  const providerId = product.providerId;
+
+  if (categories.length > 0 && categoryId) {
+    setValue("categoryId", categoryId, {
+      shouldValidate: false,
+      shouldDirty: false,
+    });
+  }
+
+  if (provs.data?.length && providerId) {
+    setValue("providerId", providerId, {
+      shouldValidate: false,
+      shouldDirty: false,
+    });
+  }
+}, [
+  open,
+  categories,
+  provs.data,
+  product.categoryId,
+  product.providerId,
+  setValue
+]);
   // Escape + focus inicial
   useEffect(() => {
     if (!open) return;
@@ -291,10 +332,6 @@ const onClose = useCallback(() => {
     };
   }, [open, setFocus, onClose]);
 
-  useEffect(() => {
-  if (!open) return;
-  setValue("providerId", product.providerId ?? 0);
-}, [open, product.providerId, setValue]);
 
 const onSubmit = async (values: FormValues) => {
   try {
@@ -303,34 +340,17 @@ const onSubmit = async (values: FormValues) => {
       name: values.name,
       sku: values.sku,
       codigoBarras: values.codigoBarras,
-      description: values.description ?? "",
-      purchasePrice: Number(values.purchasePrice ?? 0),
-      salePrice: Number(values.salePrice ?? 0),
+      description: values.description,
+      purchasePrice: Number(values.purchasePrice ),
+      salePrice: Number(values.salePrice ),
       categoryId: Number(values.categoryId),
       providerId: Number(values.providerId),
-
-      // 👇 SIEMPRE MANDAR stock
-      stock: Number(values.stock ?? 0),
-
-      // 👇 SIEMPRE MANDAR branchId (super o no)
+      stock: Number(values.stock),
       branchId: isSuper
         ? Number(values.branchId)
         : Number(auth.user?.branchId ?? product.branchId),
     };
     await mutateAsync({ id: product.id, payload });
-
-    // 2) upsert inventario para la sucursal actual
-    const branchId = isSuper ? values.branchId : (auth.user?.branchId ?? product.branchId);
-    if (branchId) {
-      await upsertInventory({
-      productId: product.id,
-      branchId: Number(branchId),
-      quantity: Number(values.stock ?? 0), // <-- ESTE ES EL CORRECTO
-      minStock: Number(values.minStock ?? 0),
-      maxStock: Number(values.maxStock ?? 0),
-      ownerType: ownerType
-});
-    }
 
     setToast({ type: "success", message: "Producto actualizado." });
     onClose();
@@ -345,14 +365,22 @@ const onSubmit = async (values: FormValues) => {
 
   return (
     <>
+     {!hideTrigger && (
       <button
         type="button"
-        className="px-2 py-1 text-xs rounded border hover:bg-slate-100"
+        className="
+          inline-flex items-center gap-2
+          px-2 py-1 text-xs
+          rounded border
+          hover:bg-slate-100
+          transition
+        "
         onClick={() => setOpen(true)}
         title="Editar"
       >
-        Editar
+        <Pencil className="h-4 w-4" />
       </button>
+    )}
 
       {/* Toast */}
       {toast &&

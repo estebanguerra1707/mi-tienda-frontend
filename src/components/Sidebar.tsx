@@ -13,7 +13,7 @@ import {
   Users,
   Store,
   Warehouse,
-  Truck
+  Truck,
 } from "lucide-react";
 
 type Props = {
@@ -42,39 +42,25 @@ const SECTION_LABELS: Record<NavSection, string> = {
 };
 
 export default function Sidebar({ items }: Props) {
-  const visibleItems = items.filter(i => i.show);
-
+  const visibleItems = items.filter((i) => i.show);
   const sections: NavSection[] = ["OPERACION", "CATALOGOS", "ADMIN"];
 
   return (
-    <aside
-      className="
-        hidden md:flex
-        w-64
-        flex-col
-        border-r
-        bg-white
-        h-[calc(100vh-72px)]
-        sticky
-        top-[72px]
-      "
-    >
-      <nav className="flex-1 p-3 space-y-6 overflow-y-auto">
-        {sections.map(section => {
-          const sectionItems = visibleItems.filter(
-            item => item.section === section
-          );
-
+    <aside className="flex w-full h-full flex-col overflow-hidden">
+      {/* NAV SCROLL */}
+      <nav className="flex-1 min-h-0 p-3 space-y-6 overflow-y-auto no-scrollbar">
+        {sections.map((section) => {
+          const sectionItems = visibleItems.filter((item) => item.section === section);
           if (sectionItems.length === 0) return null;
 
           return (
             <div key={section}>
-              <div className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              <div className="px-3 mb-2 text-[11px] font-semibold text-white/70 uppercase tracking-wide">
                 {SECTION_LABELS[section]}
               </div>
 
               <div className="space-y-1">
-                {sectionItems.map(item => {
+                {sectionItems.map((item) => {
                   const Icon = ICONS[item.label];
 
                   return (
@@ -83,13 +69,13 @@ export default function Sidebar({ items }: Props) {
                       to={item.to}
                       className={({ isActive }) =>
                         `
-                          flex items-center gap-3
-                          px-3 py-2 rounded-lg text-sm
+                          group flex items-center gap-3
+                          px-3 py-2 rounded-xl text-sm
                           transition
                           ${
                             isActive
-                              ? "bg-brand-gold text-black font-semibold"
-                              : "text-slate-700 hover:bg-slate-100"
+                              ? "bg-[#D4AF37] text-black font-semibold shadow-sm"
+                              : "text-white/90 hover:bg-white/10"
                           }
                         `
                       }
@@ -104,6 +90,12 @@ export default function Sidebar({ items }: Props) {
           );
         })}
       </nav>
+
+      {/* FOOTER (SIEMPRE ABAJO) */}
+      <div className="mt-auto px-4 py-3 border-t border-white/10">
+        <div className="text-sm font-semibold text-white/90">Mi Inventario</div>
+        <div className="text-[11px] text-white/60">Copyright 2026-2030 ©</div>
+      </div>
     </aside>
   );
 }

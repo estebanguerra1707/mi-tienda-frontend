@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useDeleteProveedor } from "../useProveedores";
+import { Trash2 } from "lucide-react";
 
 type Props = {
   id: number;
@@ -56,9 +57,20 @@ const confirmDelete = async () => {
         type="button"
         onClick={() => setOpen(true)}
         disabled={loading}
-        className="text-red-600 font-semibold hover:underline disabled:opacity-50"
+        title="Eliminar"
+        aria-label="Eliminar"
+        className="
+          inline-flex items-center justify-center
+          h-10 w-10
+          rounded-xl
+          bg-red-600 text-white
+          hover:bg-red-700
+          active:scale-[0.98]
+          disabled:opacity-50 disabled:cursor-not-allowed
+          transition
+        "
       >
-        {loading ? "Eliminando…" : "Eliminar"}
+        <Trash2 className="h-4 w-4" />
       </button>
 
       <ConfirmDialog

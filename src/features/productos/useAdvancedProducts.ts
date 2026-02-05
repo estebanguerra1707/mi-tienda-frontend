@@ -9,7 +9,10 @@ import {
 export function useAdvancedProducts(
   filtro: ProductoFiltroDTO,
   page: number,
-  size: number
+  size: number,
+  options?: {
+    enabled?: boolean;
+  }
 ) {
   const filtroKey = JSON.stringify(filtro);
 
@@ -18,5 +21,6 @@ export function useAdvancedProducts(
     queryFn: () => buscarProductosAvanzado(filtro, { page, size }),
     placeholderData: keepPreviousData,
     staleTime: 10_000,
+    enabled: options?.enabled ?? true,
   });
 }

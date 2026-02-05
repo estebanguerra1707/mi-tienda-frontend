@@ -5,6 +5,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { toastError } from "@/lib/toast";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const schema = z.object({
   email: z.string().email("Correo inválido").min(1, "Requerido"),
@@ -16,13 +17,14 @@ type FormValues = z.infer<typeof schema>;
 export default function LoginPage() {
   const nav = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+const { login, user } = useAuth();
+
   const [showPassword, setShowPassword] = useState(false);
 
   const params = new URLSearchParams(location.search);
   const reason = params.get("reason");
-  const from =
-    (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
+ 
+  const isMobile = useIsMobile(768);
 
   const {
     register,
@@ -32,16 +34,32 @@ export default function LoginPage() {
     resolver: zodResolver(schema),
   });
 
-  const onSubmit = async (data: FormValues) => {
-    try {
-      await login(data.email, data.password);
-      nav(from, { replace: true });
-    } catch (err) {
-      // Aquí mostramos error elegante
-      console.warn(err);
-      toastError("Usuario o contraseña incorrectos.");
+    const onSubmit = async (data: FormValues) => {
+      try {
+        await login(data.email, data.password);
+      } catch (err) {
+        console.warn(err);
+        toastError("Usuario o contraseña incorrectos.");
+      }
+    };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const role = user.role;
+
+    if (role === "VENDOR") {
+      nav("/ventas", { replace: true });
+      return;
     }
-  };
+
+    if (role === "SUPER_ADMIN" || role === "ADMIN") {
+      nav(isMobile ? "/home" : "/dashboard", { replace: true });
+      return;
+    }
+
+    nav("/ventas", { replace: true });
+  }, [user, nav, isMobile]);
 
   useEffect(() => {
     if (reason === "session_expired") {

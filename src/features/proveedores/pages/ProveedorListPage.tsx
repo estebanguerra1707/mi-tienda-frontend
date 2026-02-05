@@ -54,13 +54,21 @@ export default function ProveedorListPage() {
 
   const reload = () => void refetch();
   
+  const isSuperAdmin = useMemo(() => {
+  // Opción A: si tu user trae role: "SUPER_ADMIN"
+  if (user?.role === "SUPER_ADMIN") return true;
+  return false;
+}, [user]);
+
   const canEditOrDeleteProveedor = (p: Proveedor) => {
+    if (isSuperAdmin) return true;
     const sucursales = p.sucursales ?? [];
     if (sucursales.length !== 1) return false;
     if (!user?.branchId) return false;
 
     return sucursales[0].id === user.branchId;
   };
+  
   return (
     <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* ===== Sticky top bar (MÓVIL) ===== */}
@@ -170,17 +178,8 @@ export default function ProveedorListPage() {
               </div>
                 {canEditOrDeleteProveedor(p) ? (
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <div className="w-full">
-                    <div className="w-full [&>button]:w-full [&>button]:h-10 [&>button]:rounded-xl [&>button]:bg-slate-100 [&>button]:hover:bg-slate-200 [&>button]:font-semibold [&>button]:transition">
-                      <EditProveedorButton id={p.id} />
-                    </div>
-                  </div>
-
-                  <div className="w-full">
-                    <div className="w-full [&>button]:w-full [&>button]:h-10 [&>button]:rounded-xl [&>button]:bg-red-600 [&>button]:text-white [&>button]:hover:bg-red-700 [&>button]:font-semibold [&>button]:transition">
-                      <DeleteProveedorButton id={p.id} name={p.name} />
-                    </div>
-                  </div>
+                  <EditProveedorButton id={p.id} />
+                  <DeleteProveedorButton id={p.id} name={p.name} />
                 </div>
                 ): (
                     <div className="mt-4">
@@ -195,7 +194,7 @@ export default function ProveedorListPage() {
                           border border-slate-200
                         "
                       >
-                        Proveedor Multisucursal
+                        Proveedor MultiSucursal
                       </span>
                     </div>
                   )}
@@ -258,13 +257,8 @@ export default function ProveedorListPage() {
                   <td className="px-4 py-3">
                     {canEditOrDeleteProveedor(p) ? (
                       <div className="flex items-center gap-4">
-                        <div className="[&>button]:px-2 [&>button]:py-1 [&>button]:text-sm [&>button]:rounded [&>button]:border [&>button]:border-blue-300 [&>button]:text-blue-700 [&>button]:hover:bg-blue-50">
-                          <EditProveedorButton id={p.id} />
-                        </div>
-
-                        <div className="[&>button]:px-2 [&>button]:py-1 [&>button]:text-sm [&>button]:rounded [&>button]:border [&>button]:border-red-300 [&>button]:text-red-700 [&>button]:hover:bg-red-50">
-                          <DeleteProveedorButton id={p.id} name={p.name} />
-                        </div>
+                       <EditProveedorButton id={p.id} />
+                       <DeleteProveedorButton id={p.id} name={p.name} />
                       </div>
                     ): (
                       <span className="

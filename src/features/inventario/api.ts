@@ -2,7 +2,6 @@ import { api } from "@/lib/api";
 
 export type InventarioOwnerType = "PROPIO" | "CONSIGNACION";
 
-/* ===== Tipos ===== */
 export type InventoryItem = {
   id: number;
   productId: number;
@@ -49,53 +48,45 @@ export type AddStockForm = {
   quantity: number;
 }
 
-
-/* ===== API ===== */
-
-/** GET /inventario  (paginado opcional) */
+/* ===== API ==== */
 export async function fetchInventory(filter: {
   branchId?: number;
   businessTypeId?: number;
+  ownerType?: InventarioOwnerType;
   q?: string;
   onlyCritical?: boolean;
   page?: number;
   size?: number;
 }): Promise<InventoryPage> {
   const { page = 0, size = 20, ...rest } = filter;
-  const response = await api.post(`/inventario/search`, {
-    ...rest,
-    page,
-    size,
-  });
+
+  const response = await api.post(
+    "/inventario/search",
+    rest,
+    { params: { page, size } }
+  );
+
   return response.data;
 }
-/** GET /inventario/sucursal/{branchId} */
 export async function fetchInventoryByBranch(branchId: number): Promise<InventoryItem[]> {
   const { data } = await api.get<InventoryItem[]>(`/inventario/sucursal/${branchId}`);
   return data;
 }
 
-/** GET /inventario/producto/{productId} */
 export async function fetchInventoryByProduct(productId: number): Promise<InventoryItem[]> {
   const { data } = await api.get<InventoryItem[]>(`/inventario/producto/${productId}`);
   return data;
 }
 
-/** POST /inventario */
 export async function createInventory(payload: InventoryCreate): Promise<InventoryItem> {
   const { data } = await api.post<InventoryItem>("/inventario", payload);
   return data;
 }
 
-/** PUT /inventario/{id} */
 export async function updateInventory(id: number | string, payload: InventoryUpdate): Promise<InventoryItem> {
   const { data } = await api.put<InventoryItem>(`/inventario/${id}`, payload);
   return data;
 }
-
-/* ===== Helpers opcionales ===== */
-
-/** Busca el registro de inventario por (productId, branchId) a partir de /inventario/producto/{id} */
 export async function findInventoryRecord(
   productId: number,
   branchId: number,
@@ -103,17 +94,11 @@ export async function findInventoryRecord(
 ) {
   const list = await fetchInventoryByProduct(productId);
 
-  // ✅ Si viene ownerType, buscamos exacto (modo por dueño)
   if (ownerType) {
     return list.find(x => x.branchId === branchId && x.ownerType === ownerType);
   }
-
-  // ✅ Si NO viene ownerType, buscamos por sucursal (modo normal)
-  // (asumimos que solo hay un registro por product+branch cuando usaInventarioPorDuenio=false)
   return list.find(x => x.branchId === branchId);
 }
-
-/** UPSERT: crea si no existe; si existe hace PUT con los campos mutables */
 export async function upsertInventory(payload: InventoryCreate): Promise<InventoryItem> {
 
   const existing = await findInventoryRecord(
@@ -121,7 +106,6 @@ export async function upsertInventory(payload: InventoryCreate): Promise<Invento
     payload.branchId,
     payload.ownerType
   );
-
   if (existing) {
     const updatePayload: InventoryUpdate = {
       quantity: payload.quantity,

@@ -1,4 +1,3 @@
-// src/lib/session.ts
 export const session = {
   set(token: string, role?: string) {
     localStorage.setItem('jwt', token)

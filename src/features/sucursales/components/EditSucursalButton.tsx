@@ -6,6 +6,8 @@ import { z, type ZodSchema } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@/lib/api";
 import { getSucursalById, updateSucursal } from "@/features/sucursales/sucursales.api";
+import { Pencil } from "lucide-react";
+
 
 type BusinessType = { id: number; name: string };
 
@@ -167,8 +169,23 @@ useEffect(() => {
 
   return (
     <>
-      <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={() => setOpen(true)}>
-        Editar sucursal
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Editar sucursal"
+        className="
+          inline-flex items-center justify-center gap-2
+          h-11
+          px-4
+          rounded-2xl
+          bg-slate-200 text-slate-900
+          hover:bg-slate-300
+          active:scale-[0.98]
+          transition
+          font-semibold
+        "
+      >
+        <Pencil className="h-4 w-4" />
       </button>
 
       <Toast toast={toast} onClose={() => setToast(null)} />

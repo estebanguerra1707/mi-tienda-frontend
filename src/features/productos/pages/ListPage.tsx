@@ -1,8 +1,7 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, type ComponentProps, type UIEvent } from "react";
 import { useProductSearchParams } from "@/hooks/useProducts";
 import { useAuth } from "@/hooks/useAuth";
 import AddProductButton from "@/features/productos/components/AddProductButton";
-import EditProductButton from "@/features/productos/components/EditProductButton";
 import DeleteProductButton from "@/features/productos/components/DeleteProductButton";
 import { useAdvancedProducts } from "@/features/productos/useAdvancedProducts";
 import { buildFiltro, type ProductoFiltroDTO } from "@/features/productos/productos.api";
@@ -10,8 +9,12 @@ import AdvancedFilters from "@/features/productos/components/AdvancedFilters";
 import { ServerPagination } from "@/components/pagination/ServerPagination";
 import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
 import { BackendProductDTO } from "@/features/productos/productos.api";
+import { useBranches } from "@/hooks/useCatalogs";
+import EditProductButton from "@/features/productos/components/EditProductButton";
 
-// Ordenamiento
+type EditableProduct = ComponentProps<typeof EditProductButton>["product"];
+
+
 type SortKey =
   | "sku"
   | "codigoBarras"
@@ -30,8 +33,21 @@ export default function ListPage() {
   const { user } = useAuth();
   const isSuper = user?.role === "SUPER_ADMIN";
   const isAdmin = user?.role === "ADMIN";
-
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const { data: branches = [], isLoading: branchesLoading } = useBranches({
+    isSuper,
+  });
 const cleanedRef = useRef(false);
+const [productToEdit, setProductToEdit] = useState<EditableProduct | null>(null);
+const [editOpen, setEditOpen] = useState(false);
+const canEditDelete = isSuper || isAdmin;
+
+const openEdit = (p: EditableProduct) => {
+  if (!canEditDelete) return;
+  setProductToEdit(p);
+  setEditOpen(true);
+};
+
 
 useEffect(() => {
   if (cleanedRef.current) return;
@@ -43,7 +59,6 @@ useEffect(() => {
     "categoryId",
     "available",
     "withoutCategory",
-    "branchId",
     "businessTypeId",
     "barcodeName",
     "page",
@@ -66,8 +81,8 @@ useEffect(() => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [localSort, setLocalSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
-    key: "name",
-    dir: "asc",
+    key: "creationDate",
+    dir: "desc",
   });
 
   const toggleSort = (key: SortKey) =>
@@ -93,40 +108,73 @@ useEffect(() => {
   const categoryId = params.get("categoryId");
   const available = params.get("available");
   const withoutCategory = params.get("withoutCategory");
-  const branchId = params.get("branchId");
   const businessTypeId = params.get("businessTypeId");
+  const [showMobileHeader, setShowMobileHeader] = useState(true);
+const lastScrollY = useRef(0);
 
-  const filtro: ProductoFiltroDTO = useMemo(
-  () =>
-    buildFiltro({
-      active: true,
-      barcodeName: q,
-      min: min ? Number(min) : undefined,
-      max: max ? Number(max) : undefined,
-      categoryId: categoryId ? Number(categoryId) : undefined,
-      available: available === "true" ? true : undefined,
-      withoutCategory: withoutCategory === "true" ? true : undefined,
-      branchId: branchId ? Number(branchId) : undefined,
-      businessTypeId: businessTypeId ? Number(businessTypeId) : undefined,
-    }),
-  [
-    q,
-    min,
-    max,
-    categoryId,
-    available,
-    withoutCategory,
-    branchId,
-    businessTypeId,
-  ]
-);
+const branchIdParam = params.get("branchId");
+const selectedFromParams = branchIdParam ? Number(branchIdParam) : null;
+const listScrollRef = useRef<HTMLDivElement | null>(null);
+
+
+const effectiveBranchId = isSuper ? selectedFromParams : user?.branchId ?? null;
+
+const canFetchProducts = !isSuper || !!effectiveBranchId;
+
+const filtro: ProductoFiltroDTO = useMemo(() => {
+  return buildFiltro({
+    active: true,
+    barcodeName: q,
+    min: min ? Number(min) : undefined,
+    max: max ? Number(max) : undefined,
+    categoryId: categoryId ? Number(categoryId) : undefined,
+    available: available === "true" ? true : undefined,
+    withoutCategory: withoutCategory === "true" ? true : undefined,
+    branchId: effectiveBranchId ?? undefined,
+    businessTypeId: businessTypeId ? Number(businessTypeId) : undefined,
+  });
+}, [
+  q,
+  min,
+  max,
+  categoryId,
+  available,
+  withoutCategory,
+  effectiveBranchId,
+  businessTypeId,
+]);
+
 
   const pageUI = Number(params.get("page") ?? 1);
+
+  
   const size = params.get("size") ? Number(params.get("size")) || 10 : 10;
 
-  const { data, isPending, error, refetch } = useAdvancedProducts(filtro, pageUI - 1, size);
+useEffect(() => {
+  setShowMobileHeader(true);
+  lastScrollY.current = 0;
+  listScrollRef.current?.scrollTo({ top: 0 });
+}, [pageUI]);
+useEffect(() => {
+  lastScrollY.current = listScrollRef.current?.scrollTop ?? 0;
+}, []);
 
-  // Scanner por teclado
+  const safeFiltro =
+  filtro ??
+  buildFiltro({
+    active: true,
+  });
+
+  const { data, isPending, error, refetch } =
+  useAdvancedProducts(
+    safeFiltro,
+    pageUI - 1,
+    size,
+    {
+      enabled: canFetchProducts,
+    }
+  );
+
   useEffect(() => {
     let buffer = "";
     let timeout: ReturnType<typeof setTimeout>;
@@ -153,51 +201,54 @@ useEffect(() => {
 
 
 
+
 const sortedItems = useMemo(() => {
   const content = (data?.content ?? []) as BackendProductDTO[];
 
-const unique = Array.from(
-  new Map(
-    content.map((p) => {
-      // NORMALIZA para que "F01..." y "F01... " o "F01...\u00A0" sean lo mismo
-      const barcode = (p.codigoBarras ?? "")
-        .trim()
-        .replace(/\s+/g, ""); // quita espacios internos y raros
+  const unique = Array.from(
+    new Map(
+      content.map((p) => {
+        const barcode = (p.codigoBarras ?? "")
+          .trim()
+          .replace(/\s+/g, "");
 
-      // Normaliza owner SIN any
-      const owner: "PROPIO" | "CONSIGNACION" =
-        p.inventarioOwnerType === "CONSIGNACION" ? "CONSIGNACION" : "PROPIO";
+        const owner: "PROPIO" | "CONSIGNACION" =
+          p.inventarioOwnerType === "CONSIGNACION"
+            ? "CONSIGNACION"
+            : "PROPIO";
+        const key = `${barcode}-${owner}-${p.branchId ?? "global"}`;
 
-      const key = `${barcode}-${owner}`;
+        return [
+          key,
+          {
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            codigoBarras: barcode,
+            description: p.description,
+            purchasePrice: Number(p.purchasePrice),
+            salePrice: Number(p.salePrice),
+            categoryId: p.categoryId,
+            categoryName: p.categoryName,
+            providerId: p.providerId,
+            providerName: p.providerName,
+            businessTypeId: p.businessTypeId,
+            businessTypeName: p.businessTypeName,
+            creationDate: p.creationDate,
+            branchId: p.branchId ?? null,
+            active: Boolean(p.active),
+            stock: Number(p.stock ?? 0),
+            usaInventarioPorDuenio: Boolean(p.usaInventarioPorDuenio),
+            inventarioOwnerType: owner,
+          },
+        ] as const;
+      })
+    ).values()
+  );
 
-      return [
-        key,
-        {
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          codigoBarras: barcode,
-          description: p.description,
-          purchasePrice: Number(p.purchasePrice),
-          salePrice: Number(p.salePrice),
-          categoryId: p.categoryId,
-          categoryName: p.categoryName,
-          providerId: p.providerId,
-          providerName: p.providerName,
-          businessTypeId: p.businessTypeId,
-          businessTypeName: p.businessTypeName,
-          creationDate: p.creationDate,
-          branchId: p.branchId ?? null,
-          active: Boolean(p.active),
-          stock: Number(p.stock ?? 0),
-          usaInventarioPorDuenio: Boolean(p.usaInventarioPorDuenio),
-          inventarioOwnerType: owner,
-        },
-      ] as const;
-    })
-  ).values()
-);
+
   const dir = localSort.dir === "asc" ? 1 : -1;
+
   return [...unique].sort((a, b) => {
     const av = a[localSort.key];
     const bv = b[localSort.key];
@@ -210,19 +261,13 @@ const unique = Array.from(
       case "stock":
         return (Number(av) - Number(bv)) * dir;
       case "purchasePrice":
-      case "inventarioOwnerType": {
-        const rank = (v: unknown) => (v === "PROPIO" ? 0 : 1);
-        return (rank(av) - rank(bv)) * dir;
-      }
       case "salePrice":
         return (Number(av) - Number(bv)) * dir;
-
       case "creationDate":
-        return (new Date(av as string).getTime() - new Date(bv as string).getTime()) * dir;
-
-      case "active":
-        return (Number(av) - Number(bv)) * dir;
-
+        return (
+          new Date(av as string).getTime() -
+          new Date(bv as string).getTime()
+        ) * dir;
       default:
         return collator.compare(String(av), String(bv)) * dir;
     }
@@ -230,12 +275,58 @@ const unique = Array.from(
 }, [data?.content, localSort, collator]);
 
 
+const canShowProductsUI = !isSuper || !!effectiveBranchId;
+const tickingRef = useRef(false);
+
+const handleListScroll = (e: UIEvent<HTMLDivElement>) => {
+  const el = e.currentTarget;
+  if (tickingRef.current) return;
+
+  tickingRef.current = true;
+
+  requestAnimationFrame(() => {
+    const current = el.scrollTop;
+    const prev = lastScrollY.current;
+    const diff = current - prev;
+
+    const TOP_SHOW_PX = 40;
+    const THRESHOLD = 10; // súbelo si quieres menos sensibilidad
+
+    // Cerca del top: siempre visible
+    if (current <= TOP_SHOW_PX) {
+      setShowMobileHeader(true);
+      lastScrollY.current = current;
+      tickingRef.current = false;
+      return;
+    }
+
+    // Siempre actualiza prev para que no se "atasque"
+    lastScrollY.current = current;
+
+    // Si el movimiento es pequeño, no cambies el estado
+    if (Math.abs(diff) < THRESHOLD) {
+      tickingRef.current = false;
+      return;
+    }
+
+    // Bajando => ocultar | Subiendo => mostrar
+    setShowMobileHeader(diff < 0);
+
+    tickingRef.current = false;
+  });
+};
+
   const totalPages = data?.totalPages ?? 1;
   const [showScanner, setShowScanner] = useState(false);
+  const isEmpty =
+    !isPending &&
+    canShowProductsUI &&
+    sortedItems.length === 0;
 
-  if (isPending) return <p className="p-4">Cargando…</p>;
+  if (isPending && canFetchProducts) {
+    return <p className="p-4">Cargando…</p>;
+  }
   if (error) return <p className="p-4 text-red-600">{(error as Error).message}</p>;
-
   function StockBadge({ stock }: { stock: number }) {
   if (stock > 5) {
     return <span className="text-green-700 font-semibold">{stock}</span>;
@@ -260,69 +351,210 @@ const unique = Array.from(
     : "text-green-700 font-medium";
 }
 
+
+
   return (
     <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-      {/* ===== Sticky “top bar” (móvil) ===== */}
-      <div className="md:hidden sticky top-0 z-30 bg-white/90 backdrop-blur border-b -mx-3 px-3 pt-3 pb-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-slate-900 truncate">Productos</h1>
-            <p className="text-xs text-slate-500 leading-tight">
-              Busca por nombre o código de barras
-            </p>
-          </div>
-          <div className="shrink-0">
+      {isSuper && (
+        <div className="bg-white border rounded-xl p-4">
+          <label className="block text-sm font-medium mb-1">
+            Selecciona sucursal
+          </label>
+
+          <select
+            className="w-full h-10 border rounded-lg px-3"
+            value={selectedBranchId ?? ""}
+            onChange={(e) => {
+              const value = e.target.value ? Number(e.target.value) : null;
+              setSelectedBranchId(value);
+              const sp = new URLSearchParams(params);
+              if (value) sp.set("branchId", String(value));
+              else sp.delete("branchId");
+              sp.set("page", "1");
+              setParams(sp);
+            }}
+            disabled={branchesLoading}
+          >
+            <option value="">
+              {branchesLoading
+                ? "Cargando sucursales..."
+                : "— Selecciona una sucursal —"}
+            </option>
+
+            {branches.map((b: { id: number; name: string }) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+
+          {isSuper && !effectiveBranchId && (
+            <div className="mt-4 text-slate-500 text-center py-6 bg-white rounded-xl shadow border">
+              Selecciona una sucursal para ver los productos.
+            </div>
+          )}
+        </div>
+      )}
+
+      {canShowProductsUI && (
+           <>
+      {/* ===== MOBILE HEADER FIJO (PRO) ===== */}
+      <div
+        className={`
+          md:hidden
+          fixed top-[64px] left-0 right-0 z-40
+          
+          bg-white border-b shadow-sm
+          
+          transition-transform duration-300 ease-out
+          
+          ${showMobileHeader ? "translate-y-0" : "-translate-y-full"}
+        `}
+      >
+        <div className="px-3 pt-3 pb-3 space-y-3">
+
+          {/* título + agregar */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-semibold text-slate-900">Productos</h1>
+              <p className="text-xs text-slate-500">
+                Busca por nombre o código
+              </p>
+            </div>
+
             <AddProductButton onCreated={() => refetch()} />
           </div>
-        </div>
 
-        <div className="mt-3 grid grid-cols-12 gap-2">
-          <div className="col-span-12">
-            <div className="relative">
-              <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">🔍</span>
-              <input
-                inputMode="search"
-                className="w-full h-11 rounded-2xl border bg-white pl-10 pr-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 transition"
-                placeholder="Nombre o código…"
-                defaultValue={params.get("barcodeName") ?? ""}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+          {/* ===== SEARCH + ACTIONS (mobile/tablet PRO) ===== */}
+  <div className="space-y-3">
+
+  {/* SEARCH */}
+      <div className="relative">
+            <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 text-lg">
+              🔍
+            </span>
+
+            <input
+              inputMode="search"
+              className="
+                w-full
+                h-12
+                
+                rounded-2xl
+                bg-slate-50
+                
+                pl-12 pr-4
+                
+                text-sm sm:text-base
+                
+                border border-slate-200
+                
+                shadow-sm
+                focus:ring-2 focus:ring-blue-500
+                focus:bg-white
+                
+                transition
+              "
+              placeholder="Buscar producto o código…"
+              defaultValue={params.get("barcodeName") ?? ""}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
 
-          <button
-            className="col-span-6 h-11 rounded-2xl bg-green-600 text-white font-semibold active:scale-[0.99] transition shadow-sm"
-            onClick={() => setShowScanner(true)}
-          >
-            📷 Escanear
-          </button>
+          {/* ACTIONS */}
+          <div className="
+            grid
+            grid-cols-2
+            gap-3
+            
+            sm:grid-cols-3
+          ">
 
-          <button
-            className="col-span-6 h-11 rounded-2xl bg-blue-600 text-white font-semibold active:scale-[0.99] transition shadow-sm"
-             onClick={() => {
+            {/* ESCANEAR */}
+            <button
+              className="
+                h-12
+                
+                rounded-2xl
+                
+                bg-green-600
+                text-white
+                
+                font-semibold
+                
+                shadow-sm hover:shadow-md
+                hover:bg-green-700
+                
+                active:scale-[0.98]
+                transition
+                
+                flex items-center justify-center gap-2
+              "
+              onClick={() => setShowScanner(true)}
+            >
+              <span className="text-lg">📷</span>
+              <span>Escanear</span>
+            </button>
+
+            {/* BUSCAR */}
+            <button
+              className="
+                h-12
+                
+                rounded-2xl
+                
+                bg-blue-600
+                text-white
+                
+                font-semibold
+                
+                shadow-sm hover:shadow-md
+                hover:bg-blue-700
+                
+                active:scale-[0.98]
+                transition
+                
+                flex items-center justify-center gap-2
+              "
+              onClick={() => {
                 const sp = new URLSearchParams(params);
                 sp.set("page", "1");
                 setParams(sp);
               }}
-          >
-            Buscar
-          </button>
+            >
+              <span className="text-lg">🔎</span>
+              <span>Buscar</span>
+            </button>
 
-          {!showAdvanced ? (
+            {/* FILTROS (tablet) */}
             <button
-              className="col-span-12 h-11 rounded-2xl bg-slate-100 text-slate-900 font-semibold active:scale-[0.99] transition"
+              className="
+                hidden sm:flex
+                
+                h-12
+                
+                rounded-2xl
+                
+                bg-slate-100
+                text-slate-700
+                
+                font-semibold
+                
+                shadow-sm hover:shadow-md
+                hover:bg-slate-200
+                
+                transition
+                
+                items-center justify-center gap-2
+              "
               onClick={() => setShowAdvanced(true)}
             >
-              Filtros avanzados
+              ⚙️ Filtros
             </button>
-          ) : (
-            <button
-              className="col-span-12 h-11 rounded-2xl bg-slate-200 text-slate-900 font-semibold active:scale-[0.99] transition"
-              onClick={() => setShowAdvanced(false)}
-            >
-              Ocultar filtros
-            </button>
-          )}
+
+          </div>
+        </div>
+
         </div>
       </div>
 
@@ -397,27 +629,51 @@ const unique = Array.from(
           />
         </div>
       )}
+      {/* ===== Lista MOBILE (cards compactas) ===== */}     
+      <div
+          ref={listScrollRef}
+          onScroll={handleListScroll}
+          className="
+            md:hidden
+            pt-[160px]
+            pb-[calc(72px+env(safe-area-inset-bottom))]
+            overflow-y-auto
+            h-[calc(100dvh-64px)]
+            overscroll-contain
+            touch-pan-y
 
-      {/* ===== Lista MOBILE (cards compactas) ===== */}
-      <ul className="grid gap-3 md:hidden">
+            [-ms-overflow-style:none]
+            [scrollbar-width:none]
+            [&::-webkit-scrollbar]:hidden
+          "
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >  
+        <ul className="grid grid-cols-1 gap-3 w-full max-w-full">
         {sortedItems.map((p) => (
-        <li 
-        key={`mobile-${p.id}-${p.branchId ?? 0}-${p.inventarioOwnerType ?? "PROPIO"}`}
-        className="rounded-2xl border bg-white p-4 shadow-sm active:scale-[0.995] transition">
+       <li
+            key={`mobile-${p.id}-${p.branchId ?? 0}-${p.inventarioOwnerType ?? "PROPIO"}`}
+            onClick={() => openEdit(p)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") openEdit(p);
+            }}
+            className="rounded-2xl border bg-white p-4 shadow-sm active:scale-[0.995] transition cursor-pointer"
+          >
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="font-semibold text-base text-slate-900 truncate">{p.name}</p>
                   <div className="mt-1 space-y-0.5">
-                   <p className="text-xs text-slate-500">
-                    Código de barras: <span className="text-slate-700">{p.codigoBarras || "-"}</span>
+                   <p className="text-xs flex min-w-0 gap-1 text-slate-500">
+                    Código barras: <span className="text-slate-700">{p.codigoBarras || "-"}</span>
                   </p>
-                  <p className="text-xs text-slate-500">SKU: <span className="text-slate-700">{p.sku || "-"}</span></p>
+                  <p className="text-xs text-slate-500 flex min-w-0 gap-1">SKU: <span className="text-slate-700">{p.sku || "-"}</span></p>
                   {p.categoryName && (
                     <p className="text-xs text-slate-500">
                       Categoría: <span className="text-slate-700">{p.categoryName}</span>
                     </p>
                   )}
-                   <p className="text-[11px] flex items-center gap-1">
+                   <p className="text-[11px] flex items-center gap-1  min-w-0">
                     Existencia:
                     <span className={stockTextClass(p.stock)}>
                     <StockBadge stock={p.stock} />
@@ -443,28 +699,58 @@ const unique = Array.from(
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="w-full">
-                <EditProductButton
-                  product={p}
-                  paramsActuales={{
-                    barcodeName: params.get("barcodeName") ?? "",
-                    page: pageUI,
-                    pageSize: size,
-                  }}
-                  onUpdated={() => refetch()}
+            {canEditDelete && (
+              <div
+                className="w-full"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <DeleteProductButton
+                  id={p.id}
+                  name={p.name}
+                  onDeleted={() => refetch()}
                 />
               </div>
-
-              <div className="w-full">
-                <DeleteProductButton id={p.id} name={p.name} onDeleted={() => refetch()} />
-              </div>
-            </div>
+            )}
           </li>
         ))}
-      </ul>
-
+       </ul>
+      </div>
+      {/* ===== PAGINACIÓN MOBILE (FIJA) ===== */}
+      <div
+        className="
+          md:hidden
+          fixed bottom-0 left-0 right-0 z-40
+          bg-white border-t shadow-sm
+          px-3 py-2
+        "
+      >
+        <ServerPagination
+          page={pageUI}
+          totalPages={totalPages}
+          onChange={(nextPage) => {
+            const sp = new URLSearchParams(params);
+            sp.set("page", String(nextPage));
+            setParams(sp);
+            listScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+      </div>
+      
+      {isEmpty && (
+        <div className="bg-white border rounded-2xl p-8 text-center shadow-sm">
+          <div className="text-4xl mb-3">📦</div>
+          <h3 className="text-lg font-semibold text-slate-900">
+            No se encontraron productos disponibles
+          </h3>
+          <p className="text-sm text-slate-500 mt-1">
+            No hay productos que coincidan con los filtros seleccionados
+            {effectiveBranchId && " para esta sucursal"}.
+          </p>
+        </div>
+      )}
       {/* ===== Tabla DESKTOP ===== */}
+      {!isEmpty && (
       <div className="hidden md:block rounded-2xl border bg-white shadow-sm overflow-x-auto">
         <table className="min-w-[1100px] w-full text-sm">
           <thead className="bg-slate-50 border-b sticky top-0 z-10">
@@ -537,9 +823,11 @@ const unique = Array.from(
           </thead>
           <tbody>
             {sortedItems.map((p) => (
-              <tr 
-              key={`desktop-${p.id}-${p.branchId ?? 0}-${p.inventarioOwnerType ?? "PROPIO"}`}
-              className="border-t hover:bg-slate-50 transition">
+              <tr
+                  key={`desktop-${p.id}-${p.branchId ?? 0}-${p.inventarioOwnerType ?? "PROPIO"}`}
+                  onClick={() => openEdit(p)}
+                  className="border-t hover:bg-slate-50 transition cursor-pointer"
+                >
                 <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>                
                 <td className="px-4 py-3">{p.codigoBarras ?? "-"}</td>
                 <td className="px-4 py-3">{p.sku}</td>
@@ -599,28 +887,27 @@ const unique = Array.from(
                   </>
                 )}
 
-                <td className="px-4 py-3">
-                  <div className="flex gap-3">
-                    <EditProductButton
-                      product={p}
-                      paramsActuales={{
-                        barcodeName: params.get("barcodeName") ?? "",
-                        page: pageUI,
-                        pageSize: size,
-                      }}
-                      onUpdated={() => refetch()}
-                    />
-                    <DeleteProductButton id={p.id} name={p.name} onDeleted={() => refetch()} />
-                  </div>
-                </td>
+                {canEditDelete && (
+                  <td className="px-4 py-3">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <DeleteProductButton
+                        id={p.id}
+                        name={p.name}
+                        onDeleted={() => refetch()}
+                      />
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+     )}
+     
 
-      {/* ===== Paginación ===== */}
-      <div className="pt-2 flex justify-center md:justify-end">
+      {/* ===== Paginación DESKTOP ===== */}
+      <div className="hidden md:flex pt-2 justify-end">
         <ServerPagination
           page={pageUI}
           totalPages={totalPages}
@@ -631,7 +918,6 @@ const unique = Array.from(
           }}
         />
       </div>
-
       {/* ===== SCANNER OVERLAY (safe-area, botones grandes) ===== */}
       {showScanner && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 sm:p-6">
@@ -663,6 +949,30 @@ const unique = Array.from(
           </div>
         </div>
       )}
+           </>
+          )}
+      {productToEdit && (
+          <EditProductButton
+            product={productToEdit}
+            paramsActuales={{
+              barcodeName: params.get("barcodeName") ?? "",
+              page: pageUI,
+              pageSize: size,
+            }}
+            open={editOpen}
+            hideTrigger
+            onOpenChange={(v: boolean) => {
+              setEditOpen(v);
+              if (!v) setProductToEdit(null);
+            }}
+            onUpdated={() => {
+              refetch();
+              setEditOpen(false);
+              setProductToEdit(null);
+            }}
+          />
+        )}
     </div>
+    
   );
 }

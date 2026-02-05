@@ -27,6 +27,6 @@ export interface VentaItem {
 export interface DevolucionVenta {
   id: number;
   tipoDevolucion: string;
-  totalDevuelto: number;
+  totalDevolucion: number;
   fechaDevolucion: string;
 }

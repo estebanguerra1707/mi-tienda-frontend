@@ -398,17 +398,75 @@ const onClose = useCallback(() => {
 
   return (
     <>
-     {(isSuper || isAdmin) && (
-     <button
-        className={`px-3 py-2 rounded bg-blue-600 text-white ${className ?? ""}`}
+
+    {(isSuper || isAdmin) && (
+  <>
+      {/* MOBILE FAB */}
+      <button
         onClick={() => {
-           resetForm(); 
-            setOpen(true);
-          }}
-        >
-          Agregar producto
-        </button>
-     )}
+          resetForm();
+          setOpen(true);
+        }}
+        className={`
+          md:hidden
+          group
+          inline-flex items-center justify-center
+          
+          h-12 w-12
+          rounded-full
+          
+          bg-blue-600
+          text-white
+          
+          shadow-lg
+          hover:bg-blue-700
+          
+          active:scale-[0.95]
+          transition-all duration-200
+          
+          focus:outline-none focus:ring-2 focus:ring-blue-500
+          
+          /* MOBILE FAB */
+          fixed bottom-[calc(110px+env(safe-area-inset-bottom))] right-4 z-40
+          
+          /* DESKTOP */
+          md:static md:w-auto md:h-10 md:px-4 md:rounded-lg
+        `}
+        aria-label="Agregar producto"
+      >
+        <span className="text-2xl leading-none">＋</span>
+      </button>
+
+      {/* DESKTOP BUTTON */}
+      <button
+        onClick={() => {
+          resetForm();
+          setOpen(true);
+        }}
+        className={`
+          hidden md:inline-flex items-center gap-2
+          
+          h-10 px-4
+          
+          rounded-lg
+          bg-blue-600 text-white font-semibold
+          
+          shadow-sm hover:shadow-md
+          hover:bg-blue-700
+          
+          active:scale-[0.98]
+          transition-all
+          
+          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+          
+          ${className ?? ""}
+        `}
+      >
+        <span className="text-lg leading-none">＋</span>
+        <span className="text-sm">Agregar producto</span>
+      </button>
+    </>
+  )}
       <Toast toast={toast} onClose={() => setToast(null)} />
 
       {open &&
@@ -452,9 +510,15 @@ const onClose = useCallback(() => {
                     <span className="text-sm">Código de barras</span>
 
                     <div className="flex gap-2">
-                      <input
+                     <input
                         className="flex-1 border rounded px-3 py-2"
+                        inputMode="numeric"
+                        autoComplete="off"
                         {...register("codigoBarras")}
+                        onChange={(e) => {
+                          const onlyDigits = e.target.value.replace(/\D+/g, "");
+                          setValue("codigoBarras", onlyDigits, { shouldValidate: true, shouldDirty: true });
+                        }}
                       />
 
                       {/* botón que abre el scanner */}
@@ -489,11 +553,20 @@ const onClose = useCallback(() => {
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Precio compra</span>
                   <input
-                    type="number"
-                    step="0.01"
-                    className="border rounded px-3 py-2"
-                    {...register("purchasePrice", { valueAsNumber: true })}
-                  />
+                      inputMode="decimal"
+                      autoComplete="off"
+                      className="border rounded px-3 py-2"
+                      {...register("purchasePrice")}
+                      onChange={(e) => {
+                        const cleaned = e.target.value
+                          .replace(/[^0-9.]/g, "")
+                          .replace(/(\..*)\./g, "$1");
+                        setValue("purchasePrice", cleaned === "" ? (undefined as unknown as number) : (Number(cleaned) as unknown as number), {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        });
+                      }}
+                    />
                   {errors.purchasePrice && (
                     <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>
                   )}
@@ -503,10 +576,19 @@ const onClose = useCallback(() => {
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Precio venta</span>
                   <input
-                    type="number"
-                    step="0.01"
+                    inputMode="decimal"
+                    autoComplete="off"
                     className="border rounded px-3 py-2"
-                    {...register("salePrice", { valueAsNumber: true })}
+                    {...register("salePrice")}
+                    onChange={(e) => {
+                      const cleaned = e.target.value
+                        .replace(/[^0-9.]/g, "")
+                        .replace(/(\..*)\./g, "$1");
+                      setValue("salePrice", cleaned === "" ? (undefined as unknown as number) : (Number(cleaned) as unknown as number), {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      });
+                    }}
                   />
                   {errors.salePrice && (
                     <p className="text-red-600 text-xs">{errors.salePrice.message}</p>
@@ -614,18 +696,13 @@ const onClose = useCallback(() => {
                       <h2 className="text-xl font-semibold mb-3">Escanear código de barras</h2>
 
                       <BarcodeCameraScanner
-                        onResult={(code) => {
-                          setShowScanner(false);
-
-                          // llenar código de barras
-                          reset({
-                            ...watch(),
-                            codigoBarras: code,
-                          });
-                        }}
+                       onResult={(code) => {
+                            const onlyDigits = String(code).replace(/\D+/g, "");
+                            setShowScanner(false);
+                            setValue("codigoBarras", onlyDigits, { shouldValidate: true, shouldDirty: true });
+                          }}
                         onError={(e) => console.error("Error escáner:", e)}
                       />
-
                       <button
                         onClick={() => setShowScanner(false)}
                         className="mt-4 w-full bg-red-600 text-white py-2 rounded-xl"

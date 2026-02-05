@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
 import { useBranches } from "@/hooks/useCatalogs";
 import { useProveedor, useUpdateProveedor } from "../useProveedores";
-
+import { Pencil } from "lucide-react";
 const schema = z.object({
   name: z.string().min(1, "Nombre requerido"),
   contact: z.string().optional().nullable(),
@@ -99,8 +99,22 @@ const { data: branches = [], isLoading: branchesLoading } = useBranches({
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-blue-600 font-semibold hover:underline">
-        Editar
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Editar"
+        aria-label="Editar"
+        className="
+          inline-flex items-center justify-center
+          px-2 py-1
+          rounded
+          bg-slate-200 text-slate-900
+          hover:bg-slate-300
+          active:scale-[0.98]
+          transition
+        "
+      >
+        <Pencil className="h-4 w-4" />
       </button>
     );
   }

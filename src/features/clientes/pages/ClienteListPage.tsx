@@ -10,6 +10,7 @@ export default function ClienteListPage() {
   const [page, setPage] = useState<number>(0);
   const size = 10;
   const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const { data, isLoading, isError } = useClientesPage({
     page,
@@ -19,8 +20,10 @@ export default function ClienteListPage() {
   const items: ClienteResponseDTO[] = data?.content ?? [];
   const totalPages: number = data?.totalPages ?? 0;
 
-  const canEditOrDeleteCliente = (c: ClienteResponseDTO): boolean =>
-    !c.multiSucursal && c.sucursalId === user?.branchId;
+ const canEditOrDeleteCliente = (c: ClienteResponseDTO): boolean => {
+  if (isSuperAdmin) return true;
+  return !c.multiSucursal && c.sucursalId === user?.branchId;
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 px-3 sm:px-6 py-4 sm:py-6">

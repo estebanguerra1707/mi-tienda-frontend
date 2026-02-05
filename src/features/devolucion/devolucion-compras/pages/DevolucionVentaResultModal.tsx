@@ -42,7 +42,7 @@ export default function DevolucionVentaResultModal({
           <p><b>Tipo:</b> {devolucion.tipoDevolucion}</p>
           <p>
             <b>Total devuelto:</b>{" "}
-            ${Number(devolucion.totalDevuelto).toFixed(2)}
+            ${Number(devolucion.totalDevolucion).toFixed(2)}
           </p>
           <p><b>Fecha:</b> {fecha}</p>
         </div>

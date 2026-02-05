@@ -6,6 +6,7 @@ import { useCliente, useUpdateCliente } from "../useClients";
 import type { ClienteDTO } from "../types";
 import { useBranches } from "@/hooks/useCatalogs";
 import { useAuth } from "@/hooks/useAuth";
+import { Pencil } from "lucide-react";
 type Role = "ADMIN" | "VENDOR" | "SUPER_ADMIN";
 
 type Props = {
@@ -100,13 +101,23 @@ const fixedBranchName = useMemo(() => {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-blue-600 font-semibold hover:underline active:opacity-80"
-      >
-        Editar
-      </button>
+     <button
+      type="button"
+      onClick={() => setOpen(true)}
+      title="Editar"
+      aria-label="Editar"
+      className="
+        inline-flex items-center justify-center
+        px-2 py-1
+        rounded
+        bg-slate-200 text-slate-900
+        hover:bg-slate-200
+        active:scale-[0.98]
+        transition
+      "
+    >
+      <Pencil className="h-4 w-4" />
+    </button>
 
       {open &&
         createPortal(

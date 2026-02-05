@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { getCategorias, updateCategoria } from "@/features/categorias/categorias.api";
+import { Pencil } from "lucide-react";
 
 type BusinessType = { id: number; name: string };
 
@@ -111,9 +112,22 @@ export default function EditCategoriaButton({ id, onUpdated }: { id: number; onU
 
   return (
     <>
-      <button className="px-2 py-1 text-xs rounded bg-blue-600 text-white" onClick={() => setOpen(true)}>
-        Editar
-      </button>
+     <button
+      type="button"
+      onClick={() => setOpen(true)}
+      title="Editar"
+      aria-label="Editar"
+      className="
+        inline-flex items-center justify-center
+        px-2 py-1
+        rounded bg-gray-200 text-black
+        hover:bg-gray-700
+        active:scale-[0.98]
+        transition
+      "
+    >
+      <Pencil className="h-4 w-4" />
+    </button>
 
       {toast &&
         createPortal(

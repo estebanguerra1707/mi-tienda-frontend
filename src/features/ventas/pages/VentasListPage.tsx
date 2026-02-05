@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useVentas,
   useSearchVentasPaginadas,
@@ -9,11 +9,11 @@ import {
 import AddVentaButton from "@/features/ventas/components/AddVentaButton";
 import DeleteVentaButton from "@/features/ventas/components/DeleteVentabutton";
 import AdvancedFiltersVentas from "@/features/ventas/components/AdvancedFiltersVentas";
-import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import VentaDetalleModal from "@/features/ventas/components/VentaDetalleModal";
 import type { VentaItem } from "@/features/ventas/api";
 import type { ReactNode } from "react";
+import { ServerPagination } from "@/components/pagination/ServerPagination";
 
 // Campos ordenables
 type SortKey =
@@ -42,10 +42,12 @@ export default function VentasListPage() {
   };
 
   // Ordenamiento local
-  const [localSort, setLocalSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
-    key: "id",
-    dir: "asc",
-  });
+  const [localSort, setLocalSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>(
+    {
+      key: "saleDate",
+      dir: "desc",
+    }
+  );
 
   const toggleSort = (key: SortKey) =>
     setLocalSort((s) =>
@@ -117,7 +119,9 @@ export default function VentasListPage() {
 
         case "saleDate":
           return (
-            (new Date(String(av ?? "")).getTime() - new Date(String(bv ?? "")).getTime()) * mult
+            (new Date(String(av ?? "")).getTime() -
+              new Date(String(bv ?? "")).getTime()) *
+            mult
           );
 
         case "id":
@@ -129,7 +133,7 @@ export default function VentasListPage() {
     });
   }, [ventas.data?.content, localSort, collator]);
 
-  const formatMoney = (n?: number | null) => `$${(Number(n ?? 0)).toFixed(2)}`;
+  const formatMoney = (n?: number | null) => `$${Number(n ?? 0).toFixed(2)}`;
 
   const formatDate = (iso: string, withTime: boolean) => {
     const d = new Date(iso);
@@ -146,8 +150,25 @@ export default function VentasListPage() {
       : d.toLocaleDateString("es-MX");
   };
 
+  // ===== Pagination mapping (igual a Inventario / Compras) =====
+  const totalPages = ventas.data?.totalPages ?? 1;
+  const pageUI = Number(params.page ?? 0) + 1;
+
+  // reset scroll (window) on page change
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [pageUI]);
+
   return (
-      <div className="w-full px-4 py-5 sm:px-6 md:mx-auto md:max-w-7xl md:py-6 space-y-5">
+    <div
+      className="
+        w-full
+        px-4 py-5 sm:px-6
+        md:mx-auto md:max-w-7xl md:py-6
+        space-y-5
+        pb-[calc(72px+env(safe-area-inset-bottom))]
+      "
+    >
       <div className="flex items-start sm:items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
@@ -223,29 +244,34 @@ export default function VentasListPage() {
         </div>
       </div>
 
-      {/* PAGINACIÓN (responsive) */}
-      <div className="pt-2 flex flex-col sm:flex-row sm:justify-end gap-3 items-stretch sm:items-center">
-        <Button
-          variant="outline"
-          disabled={params.page === 0}
-          onClick={() => setParams((p) => ({ ...p, page: Math.max(0, p.page - 1) }))}
-          className="w-full sm:w-auto"
-        >
-          ← Anterior
-        </Button>
+      {/* ===== PAGINACIÓN MOBILE (FIJA) ===== */}
+      <div
+        className="
+          md:hidden
+          fixed bottom-0 left-0 right-0 z-40
+          bg-white border-t shadow-sm
+          px-3 py-2
+        "
+      >
+        <ServerPagination
+          page={pageUI}
+          totalPages={totalPages}
+          onChange={(nextPageUI: number) => {
+            setParams((p) => ({ ...p, page: nextPageUI - 1 })); // UI 1-based -> backend 0-based
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+      </div>
 
-        <span className="px-2 py-2 text-sm text-slate-600 text-center sm:text-left">
-          Página <strong>{params.page + 1}</strong>
-        </span>
-
-        <Button
-          variant="outline"
-          disabled={ventas.data?.last}
-          onClick={() => setParams((p) => ({ ...p, page: p.page + 1 }))}
-          className="w-full sm:w-auto"
-        >
-          Siguiente →
-        </Button>
+      {/* ===== PAGINACIÓN DESKTOP ===== */}
+      <div className="hidden md:flex pt-2 justify-end">
+        <ServerPagination
+          page={pageUI}
+          totalPages={totalPages}
+          onChange={(nextPageUI: number) =>
+            setParams((p) => ({ ...p, page: nextPageUI - 1 }))
+          }
+        />
       </div>
 
       {/* MODAL DETALLE */}
@@ -266,14 +292,7 @@ function VentaCard(props: {
   formatMoney: (n?: number | null) => string;
   formatDate: (iso: string, withTime: boolean) => string;
 }) {
-  const {
-    v,
-    isSuperAdmin,
-    onOpen,
-    onDeleted,
-    formatMoney,
-    formatDate,
-  } = props;
+  const { v, isSuperAdmin, onOpen, onDeleted, formatMoney, formatDate } = props;
 
   return (
     <div
@@ -301,17 +320,13 @@ function VentaCard(props: {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">
-              #{v.id}
-            </span>
+            <span className="text-xs font-semibold text-slate-500">#{v.id}</span>
             <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700">
               {v.paymentMethodName}
             </span>
           </div>
 
-          <div className="mt-2 font-semibold text-slate-900 truncate">
-            {v.clientName}
-          </div>
+          <div className="mt-2 font-semibold text-slate-900 truncate">{v.clientName}</div>
 
           <div className="mt-1 text-sm text-slate-600">
             {formatDate(v.saleDate, isSuperAdmin)}
@@ -331,15 +346,10 @@ function VentaCard(props: {
         <div className="mt-3 flex items-center justify-between gap-3">
           <div className="text-sm text-slate-600 truncate">
             <span className="text-slate-500">Vendido por:</span>{" "}
-            <span className="font-medium text-slate-800">
-              {v.userName}
-            </span>
+            <span className="font-medium text-slate-800">{v.userName}</span>
           </div>
 
-          <div
-            className="shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
             <DeleteVentaButton id={v.id} onDeleted={onDeleted} />
           </div>
         </div>
@@ -459,9 +469,7 @@ function VentasTable(props: {
                   <td className="px-4 py-3">{v.id}</td>
                   <td className="px-4 py-3">{v.clientName}</td>
 
-                  <td className="px-4 py-3">
-                    {formatDate(v.saleDate, isSuperAdmin)}
-                  </td>
+                  <td className="px-4 py-3">{formatDate(v.saleDate, isSuperAdmin)}</td>
 
                   <td className="px-4 py-3">{v.paymentMethodName}</td>
 
@@ -469,9 +477,7 @@ function VentasTable(props: {
                     {formatMoney(v.amountPaid)}
                   </td>
 
-                  {isSuperAdmin && (
-                    <td className="px-4 py-3 text-center">{v.userName}</td>
-                  )}
+                  {isSuperAdmin && <td className="px-4 py-3 text-center">{v.userName}</td>}
 
                   {isSuperAdmin && (
                     <td
