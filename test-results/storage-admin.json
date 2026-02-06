@@ -1,0 +1,22 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "accessToken",
+          "value": "eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MTAsImVtYWlsIjoicmVmYV9hZG1pbkByZWZhLmNvbSIsInJvbCI6IkFETUlOIiwic3ViIjoicmVmYV9hZG1pbkByZWZhLmNvbSIsImlhdCI6MTc3MDQwNTA4MCwiZXhwIjoxNzcwNDkxNDgwfQ.WiUVHLxAojhZ97zlZFTFu-zDX4FSIkGTq8LXMa04C24"
+        },
+        {
+          "name": "user",
+          "value": "{\"id\":10,\"username\":\"refa_admin@refa.com\",\"email\":\"refa_admin@refa.com\",\"rol\":\"ADMIN\",\"branchId\":5,\"businessType\":null}"
+        },
+        {
+          "name": "refreshToken",
+          "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZWZhX2FkbWluQHJlZmEuY29tIiwiaWF0IjoxNzcwNDA1MDgwLCJleHAiOjE3NzEwMDk4ODB9.4ToiwG1Eaw0lYD4JBx3U4wQp6f9WfA3CkHYBaQMKZSY"
+        }
+      ]
+    }
+  ]
+}

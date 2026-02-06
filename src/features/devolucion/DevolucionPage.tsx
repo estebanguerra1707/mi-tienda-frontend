@@ -21,7 +21,10 @@ type TabName =
 type StoredUser = {
   rol?: string;
   role?: string;
+  username?: string;
+  email?: string;
 };
+
 
 function getRole(): string {
   const raw = localStorage.getItem("user");
@@ -34,13 +37,25 @@ function getRole(): string {
   }
 }
 
+function getUsername(): string {
+  const raw = localStorage.getItem("user");
+  if (!raw) return "";
+  try {
+    const user = JSON.parse(raw) as StoredUser;
+    return user.username ?? user.email ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export default function DevolucionesPage() {
   const role = getRole();
   const isVendor = role === "VENDOR";
+  const username = getUsername();
 
-  // 👉 tab inicial seguro según rol
+  // ✅ Vendor inicia en LISTADO de devoluciones de ventas
   const [tab, setTab] = useState<TabName>(
-    isVendor ? "ventas" : "compras"
+    isVendor ? "Filtrar devoluciones ventas" : "compras"
   );
 
   const refCompras = useRef<{ limpiar: () => void }>(null);
@@ -57,25 +72,26 @@ export default function DevolucionesPage() {
   };
 
   // ✅ Tabs visibles según rol
+  // Vendor: solo ventas (Listado + Registrar)
+  // Admin/Super: compras y ventas
   const TABS = useMemo(
-    () => [
-      !isVendor && { key: "compras", label: "Filtro Compras" },
-      !isVendor && {
-        key: "Filtrar devoluciones compras",
-        label: "Devolución Compras",
-      },
-      { key: "ventas", label: "Filtro Ventas" },
-      {
-        key: "Filtrar devoluciones ventas",
-        label: "Devolución Ventas",
-      },
-    ].filter(Boolean) as { key: TabName; label: string }[],
+    () =>
+      [
+        !isVendor && { key: "compras", label: "Ver devoluciones de Compras" },
+        !isVendor && {
+          key: "Filtrar devoluciones compras",
+          label: "Crear devolución de Compra",
+        },
+
+        // Ventas: primero listado, luego registro
+        { key: "Filtrar devoluciones ventas", label: "Ver devoluciones de Ventas" },
+        { key: "ventas", label: "Crear devolución de Venta" },
+      ].filter(Boolean) as { key: TabName; label: string }[],
     [isVendor]
   );
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-4">
-
       {/* ------------------- TABS ------------------- */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
         {TABS.map((t) => (
@@ -99,29 +115,22 @@ export default function DevolucionesPage() {
 
       {/* ------------------- CONTENIDO ------------------- */}
       <div className="bg-white rounded-xl border p-3 sm:p-5">
-
-        {!isVendor && tab === "compras" && (
-          <NuevaDevolucionPage ref={refCompras} />
-        )}
-
-        {tab === "ventas" && (
-          <NuevaDevolucionVentaPage ref={refVentas} />
-        )}
+        {!isVendor && tab === "compras" && <NuevaDevolucionPage ref={refCompras} />}
 
         {tab === "Filtrar devoluciones ventas" && (
           <BuscadorAvanzadoDevoluciones
             ref={devolucionesRef}
-            onSelect={(dev) =>
-              console.log("Devolución seleccionada:", dev)
-            }
+            forcedUsername={isVendor ? username : undefined}
+            onSelect={(dev) => console.log("Devolución seleccionada:", dev)}
             onClearFilters={() => devolucionesRef.current?.limpiar()}
           />
         )}
 
+        {tab === "ventas" && <NuevaDevolucionVentaPage ref={refVentas} />}
+
         {!isVendor && tab === "Filtrar devoluciones compras" && (
           <BusquedaDevolucionesComprasPage ref={refSearchCompras} />
         )}
-
       </div>
     </div>
   );

@@ -126,11 +126,24 @@ const branchName = useMemo(() => {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
           <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
             <h2 className="text-lg font-semibold mb-4">Resumen de Ganancias</h2>
+              <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-4">
+              <em>Ganacias reportadas por dia/semana/mes</em>
+            </p>
             {resumen && <ResumenGananciasChart data={resumen} />}
           </div>
 
           <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border">
             <h2 className="text-lg font-semibold mb-4">Brutas vs Netas</h2>
+            <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-4 leading-snug">
+              <strong>Brutas:</strong> Total de ganacia <strong>antes</strong> de ventas sin devoluciones
+            </p>
+             <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-4 leading-snug">
+              <strong>Netas:</strong> Total de ganacia <strong>después</strong> de ventas con devoluciones
+             </p>
+            <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-4">
+              <em>Si ambos son similares, significa que no haz tenido devoluciones</em>
+            </p>
+             
             {loadingBrutasNetas ? (
               <p>Cargando...</p>
             ) : (

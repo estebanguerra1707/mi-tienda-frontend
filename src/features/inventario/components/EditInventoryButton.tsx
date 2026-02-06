@@ -169,11 +169,19 @@ export default function EditInventarioButton({
                   </div>
                 </div>
               )}
-              <input
-                type="hidden"
-                {...register("quantity")}
-                value={row.stock}
-              />
+               <label className="flex flex-col gap-1">
+                  <span className="text-sm">Cantidad (stock)</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    className="border rounded px-3 py-2"
+                    {...register("quantity", { valueAsNumber: true })}
+                  />
+                  {errors.quantity && (
+                    <p className="text-red-600 text-xs">{errors.quantity.message}</p>
+                  )}
+                </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Stock mínimo</span>
                   <input

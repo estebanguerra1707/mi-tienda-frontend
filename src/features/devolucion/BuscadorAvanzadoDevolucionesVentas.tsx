@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DevolucionItem, DevolucionFiltro } from "@/hooks/types/devoluciones";
@@ -15,6 +15,9 @@ export interface BuscadorAvanzadoDevolucionesHandle {
 interface Props {
   onSelect: (dev: DevolucionItem) => void;
   onClearFilters: () => void;
+
+  /** ✅ Si viene, SIEMPRE se fuerza este username (ideal para VENDOR) */
+  forcedUsername?: string;
 }
 
 const PAGE_SIZE = 6;
@@ -22,7 +25,7 @@ const PAGE_SIZE = 6;
 const BuscadorAvanzadoDevoluciones = forwardRef<
   BuscadorAvanzadoDevolucionesHandle,
   Props
->(({ onSelect, onClearFilters }, ref) => {
+>(({ onSelect, onClearFilters, forcedUsername }, ref) => {
   const [filtros, setFiltros] = useState<DevolucionFiltro>({});
   const [buscado, setBuscado] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
@@ -43,15 +46,29 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
   }));
 
   const aplicarFiltros = (next: DevolucionFiltro) => {
-    setFiltros(next);
+    // ✅ Forzar username si viene por props
+    const merged: DevolucionFiltro = {
+      ...next,
+      ...(forcedUsername ? { username: forcedUsername } : {}),
+    };
+
+    setFiltros(merged);
     setBuscado(true);
     setPageIndex(0);
   };
 
-  const { data, isFetching } = useSearchDevolucionesVentas(
-    { ...filtros, page: 0, size: 50 },
-    buscado
+  // ✅ Query params finales (siempre usando el username forzado si aplica)
+  const queryParams: DevolucionFiltro = useMemo(
+    () => ({
+      ...filtros,
+      ...(forcedUsername ? { username: forcedUsername } : {}),
+      page: 0,
+      size: 50,
+    }),
+    [filtros, forcedUsername]
   );
+
+  const { data, isFetching } = useSearchDevolucionesVentas(queryParams, buscado);
 
   const devoluciones = buscado ? data?.content ?? [] : [];
   const total = devoluciones.length;
@@ -61,28 +78,64 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
   const pageItems = devoluciones.slice(start, end);
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  // ✅ Chips de filtros aplicados (para “muestra el filtro”)
+  const filterChips = useMemo(() => {
+    if (!buscado) return [];
+
+    const chips: string[] = [];
+    const f = queryParams;
+
+    if (f.username) chips.push(`Usuario: ${f.username}`);
+    if (f.branchId) chips.push(`Sucursal: ${f.branchId}`);
+    if (f.ventaId) chips.push(`Venta: #${f.ventaId}`);
+    if (f.id) chips.push(`Devolución: #${f.id}`);
+
+    if (f.startDate) chips.push(`Desde: ${new Date(f.startDate).toLocaleString()}`);
+    if (f.endDate) chips.push(`Hasta: ${new Date(f.endDate).toLocaleString()}`);
+
+    if (typeof f.minMonto === "number") chips.push(`Monto mín: $${Number(f.minMonto).toFixed(2)}`);
+    if (typeof f.maxMonto === "number") chips.push(`Monto máx: $${Number(f.maxMonto).toFixed(2)}`);
+
+    if (typeof f.minCantidad === "number") chips.push(`Cant mín: ${f.minCantidad}`);
+    if (typeof f.maxCantidad === "number") chips.push(`Cant máx: ${f.maxCantidad}`);
+
+    if (f.tipoDevolucion) chips.push(`Tipo: ${f.tipoDevolucion}`);
+    if (f.codigoBarras) chips.push(`C.Barras: ${f.codigoBarras}`);
+    if (f.productName) chips.push(`Producto: ${f.productName}`);
+
+    if (f.day) chips.push(`Día: ${f.day}`);
+    if (f.month) chips.push(`Mes: ${f.month}`);
+    if (f.year) chips.push(`Año: ${f.year}`);
+
+    return chips;
+  }, [buscado, queryParams]);
+
   return (
     <div className="space-y-6">
-
       {/* FILTROS */}
-      <div className="
-        w-full
-        max-w-5xl
-        mx-auto
-        px-4 sm:px-6
-        py-6
-      ">
-        <div className="
-          bg-white
-          rounded-xl
-          shadow-md
-          border
-          p-4 sm:p-6
-        ">
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-6">
+        <div className="bg-white rounded-xl shadow-md border p-4 sm:p-6 space-y-4">
           <AdvancedFiltersDevoluciones
             onApply={aplicarFiltros}
-                onClear={onClearFilters}
+            onClear={onClearFilters}
           />
+
+          {/* ✅ Mostrar filtro aplicado */}
+          {buscado && filterChips.length > 0 && (
+            <div className="pt-3 border-t">
+              <p className="text-xs text-gray-500 mb-2">Filtros aplicados:</p>
+              <div className="flex flex-wrap gap-2">
+                {filterChips.map((c) => (
+                  <span
+                    key={c}
+                    className="text-[11px] px-2 py-1 rounded-full bg-slate-100 text-slate-700 border"
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -102,8 +155,6 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
       {/* LISTADO */}
       {pageItems.length > 0 && (
         <div className="space-y-4">
-
-          {/* GRID RESPONSIVO */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pageItems.map((d) => (
               <button
@@ -118,15 +169,12 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
                   flex flex-col justify-between
                 "
               >
-                {/* HEADER */}
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-semibold text-gray-800">
                       Devolución #{d.id}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      Venta #{d.ventaId}
-                    </p>
+                    <p className="text-xs text-gray-500">Venta #{d.ventaId}</p>
                   </div>
 
                   <span
@@ -139,12 +187,10 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
                   </span>
                 </div>
 
-                {/* MONTO */}
                 <p className="mt-3 text-lg font-bold text-green-700">
                   ${Number(d.montoDevuelto).toFixed(2)}
                 </p>
 
-                {/* PRODUCTO */}
                 <div className="mt-3 space-y-1 text-sm text-gray-700">
                   <p className="font-medium">{d.productName}</p>
                   <p className="text-xs text-gray-500">
@@ -155,7 +201,6 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
                   </p>
                 </div>
 
-                {/* FOOTER */}
                 <div className="mt-4 pt-3 border-t text-xs text-gray-500 flex justify-between">
                   <span>{d.username}</span>
                   <span>{d.branchName}</span>
@@ -169,21 +214,11 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
           </div>
 
           {/* PAGINACIÓN */}
-          <div className="
-            sticky bottom-0 bg-white
-            border-t pt-4
-            flex flex-col sm:flex-row
-            gap-3 justify-between items-center
-          ">
+          <div className="sticky bottom-0 bg-white border-t pt-4 flex flex-col sm:flex-row gap-3 justify-between items-center">
             <button
               disabled={pageIndex === 0}
               onClick={() => setPageIndex((p) => p - 1)}
-              className="
-                w-full sm:w-auto
-                px-5 py-3 rounded-lg
-                border bg-gray-50
-                disabled:opacity-50
-              "
+              className="w-full sm:w-auto px-5 py-3 rounded-lg border bg-gray-50 disabled:opacity-50"
             >
               ← Anterior
             </button>
@@ -195,12 +230,7 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
             <button
               disabled={pageIndex >= totalPages - 1}
               onClick={() => setPageIndex((p) => p + 1)}
-              className="
-                w-full sm:w-auto
-                px-5 py-3 rounded-lg
-                border bg-gray-50
-                disabled:opacity-50
-              "
+              className="w-full sm:w-auto px-5 py-3 rounded-lg border bg-gray-50 disabled:opacity-50"
             >
               Siguiente →
             </button>
@@ -211,7 +241,6 @@ const BuscadorAvanzadoDevoluciones = forwardRef<
   );
 });
 
-BuscadorAvanzadoDevoluciones.displayName =
-  "BuscadorAvanzadoDevoluciones";
+BuscadorAvanzadoDevoluciones.displayName = "BuscadorAvanzadoDevoluciones";
 
 export default BuscadorAvanzadoDevoluciones;

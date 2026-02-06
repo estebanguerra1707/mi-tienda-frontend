@@ -1,0 +1,115 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - img "Mi Inventario" [ref=e9]
+          - generic [ref=e10]:
+            - generic [ref=e11]:
+              - generic [ref=e12]: Mi Inventario
+              - generic [ref=e13]: PRO
+            - generic [ref=e14]: Haciendo, tu negocio mas fácil
+        - generic [ref=e15]:
+          - generic "avatar" [ref=e16]:
+            - generic [ref=e17]: R
+          - generic [ref=e18]: refa_admin@refa.com
+          - button "Cerrar sesión" [ref=e19]:
+            - img [ref=e20]
+            - generic [ref=e23]: Cerrar sesión
+    - generic [ref=e24]:
+      - complementary [ref=e25]:
+        - complementary [ref=e26]:
+          - navigation [ref=e27]:
+            - generic [ref=e28]:
+              - generic [ref=e29]: Operación
+              - generic [ref=e30]:
+                - link "Ventas" [ref=e31] [cursor=pointer]:
+                  - /url: /ventas
+                  - img [ref=e32]
+                  - generic [ref=e35]: Ventas
+                - link "Devoluciones" [ref=e36] [cursor=pointer]:
+                  - /url: /devoluciones
+                  - img [ref=e37]
+                  - generic [ref=e40]: Devoluciones
+                - link "Compras" [ref=e41] [cursor=pointer]:
+                  - /url: /compras
+                  - img [ref=e42]
+                  - generic [ref=e46]: Compras
+            - generic [ref=e47]:
+              - generic [ref=e48]: Catálogos
+              - generic [ref=e49]:
+                - link "Productos" [ref=e50] [cursor=pointer]:
+                  - /url: /productos
+                  - img [ref=e51]
+                  - generic [ref=e55]: Productos
+                - link "Categorías" [ref=e56] [cursor=pointer]:
+                  - /url: /categorias
+                  - img [ref=e57]
+                  - generic [ref=e61]: Categorías
+                - link "Clientes" [ref=e62] [cursor=pointer]:
+                  - /url: /clientes
+                  - img [ref=e63]
+                  - generic [ref=e68]: Clientes
+                - link "Proveedores" [ref=e69] [cursor=pointer]:
+                  - /url: /proveedores
+                  - img [ref=e70]
+                  - generic [ref=e75]: Proveedores
+            - generic [ref=e76]:
+              - generic [ref=e77]: Administración
+              - generic [ref=e78]:
+                - link "Dashboard" [ref=e79] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e80]
+                  - generic [ref=e85]: Dashboard
+                - link "Inventario" [ref=e86] [cursor=pointer]:
+                  - /url: /inventario
+                  - img [ref=e87]
+                  - generic [ref=e90]: Inventario
+                - link "Reportes" [ref=e91] [cursor=pointer]:
+                  - /url: /reportes
+                  - img [ref=e92]
+                  - generic [ref=e94]: Reportes
+          - generic [ref=e95]:
+            - generic [ref=e96]: Mi Inventario
+            - generic [ref=e97]: Copyright 2026-2030 ©
+      - main [ref=e98]:
+        - generic [ref=e100]:
+          - generic [ref=e102]:
+            - heading "Dashboard" [level=1] [ref=e103]
+            - paragraph [ref=e104]: Resumen general de actividad y ventas.
+          - generic [ref=e105]:
+            - generic [ref=e106]:
+              - heading "Productos" [level=3] [ref=e107]
+              - paragraph [ref=e108]: "6"
+            - generic [ref=e109]:
+              - heading "Stock crítico" [level=3] [ref=e110]
+              - paragraph [ref=e111]: "3"
+            - generic [ref=e112]:
+              - heading "Ventas hoy" [level=3] [ref=e113]
+              - paragraph [ref=e114]: "0"
+            - generic [ref=e115]:
+              - heading "Ingresos mes" [level=3] [ref=e116]
+              - paragraph [ref=e117]: $0
+          - generic [ref=e119]:
+            - button "Semana" [ref=e120]
+            - button "Mes" [ref=e121]
+            - button "Más vendidos" [ref=e122]
+          - generic [ref=e123]:
+            - heading "Más vendidos (semana)(02-feb – 08-feb)" [level=2] [ref=e124]:
+              - text: Más vendidos (semana)
+              - generic [ref=e125]: (02-feb – 08-feb)
+            - generic [ref=e126]:
+              - heading "Productos más vendidos" [level=2] [ref=e127]
+              - application [ref=e131]:
+                - generic [ref=e136]: Hella Garrafa 5lts 20w50
+                - generic [ref=e138]:
+                  - generic [ref=e140]: "0"
+                  - generic [ref=e142]: "0.25"
+                  - generic [ref=e144]: "0.5"
+                  - generic [ref=e146]: "0.75"
+                  - generic [ref=e148]: "1"
+  - generic [ref=e154]: "0"
+```

@@ -50,3 +50,6 @@ application-prod.properties
 application-prod.yml
 application-dev.yml
 secrets/
+
+
+.env.e2e

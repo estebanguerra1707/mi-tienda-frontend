@@ -500,11 +500,15 @@ const onClose = useCallback(() => {
 
                   {/* SKU */}
                   <label className="flex flex-col gap-1">
-                    <span className="text-sm">SKU</span>
-                    <input className="border rounded px-3 py-2" {...register("sku")} />
-                    {errors.sku && <p className="text-red-600 text-xs">{errors.sku.message}</p>}
+                      <span className="text-sm">SKU</span>
+                      <input
+                        className="border rounded px-3 py-2 uppercase"
+                        {...register("sku", {
+                          setValueAs: (v) => (typeof v === "string" ? v.toUpperCase() : v),
+                        })}
+                      />
+                      {errors.sku && <p className="text-red-600 text-xs">{errors.sku.message}</p>}
                   </label>
-
                   {/* Código de barras */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Código de barras</span>
