@@ -1,32 +1,47 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/Button";
+import { ResumenCompra, ProductoResumen } from "@/types/catalogs";
+
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+  resumen: ResumenCompra | null;
+};
+
+function formatCantidadConUnidad(p: ProductoResumen): string {
+  const qty = Number.isFinite(p.quantity) ? p.quantity : 0;
+
+  // Si viene abreviatura, úsala primero; si no, el nombre; si no, nada.
+  const unit =
+    (p.unitAbbr && p.unitAbbr.trim()) ||
+    (p.unitName && p.unitName.trim()) ||
+    "";
+
+  // Ej: "2 pz" / "0.50 kg" / "3"
+  return unit ? `${qty} ${unit}` : `${qty}`;
+}
 
 export default function ConfirmarCompraModal({
   open,
   onClose,
   onConfirm,
   resumen,
-  isLoading
-}: {
-  open: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  isLoading: boolean;
-  resumen: {
-    proveedor: string;
-    sucursal: string;
-    metodoPago: string;
-    productos: { name: string; quantity: number; price: number }[];
-    total: number;
-    pago: number;
-    cambio: number;
-  } | null;
-}) {
+  isLoading,
+}: Props) {
   if (!resumen) return null;
 
-  const { proveedor, sucursal, metodoPago, productos, total, pago, cambio } = resumen;
+  const { proveedor, sucursal, metodoPago, productos, total, pago, cambio } =
+    resumen;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -39,7 +54,6 @@ export default function ConfirmarCompraModal({
 
         {/* SCROLL INTERNO */}
         <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4">
-
           <div>
             <p className="font-semibold">Proveedor:</p>
             <p>{proveedor}</p>
@@ -59,8 +73,9 @@ export default function ConfirmarCompraModal({
             <p className="font-semibold">Productos:</p>
             <ul className="ml-4 list-disc text-sm">
               {productos.map((p, i) => (
-                <li key={i}>
-                  {p.name} — {p.quantity} x ${p.price.toFixed(2)}
+                <li key={`${p.name}-${i}`}>
+                  {p.name} — {formatCantidadConUnidad(p)} x $
+                  {p.price.toFixed(2)}
                 </li>
               ))}
             </ul>

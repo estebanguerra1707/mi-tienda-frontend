@@ -31,7 +31,20 @@ export default function VentasListPage() {
   });
   const [filtros, setFiltros] = useState<VentaSearchFiltro>({});
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  const role = (user?.role)as
+  | "SUPER_ADMIN"
+  | "ADMIN"
+  | "VENDOR"
+  | null;
+
+
+  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isAdmin = role === "ADMIN";
+  const isVendor = role === "VENDOR";
+
+  const email: string | undefined =
+  (user?.email ?? user?.username ?? undefined) ?? undefined;
 
   const [selectedVenta, setSelectedVenta] = useState<VentaItem | null>(null);
   const [openDetalle, setOpenDetalle] = useState(false);
@@ -82,6 +95,8 @@ export default function VentasListPage() {
     const clean = Object.fromEntries(
       Object.entries(next).filter(([, v]) => v !== undefined && v !== "")
     );
+    const cleanUsername =
+      clean.username && clean.username.trim() !== "" ? clean.username : undefined;
 
     const newFiltros: VentaSearchFiltro = {
       clientId: clean.clientId ? Number(clean.clientId) : undefined,
@@ -99,6 +114,11 @@ export default function VentasListPage() {
           : clean.active === "false"
           ? false
           : undefined,
+      username: isSuperAdmin
+        ? cleanUsername
+        : isVendor
+        ? email
+        : undefined,
     };
 
     setFiltros(newFiltros);
@@ -150,14 +170,22 @@ export default function VentasListPage() {
       : d.toLocaleDateString("es-MX");
   };
 
-  // ===== Pagination mapping (igual a Inventario / Compras) =====
   const totalPages = ventas.data?.totalPages ?? 1;
   const pageUI = Number(params.page ?? 0) + 1;
 
-  // reset scroll (window) on page change
   useEffect(() => {
-    window.scrollTo({ top: 0 });
-  }, [pageUI]);
+    if (!isVendor) return;
+    if (!email) return;
+
+    setFiltros((prev) => ({
+      ...prev,
+      username: email,
+    }));
+  }, [isVendor, email]);
+
+    useEffect(() => {
+      window.scrollTo({ top: 0 });
+    }, [pageUI]);
 
   return (
     <div
@@ -218,6 +246,7 @@ export default function VentasListPage() {
                   key={v.id}
                   v={v}
                   isSuperAdmin={isSuperAdmin}
+                  isAdmin={isAdmin}
                   onOpen={() => handleRowClick(v)}
                   onDeleted={() => ventas.refetch()}
                   formatDate={formatDate}
@@ -234,6 +263,7 @@ export default function VentasListPage() {
             isLoading={ventas.isLoading}
             rows={sortedItems}
             isSuperAdmin={isSuperAdmin}
+            isAdmin={isAdmin}
             toggleSort={toggleSort}
             Arrow={Arrow}
             onOpen={handleRowClick}
@@ -287,12 +317,13 @@ export default function VentasListPage() {
 function VentaCard(props: {
   v: VentaItem;
   isSuperAdmin: boolean;
+  isAdmin: boolean;
   onOpen: () => void;
   onDeleted: () => void;
   formatMoney: (n?: number | null) => string;
   formatDate: (iso: string, withTime: boolean) => string;
 }) {
-  const { v, isSuperAdmin, onOpen, onDeleted, formatMoney, formatDate } = props;
+  const { v, isSuperAdmin, isAdmin, onOpen, onDeleted, formatMoney, formatDate } = props;
 
   return (
     <div
@@ -342,10 +373,10 @@ function VentaCard(props: {
       </div>
 
       {/* FOOTER SUPER ADMIN */}
-      {isSuperAdmin && (
+      {(isSuperAdmin || isAdmin) && (
+     
         <div className="mt-3 flex items-center justify-between gap-3">
           <div className="text-sm text-slate-600 truncate">
-            <span className="text-slate-500">Vendido por:</span>{" "}
             <span className="font-medium text-slate-800">{v.userName}</span>
           </div>
 
@@ -363,6 +394,7 @@ function VentasTable(props: {
   isLoading: boolean;
   rows: VentaItem[];
   isSuperAdmin: boolean;
+  isAdmin:boolean
   toggleSort: (k: SortKey) => void;
   Arrow: (p: { k: SortKey }) => ReactNode;
   onOpen: (v: VentaItem) => void;
@@ -374,6 +406,7 @@ function VentasTable(props: {
     isLoading,
     rows,
     isSuperAdmin,
+    isAdmin,
     toggleSort,
     Arrow,
     onOpen,
@@ -433,7 +466,7 @@ function VentasTable(props: {
                 </button>
               </th>
 
-              {isSuperAdmin && (
+              {(isSuperAdmin || isAdmin) && (
                 <th className="px-4 py-3 text-center">
                   <button
                     onClick={() => toggleSort("userName")}
@@ -477,7 +510,7 @@ function VentasTable(props: {
                     {formatMoney(v.amountPaid)}
                   </td>
 
-                  {isSuperAdmin && <td className="px-4 py-3 text-center">{v.userName}</td>}
+                  {(isSuperAdmin || isAdmin)  && <td className="px-4 py-3 text-center">{v.userName}</td>}
 
                   {isSuperAdmin && (
                     <td

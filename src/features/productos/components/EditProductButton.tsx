@@ -19,6 +19,18 @@ import {
   fetchBranchInfo,
 } from "@/hooks/useCatalogs";
 
+
+export const UNIDADES = [
+  { id: 3, code: "PIEZA", label: "Pieza" },
+  { id: 4, code: "KILOGRAMO", label: "Kilogramo" },
+  { id: 5, code: "LITRO", label: "Litro" },
+  { id: 6, code: "METRO", label: "Metro" },
+] as const;
+
+export type UnidadMedidaId = (typeof UNIDADES)[number]["id"];
+
+
+
 const baseSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
   sku: z.string().min(1, "SKU requerido"),
@@ -32,6 +44,7 @@ const baseSchema = z.object({
   stock: z.coerce.number().int().min(0, "Stock inválido").optional().default(0),
    minStock: z.coerce.number().int().min(0).optional().default(0),
   maxStock: z.coerce.number().int().min(0).optional().default(0),
+  unidadMedidaId: z.coerce.number().int().min(1, "Selecciona una unidad"),
 });
 
 type EditableProduct =
@@ -46,9 +59,12 @@ type EditableProduct =
     | "salePrice"
     | "categoryId"
     | "providerId"
+    | "unidadMedidaId"
   > & {
     branchId?: number | null;
   };
+
+ 
 
 const superSchema = baseSchema.extend({
   branchId: z.coerce.number().int().min(1, "Sucursal requerida"),
@@ -153,7 +169,8 @@ export default function EditProductButton({
       providerId: product.providerId ?? 0,
       branchId: (auth.user?.branchId ?? product.branchId) ?? undefined,
       minStock: 0,
-      maxStock: 0, 
+      maxStock: 0,
+     unidadMedidaId: product.unidadMedidaId ?? 3,
     },
   });
 
@@ -199,6 +216,7 @@ const defaultFormValues = useMemo(() => ({
   categoryId: product.categoryId ?? 0,
   providerId: product.providerId ?? 0,
   branchId: (auth.user?.branchId ?? product.branchId) ?? undefined,
+  unidadMedidaId: product.unidadMedidaId ?? 3,
 }), [product, auth.user?.branchId]);
 
 
@@ -221,6 +239,7 @@ useEffect(() => {
   }
 
   let alive = true;
+  const unitFromProduct = product.unidadMedidaId;
 
   (async () => {
   try {
@@ -234,6 +253,7 @@ useEffect(() => {
         )
         .catch(() => null),
     ]);
+    const unitFromInv = inv?.unitId;
 
     if (!alive) return;
 
@@ -244,6 +264,11 @@ useEffect(() => {
     setValue("stock", inv?.stock ?? 0);
     setValue("minStock", inv?.minStock ?? 0);
     setValue("maxStock", inv?.maxStock ?? 0);
+    setValue(
+      "unidadMedidaId",
+      Number(unitFromProduct ?? unitFromInv ?? 3),
+      { shouldValidate: false, shouldDirty: false }
+    );
 
   } catch {
     if (!alive) return;
@@ -264,6 +289,7 @@ useEffect(() => {
   isSuper,
   auth.token,
   product.id,
+   product.unidadMedidaId,
   setValue
 ]);
 
@@ -335,7 +361,6 @@ useEffect(() => {
 
 const onSubmit = async (values: FormValues) => {
   try {
-    // 1) actualiza producto
     const payload = {
       name: values.name,
       sku: values.sku,
@@ -349,9 +374,9 @@ const onSubmit = async (values: FormValues) => {
       branchId: isSuper
         ? Number(values.branchId)
         : Number(auth.user?.branchId ?? product.branchId),
+      unidadMedidaId: Number(values.unidadMedidaId),
     };
     await mutateAsync({ id: product.id, payload });
-
     setToast({ type: "success", message: "Producto actualizado." });
     onClose();
     onUpdated?.();
@@ -496,6 +521,7 @@ const onSubmit = async (values: FormValues) => {
                       <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>
                     )}
                   </label>
+
                     {/* Precio venta */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Precio venta</span>
@@ -509,7 +535,25 @@ const onSubmit = async (values: FormValues) => {
                       <p className="text-red-600 text-xs">{errors.salePrice.message}</p>
                     )}
                   </label>
-                  
+                  <label className="flex flex-col gap-1">
+                        <span className="text-sm">Unidad de medida</span>
+
+                        <select
+                          className="border rounded px-3 py-2"
+                          {...register("unidadMedidaId", { valueAsNumber: true })}
+                        >
+                          <option value="">Selecciona…</option>
+                          {UNIDADES.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.label}
+                            </option>
+                          ))}
+                        </select>
+
+                        {errors.unidadMedidaId && (
+                          <p className="text-red-600 text-xs">{errors.unidadMedidaId.message}</p>
+                        )}
+                      </label>
                     {/* Stock (solo lectura, viene del inventario por sucursal) */}
                     <label className="flex flex-col gap-1">
                     <span className="text-sm">En existencia</span>

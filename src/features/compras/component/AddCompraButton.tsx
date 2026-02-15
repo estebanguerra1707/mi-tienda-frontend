@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { FormSelect } from "@/components/ui/FormSelect";
 import BarcodeScannerModal from "@/components/BarcodeScannerModal";
 import { AxiosError } from "axios";
+import { ProductoResumen } from "@/types/catalogs";
 
 
 /* ---------- Schema ---------- */
@@ -31,16 +32,16 @@ const schema = z.object({
   branchId: z.number().min(1, "Selecciona una sucursal"),
   paymentMethodId: z.number().min(1, "Selecciona un método de pago"),
   barcode: z.string().optional(),
-  cashGiven: z.number().nonnegative().optional(),
-  amountPaid: z.number().nonnegative().optional(),
-  changeAmount: z.number().nonnegative().optional(),
+  cashGiven: z.coerce.number().nonnegative().optional(),
+  amountPaid: z.coerce.number().nonnegative().optional(),
+  changeAmount: z.coerce.number().nonnegative().optional(),
   amountInWords: z.string().optional(),
   details: z
     .array(
       z.object({
-        productId: z.number().min(1, "Selecciona un producto válido"),
-        quantity: z.number().min(1, "Cantidad inválida"),
-            ownerType: z.enum(["PROPIO", "CONSIGNACION"]).optional(),
+        productId: z.coerce.number().min(1, "Selecciona un producto válido"),
+        quantity: z.coerce.number().positive("Cantidad inválida"),
+        ownerType: z.enum(["PROPIO", "CONSIGNACION"]).optional(),
 
       })
     )
@@ -104,6 +105,36 @@ export default function AddCompraButton({ onCreated }: { onCreated?: () => void 
 
   const [fechaCompraDisplay, setFechaCompraDisplay] = useState("");
   const [fechaCompraLocal, setFechaCompraLocal] = useState("");
+  type UnidadUI = { label: string; step: number; min: number; esPieza: boolean };
+
+
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ const getUnidadUI = (p: ProductItem): UnidadUI => {
+  const label =
+    p.unidadMedidaAbreviatura ??
+    p.unidadMedidaCodigo ??
+    (p.permiteDecimales ? "kg" : "pz");
+
+  const esPieza = !p.permiteDecimales;
+
+  const code = (p.unidadMedidaCodigo ?? "").toUpperCase();
+  const esMetro = code === "METRO" || code === "M";
+
+  const step = esPieza ? 1 : esMetro ? 0.1 : 0.01;
+  const min  = esPieza ? 1 : esMetro ? 0.1 : 0.01;
+
+  return { label, step, min, esPieza };
+};
+
+const normalizeProducts = (
+  products: ProductsByBranchResponse | undefined
+): ProductItem[] => {
+  if (!products) return [];
+  if (Array.isArray(products)) return products;
+  if (Array.isArray(products.content)) return products.content;
+  return [];
+};
+
 
   const branches = useBranches({
     isSuper: isSuperAdmin,
@@ -130,17 +161,20 @@ const usaInventarioPorDuenio = selectedBranch?.usaInventarioPorDuenio === true;
   const { data: products, isLoading, error } = useProductsByBranch(
     selectedBranchId ?? undefined
   );
-  const buildDetalle = useCallback(
-    (productId: number, ownerType?: OwnerType) => ({
-      productId,
-      quantity: 1,
-      ...(usaInventarioPorDuenio
-        ? { ownerType: ownerType ?? "PROPIO" }
-        : {}),
-    }),
-    [usaInventarioPorDuenio]
-  );
+const buildDetalle = useCallback(
+  (productId: number, ownerType?: OwnerType) => {
+    const list = normalizeProducts(products);
+    const p = list.find((x) => x.id === productId);
+    const u = p ? getUnidadUI(p) : null;
 
+    return {
+      productId,
+      quantity: u?.min ?? 1.0,
+      ...(usaInventarioPorDuenio ? { ownerType: ownerType ?? "PROPIO" } : {}),
+    };
+  },
+  [products, getUnidadUI, usaInventarioPorDuenio]
+);
   const {
     register,
     handleSubmit,
@@ -181,23 +215,6 @@ const usaInventarioPorDuenio = selectedBranch?.usaInventarioPorDuenio === true;
   const [scanBuffer, setScanBuffer] = useState<string>("");
   const [lastKeyTime, setLastKeyTime] = useState<number>(0);
 
-const normalizeProducts = (
-  products: ProductsByBranchResponse | undefined
-): ProductItem[] => {
-  if (!products) return [];
-
-  if (Array.isArray(products)) {
-    return products;              // ya es ProductItem[]
-  }
-
-  // PageResponse<ProductItem>
-  if (Array.isArray(products.content)) {
-    return products.content;
-  }
-
-  return [];
-};
-
   /* ---------- Total ---------- */
   useEffect(() => {
     if (!products) return;
@@ -236,7 +253,10 @@ const normalizeProducts = (
   useEffect(() => {
     if (!barcode || !products) return;
     const list = Array.isArray(products) ? products : products?.content ?? [];
-    const found = list.find((p) => p.barcode?.toString() === barcode?.toString());
+    const b = barcode?.toString();
+    const found = list.find(
+      (p) => p.barcode?.toString() === b || p.codigoBarras?.toString() === b
+    );
     if (found) {
       const exists = details.find((d) => d.productId === found.id);
       if (exists) {
@@ -292,7 +312,7 @@ useEffect(() => {
 
 
   /* ---------- Utils ---------- */
-  const numberToWordsES = (num: number): string =>
+  const formatCurrencyMXN = (num: number): string =>
     new Intl.NumberFormat("es-MX", {
       style: "currency",
       currency: "MXN",
@@ -340,7 +360,36 @@ useEffect(() => {
     const isCashMethod = method?.name?.toUpperCase() === "EFECTIVO";
 
     const lista = Array.isArray(products) ? products : products?.content ?? [];
+    for (const d of values.details) {
+      const prod = lista.find((p) => p.id === Number(d.productId));
+      if (!prod) continue;
 
+      const qty = Number(d.quantity);
+
+      const u = getUnidadUI(prod);
+      if (u.esPieza) {
+        const isInt = Number.isInteger(qty);
+        if (!isInt) {
+          setToast({
+            type: "error",
+            message: `El producto "${prod.name}" es por ${u.label}, la cantidad debe ser entera.`,
+          });
+          return;
+        }
+        if (qty < u.min) {
+          setToast({ type: "error", message: `Cantidad inválida en "${prod.name}".` });
+          return;
+        }
+      } else {
+        if (qty < u.min) {
+          setToast({
+            type: "error",
+            message: `Cantidad inválida en "${prod.name}". Mínimo: ${u.min} ${u.label}`,
+          });
+          return;
+        }
+    }
+  }
     const totalCompraCalc = values.details.reduce((acc, d) => {
       const product = lista.find((p) => p.id === Number(d.productId));
       return acc + (product?.purchasePrice ?? 0) * (Number(d.quantity) || 0);
@@ -361,12 +410,20 @@ useEffect(() => {
     // Guardamos snapshot para confirmarCompraFinal
     compraFormSnapshot.current = values;
 
-    const productosResumen = values.details.map((d) => {
-      const prod = lista.find((p) => p.id === d.productId);
+    const productosResumen: ProductoResumen[] = values.details.map((d) => {
+      const prod = lista.find((p) => p.id === Number(d.productId));
+
+      // Usa tu helper (ya lo tienes)
+      const u = prod ? getUnidadUI(prod) : null;
+
       return {
         name: prod?.name ?? "Producto",
-        quantity: d.quantity,
+        quantity: Number(d.quantity) || 0,
         price: prod?.purchasePrice ?? 0,
+
+        // 👇 ESTO ES LO QUE TE FALTABA
+        unitAbbr: prod?.unidadMedidaAbreviatura ?? u?.label ?? null,
+        unitName: prod?.unidadMedidaNombre ?? null, 
       };
     });
 
@@ -409,7 +466,7 @@ useEffect(() => {
       purchaseDate: fechaCompraLocal,
       amountPaid: pagoReal,
       changeAmount: v.changeAmount ?? 0,
-      amountInWords: numberToWordsES(totalCompraCalc),
+      amountInWords: formatCurrencyMXN(totalCompraCalc),
       emailList: [],
       isPrinted: false,
       details: v.details.map((d) => ({
@@ -443,10 +500,7 @@ useEffect(() => {
     const handleBarcodeScan = async (code: string) => {
       let list: ProductItem[] = normalizeProducts(products);
       let prod: ProductItem | null = null;
-
       const cleanCode = code.trim();
-
-      // 1️⃣ Buscar local
       prod = list.find(
         (p) =>
           p.barcode?.toString().trim() === cleanCode ||
@@ -493,11 +547,7 @@ useEffect(() => {
           { shouldValidate: true }
         );
       } else {
-        setValue(
-          "details",
-          [...details, { productId: prod!.id, quantity: 1 }],
-          { shouldValidate: true }
-        );
+        setValue("details", [...details, buildDetalle(prod!.id)], { shouldValidate: true });
       }
       await trigger("details");
       setFilteredProducts([]);
@@ -749,12 +799,13 @@ const resetearFormularioCompra = () => {
 
                         <tbody>
                           {details.map((d, i) => {
+                            
                             const list = Array.isArray(products)
                               ? products
                               : products?.content ?? [];
                             const prod = list.find((p) => p.id === Number(d.productId));
                             if (!prod) return null;
-
+                              const u = getUnidadUI(prod);
                             return (
                               <tr key={i} className="border-t">
                                 <td className="p-2 font-medium">{prod.name}</td>
@@ -798,26 +849,49 @@ const resetearFormularioCompra = () => {
                                 <td className="text-center">
                                   <div className="flex justify-center gap-2">
                                     <button
-                                      type="button"
-                                      onClick={() =>
-                                        setValue(
-                                          `details.${i}.quantity`,
-                                          Math.max(1, (d.quantity ?? 1) - 1)
-                                        )
-                                      }
-                                    >
-                                      −
+                                        type="button"
+                                        onClick={() => {
+                                          const current = Number(d.quantity ?? 1);
+                                         setValue(
+                                            `details.${i}.quantity`,
+                                            Math.max(u.min, Number((current - u.step).toFixed(2))),
+                                            { shouldValidate: true, shouldDirty: true }
+                                          );
+                                        }}
+                                      >
+                                        −
                                     </button>
                                     <input
-                                      type="number"
-                                      className="w-14 text-center border rounded"
-                                      {...register(`details.${i}.quantity` as const)}
-                                    />
+                                        type="number"
+                                         min={u.min}
+                                         step={u.step}
+                                        className="w-14 text-center border rounded"
+                                        {...register(`details.${i}.quantity`, {
+                                          valueAsNumber: true,
+                                          onChange: async (e) => {
+                                            const raw = (e.target as HTMLInputElement).value;
+                                          const n = raw === "" ? 0 : Number(raw);
+                                          setValue(`details.${i}.quantity`, n, {
+                                            shouldValidate: true,
+                                            shouldDirty: true,
+                                          });
+                                          await trigger("details");
+                                          },
+                                        })}
+                                        onFocus={(e) => e.currentTarget.select()}
+                                      />
+                                      <span className="text-xs text-gray-600 min-w-[24px] text-left">
+                                        {u.label}
+                                      </span>
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        setValue(`details.${i}.quantity`, (d.quantity ?? 0) + 1)
-                                      }
+                                      onClick={() => {
+                                        const current = Number(d.quantity ?? 0);
+                                        setValue(`details.${i}.quantity`, Number((current + u.step).toFixed(2)), {
+                                          shouldValidate: true,
+                                          shouldDirty: true,
+                                        });
+                                      }}
                                     >
                                       +
                                     </button>
@@ -863,7 +937,7 @@ const resetearFormularioCompra = () => {
                           : products?.content ?? [];
                         const prod = list.find((p) => p.id === Number(d.productId));
                         if (!prod) return null;
-
+                          const u = getUnidadUI(prod);
                         return (
                           <div
                             key={i}
@@ -905,26 +979,38 @@ const resetearFormularioCompra = () => {
                               <div className="flex gap-2">
                                 <button
                                   type="button"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    const current = Number(d.quantity ?? 1);
                                     setValue(
                                       `details.${i}.quantity`,
-                                      Math.max(1, (d.quantity ?? 1) - 1)
-                                    )
-                                  }
+                                      Math.max(u.min, Number((current - u.step).toFixed(2))),
+                                      { shouldValidate: true, shouldDirty: true }
+                                    );
+                                  }}
                                 >
                                   −
                                 </button>
                                 <input
                                   type="number"
+                                     min={u.min}
+                                    step={u.step}
                                   className="w-16 text-center border rounded"
-                                  {...register(`details.${i}.quantity` as const)}
+                                  {...register(`details.${i}.quantity`, { valueAsNumber: true })}
                                 />
+                                 <span className="text-xs text-gray-600 min-w-[24px] text-left">
+                                        {u.label}
+                                      </span>
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setValue(`details.${i}.quantity`, (d.quantity ?? 0) + 1)
-                                  }
+                                  onClick={() => {
+                                        const current = Number(d.quantity ?? 0);
+                                        setValue(`details.${i}.quantity`, Number((current + u.step).toFixed(2)), {
+                                          shouldValidate: true,
+                                          shouldDirty: true,
+                                        });
+                                      }}
                                 >
+
                                   +
                                 </button>
                               </div>

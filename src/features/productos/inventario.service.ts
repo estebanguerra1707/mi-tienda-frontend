@@ -2,26 +2,32 @@ import { api } from "@/lib/api";
 export type InventarioOwnerType = "PROPIO" | "CONSIGNACION";
 
 export type InventarioItem = {
-   id: number;
+    id: number;
   productId: number;
   productName: string;
   branchId: number;
   branchName: string;
   sku: string;
+
   stock: number;
   minStock: number;
   maxStock: number;
-  isStockCritico: boolean;
+
   lastUpdated: string | null;
   updatedBy: string | null;
-  ownerType: InventarioOwnerType| null;
+  unitId: number | null;
+  unitAbbr: string | null;
+  unitName: string | null;
+  permiteDecimales: boolean | null;
+  isStockCritico: boolean;
+  ownerType: InventarioOwnerType | null;
 };
 
 export type UpsertInventarioDTO = {
-  id?: number | null;   // ← para UPDATE opcional
+  id?: number | null;
   productId: number;
+  quantity: number;
   branchId: number;
-  stock: number;
   minStock: number;
   maxStock: number;
   ownerType: InventarioOwnerType

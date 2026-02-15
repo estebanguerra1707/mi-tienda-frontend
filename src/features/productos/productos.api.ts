@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-
+import { UnidadMedida } from "./api";
 export type PageResp<T> = {
   content: T[];
   totalElements: number;
@@ -48,6 +48,8 @@ export type BackendProductDTO = {
   stock: number;
   usaInventarioPorDuenio?: boolean;
   inventarioOwnerType?: "PROPIO" | "CONSIGNACION";
+  unidadMedida?: UnidadMedida;
+  permiteDecimales?: boolean;
 };
 
 export type ProductRow = {
@@ -108,6 +110,8 @@ export interface ProductoResponseDTO {
   branchId: number;
   branchName: string;
   active: boolean;
+  unidadMedida?: UnidadMedida;
+  permiteDecimales?: boolean;
 }
 
 

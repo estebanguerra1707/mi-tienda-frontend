@@ -42,7 +42,6 @@ export function useSearchVentasPaginadas(
   filtros?: VentaSearchFiltro & { page?: number; size?: number },
   options?: { enabled?: boolean }
 ) {
-  // Ignorar page/size al revisar si hay filtros
   const filtrosSinPaginacion = { ...filtros };
   delete filtrosSinPaginacion.page;
   delete filtrosSinPaginacion.size;

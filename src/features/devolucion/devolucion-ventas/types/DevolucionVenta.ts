@@ -11,6 +11,9 @@ export interface DetalleVentaResponseDTO {
   branchName: string;
   businessTypeId: number;
   businessTypeName: string;
+  unitAbbr?: string | null;
+  unitName?: string | null;
+  permiteDecimales?: boolean | null;
   inventarioOwnerType?: InventarioOwnerType;
   usaInventarioPorDuenio?:boolean;
 }

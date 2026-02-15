@@ -1,6 +1,11 @@
 import { api } from '@/lib/api';
 import { cleanParams } from '@/lib/http-params';
 import { ProductoResponseDTO } from './productos.api';
+export type UnidadMedida =
+  | "PIEZA"
+  | "KILOGRAMO"
+  | "LITRO"
+  | "METRO";
 
 export type Product = {
   id: number;
@@ -17,7 +22,25 @@ export type Product = {
   businessTypeName: string;
   creationDate: string;
   codigoBarras: string;
+  unidadMedidaId: number;
+  unidadMedida?: UnidadMedida;
+  permiteDecimales: boolean;
 };
+export type UpdateProductPayload = {
+  name: string;
+  sku: string;
+  codigoBarras: string;
+  description?: string;
+  purchasePrice: number;
+  salePrice: number;
+  categoryId: number;
+  providerId: number;
+  stock?: number;
+  minStock?: number;
+  maxStock?: number;
+   unidadMedidaId: number;
+};
+
 
 export type BusinessType = {
   id: number;
@@ -82,12 +105,15 @@ export async function fetchProducts(params: ProductsQuery): Promise<ProductsPage
   };
 }
 
-export async function createProduct(payload: Omit<Product, 'id'>): Promise<Product> {
+export async function createProduct(payload: CreateProductPayload): Promise<Product> {
   const { data } = await api.post<Product>('/productos', payload);
   return data;
 }
 
-export async function updateProduct(id: number | string, payload: Partial<Product>): Promise<Product> {
+export async function updateProduct(
+  id: number | string,
+  payload: UpdateProductPayload
+): Promise<Product> {
   const { data } = await api.put<Product>(`/productos/${id}`, payload);
   return data;
 }

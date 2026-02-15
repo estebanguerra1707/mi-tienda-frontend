@@ -19,6 +19,7 @@ export interface CompraFiltro {
   year?: string;
 
   active?: string;
+   username?: string;
 }
 
 export type CleanFilters = {

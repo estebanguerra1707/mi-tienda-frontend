@@ -34,11 +34,7 @@ export interface BranchItem {
 export  interface ResumenVenta {
   cliente: string;
   metodoPago: string;
-  productos: {
-    name: string;
-    quantity: number;
-    price: number;
-  }[];
+  productos: ProductoResumen[];
   total: number;
   pago: number;
   cambio: number;
@@ -56,19 +52,14 @@ export interface ProductoResumen {
   name: string;
   quantity: number;
   price: number;
+  unitAbbr?: string | null;
+  unitName?: string | null;
 }
 
 export interface EnviarTicketModalProps {
   ventaId: number | null;
   open: boolean;
   onClose: () => void;
-}
-
-
-export interface ProductoResumenCompra{
-  name: string;
-  quantity: number;
-  price:number;
 }
 
 export interface ResumenCompra{

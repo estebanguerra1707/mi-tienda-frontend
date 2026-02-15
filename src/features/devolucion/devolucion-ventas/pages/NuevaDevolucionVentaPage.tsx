@@ -1,5 +1,5 @@
 "use client";
-
+ {/* Crear devolucion sobre ventas */}
 import {
   useState,
   useRef,
@@ -15,7 +15,7 @@ import BuscadorAvanzadoVentas, {
 
 import DetalleVentaCard from "../components/DetalleVentaCards";
 import DetalleProductoVentaModal from "../components/DetalleProductoVentaModal";
-import DevolucionVentaResultModal from "../../devolucion-compras/pages/DevolucionVentaResultModal";
+import DevolucionVentaResultModal from "../components/DevolucionVentaResultModal";
 
 import type {
   DetalleVentaResponseDTO,
@@ -38,14 +38,16 @@ function NuevaDevolucionVentaPageInner(
   const buscadorRef = useRef<BuscadorAvanzadoVentasHandle>(null);
   const detalleVentaRef = useRef<HTMLDivElement | null>(null);
 
-  useImperativeHandle(ref, () => ({
-    limpiar() {
-      setVenta(null);
-      setDetalle(null);
-      setResultado(null);
-      buscadorRef.current?.limpiar?.();
-    },
-  }));
+  const limpiarTodo = () => {
+  setVenta(null);
+  setDetalle(null);
+  setResultado(null);
+  buscadorRef.current?.limpiar?.();
+};
+
+useImperativeHandle(ref, () => ({
+  limpiar: limpiarTodo,
+}));
 
   useEffect(() => {
   if (venta && detalleVentaRef.current) {
@@ -78,6 +80,7 @@ function NuevaDevolucionVentaPageInner(
             setVenta(v);
             setDetalle(null);
           }}
+          onClearAll={limpiarTodo}
         />
       </div>
 
@@ -110,12 +113,10 @@ function NuevaDevolucionVentaPageInner(
           />
         </div>
       )}
-      {resultado && (
+     {resultado && (
         <DevolucionVentaResultModal
           devolucion={resultado}
-          onClose={() =>
-            ref && typeof ref !== "function" && ref.current?.limpiar()
-          }
+          onClose={limpiarTodo}
         />
       )}
     </div>

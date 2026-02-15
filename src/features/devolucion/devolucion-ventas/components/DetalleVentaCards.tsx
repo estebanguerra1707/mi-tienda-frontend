@@ -1,4 +1,5 @@
 "use client";
+  {/* Pagina resultado de dar clic en una venta para devolver */}
 
 import type { DetalleVentaResponseDTO } from "../types/DevolucionVenta";
 import type { VentaItem } from "@/hooks/useVentas";
@@ -25,7 +26,7 @@ export default function DetalleVentaCard({
       <div className="space-y-2">
         {venta.details?.map((d) => (
           <button
-            key={d.productId}
+           key={d.id ?? `${d.productId}-${d.codigoBarras}-${d.unitPrice}`}
             onClick={() => onSelectDetalle(mapVentaDetalleToDTO(d))}
             className="
               w-full flex justify-between items-center
@@ -41,9 +42,9 @@ export default function DetalleVentaCard({
                 {d.productName}
               </p>
 
-              <p className="text-xs text-gray-600">
-                Cant: {d.quantity} · ${d.unitPrice.toFixed(2)}
-              </p>
+             <p className="text-xs text-gray-600">
+              Cantidad: {d.quantity} {d.unitAbbr ?? d.unitName ?? ""} · ${d.unitPrice.toFixed(2)}
+            </p>
             </div>
 
             {/* INDICADOR */}

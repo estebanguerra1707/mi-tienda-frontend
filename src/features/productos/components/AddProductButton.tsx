@@ -37,20 +37,41 @@ const numberField = (messages: NumberFieldMessages) =>
       z.undefined().refine(() => false, { message: messages.required }),
     ])
   );
+  const normalizeLeadingDot = (s: string) => (s.startsWith(".") ? `0${s}` : s);
+export const UNIDADES = [
+  { id: 3, code: "PIEZA", label: "Pieza" },
+  { id: 4, code: "KG", label: "Kilogramo" },
+  { id: 5, code: "LITRO", label: "Litro" },
+  { id: 6, code: "METRO", label: "Metro" },
+] as const;
+
+
+export type UnidadMedidaId = (typeof UNIDADES)[number]["id"];
+
+const decimalString = (messages: NumberFieldMessages) =>
+  z
+    .string()
+    .min(1, messages.required)
+    .transform((v) => v.trim().replace(",", "."))
+    .refine((v) => {
+      // permite: 12 | 12. | 12.3 | 12.34 | .2 | .20
+      return /^(\d+(\.\d{0,2})?|\.\d{1,2})$/.test(v);
+    }, messages.invalid);
+
 /* ---------- schema ---------- */
 const baseSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
   sku: z.string().min(1, "SKU requerido"),
   codigoBarras: z.string().min(1, "Código de barras requerido"),
   description: z.string().optional().default(""),
- purchasePrice: numberField({
-  required: "Indica el precio de compra",
-  invalid: "El precio debe ser un número válido",
-}),
-salePrice: numberField({
-  required: "Indica el precio de venta",
-  invalid: "El precio debe ser un número válido",
-}),
+    purchasePrice: decimalString({
+      required: "Indica el precio de compra",
+      invalid: "El precio debe ser un decimal válido",
+    }),
+    salePrice: decimalString({
+      required: "Indica el precio de venta",
+      invalid: "El precio debe ser un decimal válido",
+    }),
 categoryId: numberField({
   required: "Selecciona una categoría",
   invalid: "Categoría inválida o no encontrada",
@@ -60,6 +81,10 @@ providerId: numberField({
   invalid: "Proveedor inválido",
 }),
   branchId: z.number().optional(),
+  unidadMedidaId: numberField({
+    required: "Selecciona una unidad",
+    invalid: "Unidad inválida",
+  }),
 });
 
 const superSchema = baseSchema.extend({
@@ -250,8 +275,9 @@ const {
     sku: "",
     codigoBarras: "",
     description: "",
-    purchasePrice: undefined,
-    salePrice: undefined,
+    purchasePrice: "",
+    salePrice: "",
+    unidadMedidaId: 3,
     categoryId: undefined,
     providerId: undefined,
     branchId: isSuper ? undefined : user?.branchId, // <-- CLAVE
@@ -305,8 +331,9 @@ const {
     sku: "",
     codigoBarras: "",
     description: "",
-    purchasePrice: undefined,
-    salePrice: undefined,
+    purchasePrice: "",
+    salePrice: "",
+    unidadMedidaId: 3,
     categoryId: undefined,
     providerId: undefined,
     branchId: isSuper ? undefined : user?.branchId,
@@ -314,6 +341,14 @@ const {
 }, [reset, isSuper, user?.branchId]);
 
 
+const sanitizeDecimal = (raw: string) => {
+  const v = raw.replace(/[^\d.,]/g, "");
+
+  const parts = v.split(/[.,]/);
+  if (parts.length === 1) return parts[0];
+
+  return `${parts[0]}.${parts.slice(1).join("")}`;
+};
 
 const onClose = useCallback(() => {
   setOpen(false);
@@ -322,11 +357,12 @@ const onClose = useCallback(() => {
     sku: "",
     codigoBarras: "",
     description: "",
-    purchasePrice: undefined,
-    salePrice: undefined,
+    purchasePrice: "",
+    salePrice: "",
+    unidadMedidaId: 3,
     categoryId: undefined,
     providerId: undefined,
-    branchId: isSuper ? undefined : user?.branchId, // <-- NO borrar
+    branchId: isSuper ? undefined : user?.branchId,
   });
   setDerivedBT(null);
 }, [reset, isSuper, user?.branchId]);
@@ -353,15 +389,18 @@ const onClose = useCallback(() => {
       return;
     }
 
+    const purchase = Number(normalizeLeadingDot(values.purchasePrice.replace(",", ".")));
+    const sale = Number(normalizeLeadingDot(values.salePrice.replace(",", ".")));
     const payload: CreateArg = {
       name: values.name,
       sku: values.sku,
       codigoBarras: values.codigoBarras,
       description: values.description ?? "",
-      purchasePrice: values.purchasePrice,
-      salePrice: values.salePrice,
+      purchasePrice: purchase,
+      salePrice:sale,
       categoryId: values.categoryId,
       providerId: values.providerId,
+      unidadMedidaId: Number(values.unidadMedidaId),
       ...(isSuper && values.branchId ? { branchId: values.branchId } : {}),
     } as unknown as CreateArg;
 
@@ -556,21 +595,22 @@ const onClose = useCallback(() => {
                 {/* Precio compra */}
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Precio compra</span>
-                  <input
-                      inputMode="decimal"
-                      autoComplete="off"
-                      className="border rounded px-3 py-2"
-                      {...register("purchasePrice")}
-                      onChange={(e) => {
-                        const cleaned = e.target.value
-                          .replace(/[^0-9.]/g, "")
-                          .replace(/(\..*)\./g, "$1");
-                        setValue("purchasePrice", cleaned === "" ? (undefined as unknown as number) : (Number(cleaned) as unknown as number), {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                        });
-                      }}
-                    />
+                <input
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                className="border rounded px-3 py-2"
+                {...register("purchasePrice")}
+                onChange={(e) => {
+                  const cleaned = sanitizeDecimal(e.target.value);
+                  const normalized = normalizeLeadingDot(cleaned);
+
+                  setValue("purchasePrice", normalized, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  });
+                }}
+              />
                   {errors.purchasePrice && (
                     <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>
                   )}
@@ -579,16 +619,17 @@ const onClose = useCallback(() => {
                 {/* Precio venta */}
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Precio venta</span>
-                  <input
+                 <input
+                    type="text"
                     inputMode="decimal"
                     autoComplete="off"
                     className="border rounded px-3 py-2"
                     {...register("salePrice")}
                     onChange={(e) => {
-                      const cleaned = e.target.value
-                        .replace(/[^0-9.]/g, "")
-                        .replace(/(\..*)\./g, "$1");
-                      setValue("salePrice", cleaned === "" ? (undefined as unknown as number) : (Number(cleaned) as unknown as number), {
+                      const cleaned = sanitizeDecimal(e.target.value);     // deja solo dígitos y un "."
+                      const normalized = normalizeLeadingDot(cleaned);     // ".20" -> "0.20"
+
+                      setValue("salePrice", normalized, {
                         shouldValidate: true,
                         shouldDirty: true,
                       });
@@ -598,7 +639,26 @@ const onClose = useCallback(() => {
                     <p className="text-red-600 text-xs">{errors.salePrice.message}</p>
                   )}
                 </label>
-                  {/* Sucursal (solo SUPER_ADMIN) */}
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm">Unidad de medida</span>
+
+                    <select
+                      className="border rounded px-3 py-2"
+                      {...register("unidadMedidaId")}
+                    >
+                      <option value="">Selecciona…</option>
+                      {UNIDADES.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    {errors.unidadMedidaId && (
+                      <p className="text-red-600 text-xs">{errors.unidadMedidaId.message}</p>
+                    )}
+                  </label>
+                   {/* Sucursal (solo SUPER_ADMIN) */}
                   {isSuper && (
                     <label className="flex flex-col gap-1 sm:col-span-2">
                       <span className="text-sm">Sucursal</span>

@@ -4,6 +4,7 @@ export type InventarioOwnerType = "PROPIO" | "CONSIGNACION";
 export interface CompraDetalle {
   productId: number;
   quantity: number;
+  ownerType?: InventarioOwnerType;
 }
 
 export interface CompraCreate {
@@ -43,7 +44,7 @@ export interface DetalleCompraResponseDTO {
   productId: number;
   branchId:number;
   businessTypeId:number;
-  businessTypeName:number;
+  businessTypeName: string;
   branchName:string;
   sku: string;
   codigoBarras: string;
@@ -52,6 +53,10 @@ export interface DetalleCompraResponseDTO {
   unitPrice: number;
   subTotal: number;
   ownerType: InventarioOwnerType;
+  unitId: number;
+  unitAbbr: string;
+  unitName: string; 
+  permiteDecimales?: boolean | null;
   usaInventarioPorDuenio: boolean;
 }
 
@@ -65,6 +70,7 @@ export interface CompraSearchFiltro {
   month?: number;
   year?: number;
   active?: boolean;
+   username?: string;
 }
 
 export type CompraPage = Page<CompraItem>;

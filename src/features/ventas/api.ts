@@ -24,6 +24,7 @@ interface VentaBackendDTO {
   amountPaid: number;
   amountInWords: string;
   userName: string;
+  active: boolean;
   paymentName?: string;
   paymentMethodName?: string; 
   details?: VentaDetalleItem[];
@@ -75,6 +76,7 @@ export interface VentaCreate {
 }
 
 export interface VentaSearchFiltro {
+   id?: number | string;
   texto?: string;  
   clientId?: number;
   paymentMethodId?: string;
@@ -88,6 +90,7 @@ export interface VentaSearchFiltro {
   active?: boolean;
   page?: number;
   size?: number;
+  username?: string; 
 }
 
 export interface VentaParams {
@@ -97,6 +100,7 @@ export interface VentaParams {
   [key: string]: string | number | boolean | undefined;
 }
 export interface VentaDetalleItem {
+  id?: number | string;
   productId: number;
   productName: string;
   quantity: number;
@@ -108,9 +112,11 @@ export interface VentaDetalleItem {
   businessTypeId:number;
   branchId:number;
   branchName:string;
+  unitAbbr?: string | null;
+  permiteDecimales?: boolean | null;
+  unitName?: string | null;
  inventarioOwnerType?:OwnerType;
    usaInventarioPorDuenio: boolean;
-
 }
 
 // ✅ Listar ventas (GET /ventas)
@@ -210,12 +216,11 @@ export async function fetchVentaById(id: number): Promise<VentaItem> {
     amountInWords: v.amountInWords ?? "",
     paymentMethodName: v.paymentMethodName ?? v.paymentName ?? "",
     userName: v.userName ?? "-",
-    active: true,
-    details: v.details,
+    active: v.active ?? true,
+    details: v.details ?? [],
   };
 }
 
-// ✅ Crear una nueva venta (POST /ventas)
 export async function createVenta(payload: VentaCreate): Promise<VentaItem> {
   try {
     const res = await api.post<VentaItem>("/ventas", payload);
@@ -241,12 +246,9 @@ export async function createVenta(payload: VentaCreate): Promise<VentaItem> {
   }
 }
 
-// ✅ Eliminar una venta (DELETE /ventas/{id})
 export async function deleteVenta(id: number): Promise<void> {
   await api.delete(`/ventas/${id}`);
 }
-
-// ✅ Registrar devolución (POST /ventas/devolucion)
 export interface DevolucionVentaPayload {
   ventaId: number;
   codigoBarras: string;
@@ -268,4 +270,9 @@ export async function sendVentaTicketByEmail(ventaId: number, emailList: string[
     headers: { "Content-Type": "application/json" },
     data: { emailList }
   });
+}
+
+export async function getVentaDetails(ventaId: number): Promise<VentaDetalleItem[]> {
+  const res = await api.get<VentaDetalleItem[]>(`/ventas/${ventaId}/detail`);
+  return res.data;
 }

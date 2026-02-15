@@ -12,7 +12,7 @@ type SortKey = "id" | "name" | "businessTypeName" | "isActive" | "creationDate";
 export default function CategoriaListPage() {
   const { isAdmin, hasRole } = useAuth();
   const isSuper = hasRole("SUPER_ADMIN");
-  const canEditDelete = isSuper; // según tu código actual, solo SUPER ve acciones
+  const canEditDelete = isSuper || isAdmin;
   const canCreate = isSuper || isAdmin;
 
   const [items, setItems] = useState<Categoria[]>([]);

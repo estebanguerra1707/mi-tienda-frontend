@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo } from "react";
 
-import NuevaDevolucionPage from "@/features/devolucion/devolucion-compras/pages/NuevaDevolucion";
+import NuevaDevolucionPage from "@/features/devolucion/devolucion-compras/components/NuevaDevolucion";
 import NuevaDevolucionVentaPage from "@/features/devolucion/devolucion-ventas/pages/NuevaDevolucionVentaPage";
 
 import BuscadorAvanzadoDevoluciones, {
@@ -77,15 +77,15 @@ export default function DevolucionesPage() {
   const TABS = useMemo(
     () =>
       [
-        !isVendor && { key: "compras", label: "Ver devoluciones de Compras" },
+        !isVendor && { key: "compras", label: "Crear devolución sobre Compras" },
         !isVendor && {
           key: "Filtrar devoluciones compras",
-          label: "Crear devolución de Compra",
+          label: "Ver devoluciones de Compras",
         },
 
         // Ventas: primero listado, luego registro
         { key: "Filtrar devoluciones ventas", label: "Ver devoluciones de Ventas" },
-        { key: "ventas", label: "Crear devolución de Venta" },
+        { key: "ventas", label: "Crear devolución sobre Ventas" },
       ].filter(Boolean) as { key: TabName; label: string }[],
     [isVendor]
   );

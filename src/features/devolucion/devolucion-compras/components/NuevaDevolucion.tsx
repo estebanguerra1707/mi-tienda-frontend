@@ -1,5 +1,5 @@
 "use client";
-
+ {/* Crear devolucion sobre compras */}
 import {
   useState,
   useRef,
@@ -16,12 +16,12 @@ import type {
 
 import BuscadorAvanzadoCompras, {
   BuscadorAvanzadoComprasHandle,
-} from "../components/BuscadorAvanzadoCompras";
+} from "./BuscadorAvanzadoCompras";
 
-import DevolucionResultModal from "../components/DevolucionResultModal";
+import DevolucionResultModal from "./DevolucionResultModal";
 import type { Devolucion } from "../types/Devolucion";
-import DetalleProductoModal from "../components/DetalleProductoModal";
-import DetalleCompraCard from "../components/DetalleCompraCard";
+import DetalleProductoModal from "./DetalleProductoModal";
+import DetalleCompraCard from "./DetalleCompraCard";
 
 export interface NuevaDevolucionPageHandle {
   limpiar: () => void;
@@ -38,15 +38,17 @@ function NuevaDevolucionPageInner(
   const buscadorRef = useRef<BuscadorAvanzadoComprasHandle>(null);
   const detalleCompraRef = useRef<HTMLDivElement | null>(null);
 
+  const limpiarTodo = () => {
+    setResultado(null);
+    setCompraCompleta(null);
+    setDetalle(null);
+    buscadorRef.current?.limpiar?.();
+  };
 
-  useImperativeHandle(ref, () => ({
-    limpiar() {
-      setResultado(null);
-      setCompraCompleta(null);
-      setDetalle(null);
-      buscadorRef.current?.limpiar?.();
-    },
-  }));
+
+    useImperativeHandle(ref, () => ({
+      limpiar: limpiarTodo,
+    }));
 
   useEffect(() => {
     if (compraCompleta && detalleCompraRef.current) {
@@ -75,6 +77,7 @@ function NuevaDevolucionPageInner(
             setCompraCompleta(compra);
             setDetalle(null);
           }}
+          onClearAll={limpiarTodo}
         />
       </div>
 
@@ -108,12 +111,7 @@ function NuevaDevolucionPageInner(
      {resultado && (
         <DevolucionResultModal
           devolucion={resultado}
-        onClose={() => {
-          setResultado(null);
-          setCompraCompleta(null);
-          setDetalle(null);
-          buscadorRef.current?.limpiar();
-        }}
+          onClose={limpiarTodo} // ✅
         />
       )}
     </div>

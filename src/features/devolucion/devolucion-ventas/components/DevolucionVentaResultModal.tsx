@@ -1,6 +1,6 @@
 "use client";
-
-import type { DevolucionVenta } from "../../devolucion-ventas/types/DevolucionVenta";
+ {/* Pagina final confirmacionde devolucion */}
+import type { DevolucionVenta } from "../types/DevolucionVenta";
 
 interface Props {
   devolucion: DevolucionVenta;

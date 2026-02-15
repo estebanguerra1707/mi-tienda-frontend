@@ -1,11 +1,11 @@
 "use client";
-
+{/* Pagina resultado de buscar filtros de compras*/}
 import {
   forwardRef,
   useImperativeHandle,
   useState,
 } from "react";
-import AdvancedFiltersDevolucionCompras from "@/features/devolucion/AdvancedFilterDevolucionesCompras";
+import AdvancedFiltersDevolucionCompras from "@/features/devolucion/devolucion-compras/pages/AdvancedFilterDevolucionesCompras";
 import { DevolucionComprasFiltro } from "@/hooks/types/devolucionesCompras";
 import { useSearchDevolucionesCompras } from "@/hooks/useSearchDevolucionesCompras";
 import { useQueryClient } from "@tanstack/react-query";
@@ -60,7 +60,6 @@ const BuscadorDevolucionesCompras = forwardRef<
 
       {/* FILTROS */}
       
-       
         <AdvancedFiltersDevolucionCompras
           onApply={aplicarFiltros}
           onClear={() => {

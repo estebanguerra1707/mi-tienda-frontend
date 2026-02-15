@@ -12,11 +12,13 @@ import { usePaymentMethods } from "@/hooks/useCatalogs";
 interface Props {
   onApply: (next: Record<string, string | undefined>) => void;
   showId?: boolean;
+  onClear?: () => void;
 }
 
 export default function AdvancedFiltersVentas({
   onApply,
   showId = false,
+  onClear,
 }: Props) {
   const [filtros, setFiltros] = useState<Record<string, string | undefined>>({
     clientId: "",
@@ -84,12 +86,18 @@ export default function AdvancedFiltersVentas({
     const clean = Object.fromEntries(
       Object.entries(filtros).filter(([, v]) => v != null && v !== "")
     );
-    onApply({ ...clean, page: "1" });
+    onApply({ ...clean, page: "0", size: "20" });
+
   };
 
   const clear = () => {
     setFiltros({});
+    setShowAdvanced(false);
+    setOpenStart(false);
+    setOpenEnd(false);
+
     onApply({});
+    onClear?.();
   };
 
   const inputCls =
@@ -199,7 +207,19 @@ export default function AdvancedFiltersVentas({
           Buscar
         </Button>
 
-        <Button variant="outline" className="w-full sm:w-auto" onClick={clear}>
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            setFiltros({});
+            setShowAdvanced(false);
+            setOpenStart(false);
+            setOpenEnd(false);  
+
+            onApply({});
+            onClear?.();
+          }}
+        >
           Limpiar
         </Button>
 

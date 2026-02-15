@@ -41,24 +41,44 @@ const schema = z.object({
     .array(
       z.object({
         productId: z.number().min(1, "Seleccione un producto válido"),
-        quantity: z.number().min(1, "Cantidad inválida"),
+        quantity: z.coerce.number().positive("Cantidad inválida"),
         ownerType: z.enum(["PROPIO", "CONSIGNACION"]).optional(),
       })
     )
     .min(1, "Debe agregar al menos un producto"),
-}) .refine(
-    (data) => {
-      // Cliente registrado → clientId > 0
-      if (data.clientId && data.clientId > 0) return true;
-      return false;
-    },
-    {
-      message: "Debe seleccionar un cliente o escribir un nombre",
-      path: ["clientName"], // el mensaje sale debajo del input de nombre
-    }
-  );
+});
 
 type VentaForm = z.infer<typeof schema>;
+type UnidadUI = {
+  label: string;
+  step: number;
+  min: number;
+  esPieza: boolean;
+  esMetro: boolean;
+};
+
+const getUnidadUI = (p: ProductItem): UnidadUI => {
+  const code = (p.unidadMedidaCodigo ?? "").toUpperCase();
+  const abbr = (p.unidadMedidaAbreviatura ?? "").trim();
+
+  // ✅ Detectar metro por código
+  const esMetro = code === "METRO" || code === "M";
+
+  // ✅ Pieza: por tu regla actual (si NO permite decimales)
+  const esPieza = p.permiteDecimales === false;
+
+  const label =
+    abbr ||
+    (code ? code.toLowerCase() : "") ||
+    (esPieza ? "pz" : esMetro ? "m" : "kg");
+
+  // ✅ Tu cambio: metro 0.1, otros decimales 0.01
+  const step = esPieza ? 1 : esMetro ? 0.1 : 0.01;
+  const min = esPieza ? 1 : esMetro ? 0.1 : 0.01;
+
+  return { label, step, min, esPieza, esMetro };
+};
+
 
 const makeZodResolver = <T extends object>(schema: ZodSchema<T>): Resolver<T> =>
   (zodResolver as unknown as (s: unknown) => unknown)(schema) as Resolver<T>;
@@ -87,50 +107,55 @@ export default function AddVentaButton({ onCreated }: { onCreated: () => void })
   const [showResumenModal, setShowResumenModal] = useState(false);
   const [resumenVenta, setResumenVenta] = useState<ResumenVenta | null>(null);
   const ventaFormSnapshot = useRef<VentaForm | null>(null);
+  const [extraProducts, setExtraProducts] = useState<ProductItem[]>([]);
+
 
   type BackendError = {
-  response?: {
-    data?: {
-      message?: string;
+    response?: {
+      data?: {
+        message?: string;
+      };
     };
   };
-};
 
   
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(
     isSuper ? null : userBranchId
   );
-const branchesHook = useBranches({
-  isSuper,
-  businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
-  oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
-});
+  const branchesHook = useBranches({
+    isSuper,
+    businessTypeId: isSuper ? auth.user?.businessType ?? null : null,
+    oneBranchId: !isSuper ? auth.user?.branchId ?? null : null,
+  });
 
-const branches = useMemo(
-  () => branchesHook.data ?? [],
-  [branchesHook.data]
-);
+  const branches = useMemo(
+    () => branchesHook.data ?? [],
+    [branchesHook.data]
+  );
 
-const selectedBranch = useMemo(
-  () => branches.find((b) => b.id === selectedBranchId),
-  [branches, selectedBranchId]
-);
+  const selectedBranch = useMemo(
+    () => branches.find((b) => b.id === selectedBranchId),
+    [branches, selectedBranchId]
+  );
 
-const usaInventarioPorDuenio =
-  selectedBranch?.usaInventarioPorDuenio === true;
-const [isConfirming] = useState(false);
+  const usaInventarioPorDuenio =
+    selectedBranch?.usaInventarioPorDuenio === true;
+  const [isConfirming] = useState(false);
 
 
-const { data: productsRaw } = useProductsByBranch(
-   selectedBranchId && selectedBranchId > 0 ? selectedBranchId : undefined
-);
+  const { data: productsRaw } = useProductsByBranch(
+    selectedBranchId && selectedBranchId > 0 ? selectedBranchId : undefined
+  );
+  const products = useMemo(() => {
+    const base = (() => {
+      if (!productsRaw) return [];
+      if (Array.isArray(productsRaw)) return productsRaw;
+      if ("content" in productsRaw) return productsRaw.content ?? [];
+      return [];
+    })();
 
-const products = useMemo(() => {
-  if (!productsRaw) return [];
-  if (Array.isArray(productsRaw)) return productsRaw;
-  if ("content" in productsRaw) return productsRaw.content ?? [];
-  return [];
-}, [productsRaw]);
+    return [...base, ...extraProducts];
+  }, [productsRaw, extraProducts]);
 
 
 
@@ -177,31 +202,6 @@ const [showScanner, setShowScanner] = useState(false);
     setSaleDateLocal(dayjs(now).format("YYYY-MM-DDTHH:mm:ss"));
   }, []);
 
-const normalizeProducts = (products: unknown): ProductItem[] => {
-  if (Array.isArray(products)) {
-    return products as ProductItem[];
-  }
-
-  if (
-    typeof products === "object" &&
-    products !== null &&
-    "content" in products &&
-    Array.isArray((products as { content: unknown }).content)
-  ) {
-    return (products as { content: ProductItem[] }).content;
-  }
-
-  if (
-    typeof products === "object" &&
-    products !== null &&
-    "data" in products &&
-    Array.isArray((products as { data: unknown }).data)
-  ) {
-    return (products as { data: ProductItem[] }).data;
-  }
-
-  return [];
-};
 
   /* ---------- Calcular total ---------- */
 useEffect(() => {
@@ -235,15 +235,16 @@ useEffect(() => {
       return;
     }
 
-const list: ProductItem[] = normalizeProducts(products);
+    const list = products;
     
     const term = searchTerm.toLowerCase();
 
     const results = list.filter(
       (p) =>
-        p.name?.toLowerCase().includes(term) ||
-        p.codigoBarras?.toLowerCase().includes(term) ||
-        p.barcode?.toLowerCase().includes(term)
+        (p.name?.toLowerCase() ?? "").includes(term) ||
+        (p.codigoBarras?.toString() ?? "").includes(term) ||
+        (p.barcode?.toString() ?? "").includes(term) ||
+        (p.sku?.toLowerCase() ?? "").includes(term)
     );
 
     setFilteredProducts(results);
@@ -256,10 +257,6 @@ const list: ProductItem[] = normalizeProducts(products);
     const nuevoCambio = cashGiven > totalVenta ? cashGiven - totalVenta : 0;
     setValue("changeAmount", nuevoCambio, { shouldValidate: false });
   }, [isCash, cashGiven, totalVenta, setValue]);
-  
-  useEffect(() => {
-}, [products])
-
 
   /* ---------- Envío ---------- */
 const onSubmit = async (values: VentaForm) => {
@@ -274,15 +271,41 @@ const onSubmit = async (values: VentaForm) => {
   }
 
   ventaFormSnapshot.current = values;
+    for (const d of values.details) {
+      const prod = products.find((p) => p.id === d.productId);
+      if (!prod) continue;
 
-  const productosResumen = (values.details || []).map((d) => {
-    const prod = products.find((p) => p.id === d.productId);
-    return {
-      name: prod?.name ?? "Producto",
-      quantity: d.quantity,
-      price: prod?.salePrice ?? 0,
-    };
-  });
+      const qty = Number(d.quantity);
+      const u = getUnidadUI(prod);
+
+      if (u.esPieza) {
+        if (!Number.isInteger(qty)) {
+          toastError(`"${prod.name}" es por ${u.label}, la cantidad debe ser entera.`);
+          return;
+        }
+        if (qty < u.min) {
+          toastError(`Cantidad inválida en "${prod.name}". Mínimo: ${u.min} ${u.label}`);
+          return;
+        }
+      } else {
+        if (qty < u.min) {
+          toastError(`Cantidad inválida en "${prod.name}". Mínimo: ${u.min} ${u.label}`);
+          return;
+        }
+      }
+    }
+   const productosResumen = (values.details || []).map((d) => {
+  const prod = products.find((p) => p.id === Number(d.productId));
+  const u = prod ? getUnidadUI(prod) : null;
+
+  return {
+    name: prod?.name ?? "Producto",
+    quantity: Number(d.quantity) || 0,
+    price: prod?.salePrice ?? 0,
+    unitAbbr: prod?.unidadMedidaAbreviatura ?? u?.label ?? null,
+    unitName: prod?.unidadMedidaNombre ?? null, 
+  };
+});
 
   setResumenVenta({
     cliente: clients?.find((c) => c.id === values.clientId)?.name ?? "Sin cliente",
@@ -300,7 +323,7 @@ const onSubmit = async (values: VentaForm) => {
 const handleBarcodeScan = async (code: string) => {
   const cleanCode = code.trim();
 
-  let list: ProductItem[] = normalizeProducts(products);
+  let list: ProductItem[] = products;
   let prod: ProductItem | null = null;
   prod =
     list.find(
@@ -333,7 +356,9 @@ const handleBarcodeScan = async (code: string) => {
       }
 
       prod = data;
-
+      setExtraProducts((prev) =>
+        prev.some((x) => x.id === data.id) ? prev : [...prev, data]
+      );
       list = [...list, data];
 
     } catch (error) {
@@ -499,6 +524,7 @@ useEffect(() => {
                             // limpiar productos seleccionados
                             setValue("details", []);
                             setFilteredProducts([]);
+                            setExtraProducts([]);
                             trigger("details");
                           }}
                         >
@@ -670,23 +696,37 @@ useEffect(() => {
                             )}
 
                             {/* Cantidad */}
-                            <Input
-                              type="number"
-                              min="1"
-                              className="w-full md:w-24"
-                              {...register(`details.${i}.quantity`, {
-                                valueAsNumber: true,
-                                onChange: async (e) => {
-                                  setValue(
-                                    `details.${i}.quantity`,
-                                    Number(e.target.value),
-                                    { shouldValidate: true }
-                                  );
-                                  await trigger("details");
-                                },
-                              })}
-                            />
+                            {(() => {
+                              const u = getUnidadUI(prod);
 
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    min={u.min}
+                                    step={u.step}
+                                    className="w-full md:w-24"
+                                    {...register(`details.${i}.quantity`, {
+                                      valueAsNumber: true,
+                                      onChange: async (e) => {
+                                        const raw = (e.target as HTMLInputElement).value;
+                                        const n = raw === "" ? 0 : Number(raw);
+
+                                        setValue(`details.${i}.quantity`, n, {
+                                          shouldValidate: true,
+                                          shouldDirty: true,
+                                        });
+
+                                        await trigger("details");
+                                      },
+                                    })}
+                                  />
+                                  <span className="text-xs text-gray-600 min-w-[24px] text-left">
+                                    {u.label}
+                                  </span>
+                                </div>
+                              );
+                            })()}
                             {/* Precio */}
                             <div className="text-sm md:text-center font-medium">
                               ${prod.salePrice?.toFixed(2)}
@@ -715,7 +755,7 @@ useEffect(() => {
                   trigger();
                 }}
                   className="border rounded px-2 py-1 w-full">
-                  <option value="">Seleccione cliente</option>
+                  <option value={0}>Seleccione cliente</option>
                   {clients?.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}

@@ -54,6 +54,7 @@ export default function CompraDetalleModal({ compra, onClose }: CompraDetalleMod
                 <tr>
                 <th className="border px-2 py-1 text-left">Producto</th>
                 <th className="border px-2 py-1 text-center">Cantidad</th>
+                <th className="border px-2 py-1 text-center">Unidad de medida</th>
                 <th className="border px-2 py-1 text-center">Precio unitario</th>
                 </tr>
             </thead>
@@ -62,6 +63,9 @@ export default function CompraDetalleModal({ compra, onClose }: CompraDetalleMod
                 <tr key={i}>
                     <td className="border px-2 py-1">{d.productName}</td>
                     <td className="border px-2 py-1 text-center">{d.quantity}</td>
+                    <td className="border px-2 py-1 text-center" title={d.unitName}>
+                      {d.unitAbbr}
+                    </td>
                     <td className="border px-2 py-1 text-center">
                     ${d.unitPrice.toFixed(2)}
                     </td>

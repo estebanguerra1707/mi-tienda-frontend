@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { DevolucionItem, DevolucionFiltro } from "@/hooks/types/devoluciones";
 import { useSearchDevolucionesVentas } from "@/hooks/useDevolucionesVentas";
 
-import AdvancedFiltersDevoluciones from "./AdvancedFiltersDevolucionesVentas";
+import AdvancedFiltersDevoluciones from "./devolucion-ventas/pages/AdvancedFiltersDevolucionesVentas";
 
 export interface BuscadorAvanzadoDevolucionesHandle {
   limpiar: () => void;

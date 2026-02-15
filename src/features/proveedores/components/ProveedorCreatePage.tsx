@@ -4,12 +4,27 @@ import ProveedorForm, { ProveedorFormValues } from "./ProveedoresForm";
 import { useCreateProveedor } from "@/hooks/useProveedores";
 import type { CreateProveedorDto } from "../types";
 
+function getBackendMessage(err: unknown): string | null {
+  // err.response.data.message (Axios style)
+  if (typeof err === "object" && err !== null) {
+    const maybe = err as { response?: { data?: unknown } };
+    const data = maybe.response?.data;
+
+    if (typeof data === "object" && data !== null) {
+      const d = data as { message?: unknown };
+      if (typeof d.message === "string" && d.message.trim() !== "") {
+        return d.message;
+      }
+    }
+  }
+  return null;
+}
+
 export default function ProveedorCreatePage() {
   const navigate = useNavigate();
   const create = useCreateProveedor();
 
   const handleSubmit = async (values: ProveedorFormValues) => {
-    // ✅ ahora validas branchIds (array)
     if (!values.branchIds || values.branchIds.length === 0) {
       toast.error("Debes seleccionar al menos una sucursal.");
       return;
@@ -19,12 +34,18 @@ export default function ProveedorCreatePage() {
       name: values.name,
       contact: values.contact ?? null,
       email: values.email ?? null,
-      branchIds: values.branchIds, // ✅ antes era branchId
+      branchIds: values.branchIds,
     };
 
-    await create.mutateAsync(payload);
-    toast.success("Proveedor creado correctamente");
-    navigate("/proveedores");
+    try {
+      await create.mutateAsync(payload);
+      toast.success("Proveedor creado correctamente");
+      navigate("/proveedores");
+    } catch (err) {
+      const backendMsg = getBackendMessage(err);
+      const fallback = err instanceof Error ? err.message : "No se pudo crear el proveedor";
+      toast.error(backendMsg ?? fallback);
+    }
   };
 
   return (
@@ -95,7 +116,6 @@ export default function ProveedorCreatePage() {
           Cancelar
         </button>
 
-        {/* ✅ esto solo funciona si el <form> tiene id="proveedor-form" */}
         <button
           type="submit"
           form="proveedor-form"

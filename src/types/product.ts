@@ -1,4 +1,4 @@
-// Tipos para productos
+export type UnidadMedida = "PIEZA" | "KILOGRAMO" | "LITRO" | "METRO";
 export interface ProductItem {
   id: number;
   name: string;
@@ -18,9 +18,14 @@ export interface ProductItem {
 
   creationDate: string;
 
-  codigoBarras: string; // 💡 nombre original del backend
-  barcode?: string;     // alias opcional si lo usas en venta
+  codigoBarras: string;
+  barcode?: string;
   active: boolean;
+  permiteDecimales?: boolean;
+ unidadMedidaId?: number | null;
+  unidadMedidaAbreviatura?: string | null;
+  unidadMedidaCodigo?: string | null;
+  unidadMedidaNombre?: string | null;
 }
 
 export interface PageResponse<T> {
