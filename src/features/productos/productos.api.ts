@@ -10,6 +10,7 @@ export type PageResp<T> = {
   last: boolean;
 };
 
+
 export type Producto = {
   id: number;
   name: string;
@@ -48,7 +49,10 @@ export type BackendProductDTO = {
   stock: number;
   usaInventarioPorDuenio?: boolean;
   inventarioOwnerType?: "PROPIO" | "CONSIGNACION";
-  unidadMedida?: UnidadMedida;
+  unidadMedidaId?: number | null;
+  unidadMedidaCodigo?: string | null;
+  unidadMedidaNombre?: string | null;
+  unidadMedidaAbreviatura?: string | null;
   permiteDecimales?: boolean;
 };
 
@@ -112,6 +116,7 @@ export interface ProductoResponseDTO {
   active: boolean;
   unidadMedida?: UnidadMedida;
   permiteDecimales?: boolean;
+  unidadMedidaId?: number;
 }
 
 

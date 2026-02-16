@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, type ComponentProps, type UIEvent } from "react";
+import { useMemo, useState, useEffect, useRef, type UIEvent, type ComponentProps } from "react";
 import { useProductSearchParams } from "@/hooks/useProducts";
 import { useAuth } from "@/hooks/useAuth";
 import AddProductButton from "@/features/productos/components/AddProductButton";
@@ -13,6 +13,30 @@ import { useBranches } from "@/hooks/useCatalogs";
 import EditProductButton from "@/features/productos/components/EditProductButton";
 
 type EditableProduct = ComponentProps<typeof EditProductButton>["product"];
+
+
+type ProductListItem = EditableProduct & {
+  categoryName?: string;
+  providerName?: string;
+  businessTypeId?: number;
+  businessTypeName?: string;
+  creationDate?: string;
+  branchId?: number | null;
+  active: boolean;
+  stock: number;
+  usaInventarioPorDuenio: boolean;
+  inventarioOwnerType: "PROPIO" | "CONSIGNACION";
+  permiteDecimales?: boolean;
+  unidadMedidaCodigo?: string;
+  unidadMedidaNombre?: string;
+  unidadMedidaAbreviatura?: string;
+};
+export const UNIDADES = [
+  { id: 3, code: "PIEZA", label: "Pieza" },
+  { id: 4, code: "KG", label: "Kilogramo" },
+  { id: 5, code: "LITRO", label: "Litro" },
+  { id: 6, code: "METRO", label: "Metro" },
+] as const;
 
 
 type SortKey =
@@ -200,56 +224,65 @@ useEffect(() => {
   }, [setSearch]);
 
 
-
-
 const sortedItems = useMemo(() => {
   const content = (data?.content ?? []) as BackendProductDTO[];
 
-  const unique = Array.from(
+  const unique: ProductListItem[] = Array.from(
     new Map(
       content.map((p) => {
-        const barcode = (p.codigoBarras ?? "")
-          .trim()
-          .replace(/\s+/g, "");
+        const barcode = (p.codigoBarras ?? "").trim().replace(/\s+/g, "");
 
         const owner: "PROPIO" | "CONSIGNACION" =
-          p.inventarioOwnerType === "CONSIGNACION"
-            ? "CONSIGNACION"
-            : "PROPIO";
-        const key = `${barcode}-${owner}-${p.branchId ?? "global"}`;
+          p.inventarioOwnerType === "CONSIGNACION" ? "CONSIGNACION" : "PROPIO";
 
-        return [
-          key,
-          {
-            id: p.id,
-            name: p.name,
-            sku: p.sku,
-            codigoBarras: barcode,
-            description: p.description,
-            purchasePrice: Number(p.purchasePrice),
-            salePrice: Number(p.salePrice),
-            categoryId: p.categoryId,
-            categoryName: p.categoryName,
-            providerId: p.providerId,
-            providerName: p.providerName,
-            businessTypeId: p.businessTypeId,
-            businessTypeName: p.businessTypeName,
-            creationDate: p.creationDate,
-            branchId: p.branchId ?? null,
-            active: Boolean(p.active),
-            stock: Number(p.stock ?? 0),
-            usaInventarioPorDuenio: Boolean(p.usaInventarioPorDuenio),
-            inventarioOwnerType: owner,
-          },
-        ] as const;
+        const key = barcode
+          ? `${barcode}-${owner}-${p.branchId ?? "global"}`
+          : `id-${p.id}-${owner}-${p.branchId ?? "global"}`;
+
+        const unidadIdFromCode =
+          p.unidadMedidaCodigo
+            ? UNIDADES.find((u) => u.code === p.unidadMedidaCodigo)?.id
+            : undefined;
+
+        const unidadMedidaId =
+          p.unidadMedidaId ?? unidadIdFromCode ?? UNIDADES[0].id;
+
+        const item: ProductListItem = {
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          codigoBarras: barcode,
+          description: p.description,
+          purchasePrice: Number(p.purchasePrice),
+          salePrice: Number(p.salePrice),
+          categoryId: p.categoryId,
+          providerId: p.providerId,
+          unidadMedidaId: Number(unidadMedidaId),
+          categoryName: p.categoryName,
+          providerName: p.providerName,
+          businessTypeId: p.businessTypeId,
+          businessTypeName: p.businessTypeName,
+          creationDate: p.creationDate ?? new Date().toISOString(),
+          branchId: p.branchId ?? null,
+          active: Boolean(p.active),
+          stock: Number(p.stock ?? 0),
+          usaInventarioPorDuenio: Boolean(p.usaInventarioPorDuenio),
+          inventarioOwnerType: owner,
+          permiteDecimales: Boolean(p.permiteDecimales),
+
+          unidadMedidaCodigo: p.unidadMedidaCodigo ?? undefined,
+          unidadMedidaNombre: p.unidadMedidaNombre ?? undefined,
+          unidadMedidaAbreviatura: p.unidadMedidaAbreviatura ?? undefined,
+        };
+
+        return [key, item] as [string, ProductListItem];
       })
     ).values()
   );
 
-
   const dir = localSort.dir === "asc" ? 1 : -1;
 
-  return [...unique].sort((a, b) => {
+  return unique.sort((a, b) => {
     const av = a[localSort.key];
     const bv = b[localSort.key];
 
@@ -259,15 +292,15 @@ const sortedItems = useMemo(() => {
 
     switch (localSort.key) {
       case "stock":
-        return (Number(av) - Number(bv)) * dir;
       case "purchasePrice":
       case "salePrice":
         return (Number(av) - Number(bv)) * dir;
+
       case "creationDate":
         return (
-          new Date(av as string).getTime() -
-          new Date(bv as string).getTime()
+          new Date(String(av)).getTime() - new Date(String(bv)).getTime()
         ) * dir;
+
       default:
         return collator.compare(String(av), String(bv)) * dir;
     }
@@ -290,9 +323,7 @@ const handleListScroll = (e: UIEvent<HTMLDivElement>) => {
     const diff = current - prev;
 
     const TOP_SHOW_PX = 40;
-    const THRESHOLD = 10; // súbelo si quieres menos sensibilidad
-
-    // Cerca del top: siempre visible
+    const THRESHOLD = 10;
     if (current <= TOP_SHOW_PX) {
       setShowMobileHeader(true);
       lastScrollY.current = current;
@@ -300,16 +331,13 @@ const handleListScroll = (e: UIEvent<HTMLDivElement>) => {
       return;
     }
 
-    // Siempre actualiza prev para que no se "atasque"
     lastScrollY.current = current;
 
-    // Si el movimiento es pequeño, no cambies el estado
     if (Math.abs(diff) < THRESHOLD) {
       tickingRef.current = false;
       return;
     }
 
-    // Bajando => ocultar | Subiendo => mostrar
     setShowMobileHeader(diff < 0);
 
     tickingRef.current = false;
@@ -351,6 +379,11 @@ const handleListScroll = (e: UIEvent<HTMLDivElement>) => {
     : "text-green-700 font-medium";
 }
 
+const formatDate = (value?: string) => {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es-MX");
+};
 
 
   return (
@@ -878,8 +911,9 @@ const handleListScroll = (e: UIEvent<HTMLDivElement>) => {
                   {p.salePrice != null ? `$${p.salePrice.toFixed(2)}` : "-"}
                 </td>
                 <td className="px-4 py-3">{p.categoryName}</td>
-                <td className="px-4 py-3">{new Date(p.creationDate).toLocaleDateString("es-MX")}</td>
-
+                <td className="px-4 py-3">
+                  <td className="px-4 py-3">{formatDate(p.creationDate)}</td>
+                </td>
                 {isSuper && (
                   <>
                     <td className="px-4 py-3">{p.businessTypeName}</td>
