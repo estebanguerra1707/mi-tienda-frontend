@@ -10,7 +10,7 @@ import { useCrearDevolucion } from "../hooks/useCrearDevolucion";
 import type { CompraItem, DetalleCompraResponseDTO } from "@/features/compras/api";
 import type { Devolucion } from "../types/Devolucion";
 import { useAuth } from "@/hooks/useAuth";
-
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 interface Props {
   compra: CompraItem;
   detalle: DetalleCompraResponseDTO | null;
@@ -39,6 +39,7 @@ export default function DetalleProductoModal({
   onClose,
   onSuccess,
 }: Props) {
+    useDisableNumberWheel();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
@@ -162,6 +163,7 @@ export default function DetalleProductoModal({
             </label>
             <input
               type="number"
+              data-no-wheel="true"
               step={step}
               min={min}
               {...form.register("cantidad", { valueAsNumber: true })}

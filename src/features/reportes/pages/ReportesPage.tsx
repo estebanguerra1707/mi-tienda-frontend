@@ -16,7 +16,7 @@ import { Tabs } from "../components/Tabs";
 import { ResumenGananciasChart } from "../components/ResumenGanaciasChart";
 import { BrutasNetasChart } from "../components/BrutasNetasChart";
 import { GananciaPorVentaChart } from "../components/GananciaPorVentaChart";
-
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 // Fechas default
 const hoy = new Date().toISOString().slice(0, 10);
 const hace30 = new Date(Date.now() - 30 * 86400000)
@@ -24,6 +24,7 @@ const hace30 = new Date(Date.now() - 30 * 86400000)
   .slice(0, 10);
 
 export default function ReportesPage() {
+   useDisableNumberWheel();
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
   
@@ -169,6 +170,7 @@ const branchName = useMemo(() => {
               <label className="text-sm font-medium text-gray-700">ID Venta</label>
               <input
                 type="number"
+                data-no-wheel="true"
                 className="border rounded-lg px-3 py-2 shadow-sm w-full"
                 value={ventaIdInput}
                 onChange={(e) => {

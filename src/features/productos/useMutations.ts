@@ -6,7 +6,7 @@ import {
   type Product,
   type ProductsPage,
   type ProductsQuery,
-  type UpdateProductPayload, // ✅
+  type UpdateProductPayload,
 } from "@/features/productos/api";
 
 export type UpdateArgs = { id: number | string; payload: UpdateProductPayload };

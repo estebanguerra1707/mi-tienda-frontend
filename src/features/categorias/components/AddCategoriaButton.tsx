@@ -190,7 +190,7 @@ const resolvedBusinessTypeId = isSuper
                 </label>
                 <textarea
                   rows={3}
-                  className="border rounded-lg px-3 py-2 w-full shadow-sm resize-y
+                  className="border rounded-lg px-3 py-2 w-full shadow-sm resize-none
                              focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
                   {...register("description")}
                 />

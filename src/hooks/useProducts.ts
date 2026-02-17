@@ -1,5 +1,5 @@
-import { useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import {
@@ -10,16 +10,17 @@ import {
   type Product,
   type ProductsPage,
   type ProductsQuery,
-} from '@/features/productos/api';
+  type UpdateProductPayload,
+} from "@/features/productos/api";
 
 // Claves de react-query
 export const productKeys = {
-  all: ['products'] as const,
-  lists: () => [...productKeys.all, 'list'] as const,
+  all: ["products"] as const,
+  lists: () => [...productKeys.all, "list"] as const,
   list: (params: ProductsQuery) => [...productKeys.lists(), params] as const,
 };
 
-type ProductSearchParamsObj  = Readonly<{
+type ProductSearchParamsObj = Readonly<{
   barcodeName?: string;
   page?: number;
   size?: number;
@@ -39,11 +40,11 @@ export function useProductSearchParams() {
     return o as ProductSearchParamsObj;
   }, [sp]);
 
-  // antes setQ; ahora setSearch para barcodeName
   const setSearch = (value: string) =>
-    setSp(prev => {
+    setSp((prev) => {
       const next = new URLSearchParams(prev);
-      if (value) next.set("barcodeName", value); else next.delete("barcodeName");
+      if (value) next.set("barcodeName", value);
+      else next.delete("barcodeName");
       next.set("page", "1");
       return next;
     });
@@ -53,8 +54,7 @@ export function useProductSearchParams() {
   return { params: sp, paramsObj: obj, setSearch, setParams };
 }
 
-
-// Lista (v5, objeto de opciones, y data tipada)
+// Lista
 export function useProducts(params?: ProductsQuery) {
   const emptyQuery: ProductsQuery = {} as ProductsQuery;
   const queryParams = params ?? emptyQuery;
@@ -62,29 +62,24 @@ export function useProducts(params?: ProductsQuery) {
   return useQuery<ProductsPage, Error>({
     queryKey: productKeys.list(queryParams),
     queryFn: () => fetchProducts(queryParams),
-    staleTime: 30_000, // 30 segundos
+    staleTime: 30_000,
   });
 }
-
 
 // Crear
 export function useCreateProduct() {
   const qc = useQueryClient();
-  return useMutation<Product, Error, Omit<Product, 'id'>>({
+  return useMutation<Product, Error, Omit<Product, "id">>({
     mutationFn: createProduct,
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
   });
 }
 
-
-// Actualizar (mutationFn recibe UN objeto variables)
+// Actualizar
 export function useUpdateProduct() {
   const qc = useQueryClient();
-  return useMutation<
-    Product,
-    Error,
-    { id: number | string; payload: Partial<Product> }
-  >({
+
+  return useMutation<Product, Error, { id: number | string; payload: UpdateProductPayload }>({
     mutationFn: ({ id, payload }) => updateProduct(id, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
   });
@@ -98,5 +93,3 @@ export function useDeleteProduct() {
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
   });
 }
-
-

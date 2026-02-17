@@ -7,6 +7,7 @@ import { getErrorMessage } from "@/features/inventario/getErrorMessage";
 import { updateInventory } from "@/features/inventario/api";
 import type { InventoryItem } from "@/hooks/useInventory";
 import { Pencil } from "lucide-react";
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 
 type FormValues = {
   quantity: number;
@@ -62,6 +63,7 @@ export default function EditInventarioButton({
   row: InventoryItem;
   onUpdated?: () => void;
 }) {
+    useDisableNumberWheel();
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -173,6 +175,7 @@ export default function EditInventarioButton({
                   <span className="text-sm">Cantidad (stock)</span>
                   <input
                     type="number"
+                    data-no-wheel="true"
                     inputMode="numeric"
                     min={0}
                     className="border rounded px-3 py-2"
@@ -186,6 +189,7 @@ export default function EditInventarioButton({
                   <span className="text-sm">Stock mínimo</span>
                   <input
                     type="number"
+                    data-no-wheel="true"
                     className="border rounded px-3 py-2"
                     {...register("minStock")}
                   />
@@ -196,6 +200,7 @@ export default function EditInventarioButton({
                   <span className="text-sm">Stock máximo</span>
                   <input
                     type="number"
+                    data-no-wheel="true"
                     className="border rounded px-3 py-2"
                     {...register("maxStock")}
                   />

@@ -15,6 +15,7 @@ import { buildFiltro } from "@/features/productos/productos.api";
 import type { Product } from "@/features/productos/api";
 import { type InventarioOwnerType } from "../api";
 import { PackagePlus } from "lucide-react";
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 
 
 type ProductLite = Pick<Product, "id" | "name" | "sku">;
@@ -47,6 +48,7 @@ export default function AddInventoryButton({
   autoOpen = false,
   variant = "primary",
 }: Props) {
+  useDisableNumberWheel();
   const { mutateAsync, isPending } = useCreateInventory();
 
   const auth = useAuth() as {
@@ -462,6 +464,7 @@ export default function AddInventoryButton({
 
               <input
                 type="number"
+                data-no-wheel="true"
                 className="
                   w-full h-12 rounded-2xl
                   border border-slate-200 bg-white
@@ -482,6 +485,7 @@ export default function AddInventoryButton({
                 <span className="block text-xs font-semibold text-slate-600 mb-1">Stock mínimo</span>
                 <input
                   type="number"
+                  data-no-wheel="true"
                   className="
                     w-full h-12 rounded-2xl
                     border border-slate-200 bg-white
@@ -496,6 +500,7 @@ export default function AddInventoryButton({
                 <span className="block text-xs font-semibold text-slate-600 mb-1">Stock máximo</span>
                 <input
                   type="number"
+                  data-no-wheel="true"
                   className="
                     w-full h-12 rounded-2xl
                     border border-slate-200 bg-white

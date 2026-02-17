@@ -11,7 +11,7 @@ import type { DetalleVentaResponseDTO } from "../types/DevolucionVenta";
 import type { DevolucionVenta } from "../types/DevolucionVenta";
 import type { VentaItem } from "@/hooks/useVentas";
 import { useAuth } from "@/hooks/useAuth";
-
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 interface Props {
   venta: VentaItem;
   details: DetalleVentaResponseDTO | null;
@@ -53,6 +53,7 @@ function deriveUnitAbbr(unitAbbr?: string | null, unitName?: string | null): str
 }
 
 function unitAllowsDecimals(unitAbbr: string): boolean {
+  
   const u = normalizeUnit(unitAbbr);
   const noDecimals = new Set(["pz", "pza", "pieza", "un", "unidad"]);
   if (noDecimals.has(u)) return false;
@@ -70,6 +71,7 @@ export default function DetalleProductoVentaModal({
   onClose,
   onSuccess,
 }: Props) {
+  useDisableNumberWheel();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const crearDevolucion = useCrearDevolucionVenta();
@@ -184,6 +186,7 @@ export default function DetalleProductoVentaModal({
             </label>
             <input
               type="number"
+              data-no-wheel="true"
               step={step}
               min={min}
               {...form.register("cantidad", { valueAsNumber: true })}

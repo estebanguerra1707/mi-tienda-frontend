@@ -7,6 +7,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Button } from "@/components/ui/Button";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 
 interface Props {
   params: URLSearchParams;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function AdvancedFiltersCompras({ params, onApply }: Props) {
+    useDisableNumberWheel();
   const [filtros, setFiltros] = useState<Record<string, string | undefined>>({
     supplier: params.get("supplier") ?? "",
     start: params.get("start") ?? "",
@@ -200,6 +202,7 @@ const { data: providers = [], isLoading } = useProveedores();
               <input
                 name="min"
                 type="number"
+                data-no-wheel="true"
                 step="0.01"
                 value={filtros.min ?? ""}
                 onChange={handleChange}
@@ -214,6 +217,7 @@ const { data: providers = [], isLoading } = useProveedores();
               <input
                 name="max"
                 type="number"
+                data-no-wheel="true"
                 step="0.01"
                 value={filtros.max ?? ""}
                 onChange={handleChange}

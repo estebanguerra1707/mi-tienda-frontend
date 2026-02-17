@@ -1,6 +1,8 @@
+"use client";
+
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useForm, Resolver } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { z, type ZodSchema } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,8 +12,7 @@ import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
 
 import { getInventarioDeProducto } from "@/features/productos/inventario.service";
 import { Pencil } from "lucide-react";
-
-
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 import {
   useCategories,
   useProviders,
@@ -19,18 +20,18 @@ import {
   fetchBranchInfo,
 } from "@/hooks/useCatalogs";
 
-
+/** ✅ UNIDADES por CODIGO (lo que recibirá el backend en unidadMedidaCodigo) */
 export const UNIDADES = [
-  { id: 3, code: "PIEZA", label: "Pieza" },
-  { id: 4, code: "KILOGRAMO", label: "Kilogramo" },
-  { id: 5, code: "LITRO", label: "Litro" },
-  { id: 6, code: "METRO", label: "Metro" },
+  { code: "PIEZA", label: "Pieza" },
+  { code: "KG", label: "Kilogramo" },
+  { code: "LITRO", label: "Litro" },
+  { code: "METRO", label: "Metro" },
 ] as const;
 
-export type UnidadMedidaId = (typeof UNIDADES)[number]["id"];
+export type UnidadMedidaCodigo = (typeof UNIDADES)[number]["code"];
+const UNIDAD_CODES = UNIDADES.map((u) => u.code) as readonly UnidadMedidaCodigo[];
 
-
-
+/** Schema: cambia unidadMedidaId -> unidadMedidaCodigo */
 const baseSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
   sku: z.string().min(1, "SKU requerido"),
@@ -42,11 +43,25 @@ const baseSchema = z.object({
   providerId: z.coerce.number().int().min(1, "Proveedor requerido"),
   branchId: z.coerce.number().int().optional(),
   stock: z.coerce.number().int().min(0, "Stock inválido").optional().default(0),
-   minStock: z.coerce.number().int().min(0).optional().default(0),
+  minStock: z.coerce.number().int().min(0).optional().default(0),
   maxStock: z.coerce.number().int().min(0).optional().default(0),
-  unidadMedidaId: z.coerce.number().int().min(1, "Selecciona una unidad"),
+  unidadMedidaCodigo: z
+  .string()
+  .min(1, "Selecciona una unidad")
+  .refine((v): v is UnidadMedidaCodigo => UNIDAD_CODES.includes(v as UnidadMedidaCodigo), {
+    message: "Unidad inválida",
+  })
+  .transform((v) => v as UnidadMedidaCodigo),
+  });
+
+const superSchema = baseSchema.extend({
+  branchId: z.coerce.number().int().min(1, "Sucursal requerida"),
 });
 
+type FormValues = z.infer<typeof baseSchema> & { branchId?: number };
+
+
+/** EditableProduct: cambia unidadMedidaId -> unidadMedidaCodigo */
 type EditableProduct =
   Pick<
     Product,
@@ -59,22 +74,18 @@ type EditableProduct =
     | "salePrice"
     | "categoryId"
     | "providerId"
-    | "unidadMedidaId"
   > & {
     branchId?: number | null;
+
+    // ✅ nuevo: puede venir del backend o del mapper
+    unidadMedidaCodigo?: string | null;
+
+    // (compat opcional si todavía existe en Product mientras migras)
+    unidadMedidaId?: number | null;
   };
 
- 
-
-const superSchema = baseSchema.extend({
-  branchId: z.coerce.number().int().min(1, "Sucursal requerida"),
-});
-
-type FormValues = z.infer<typeof baseSchema> & { branchId?: number };
-
 const makeResolver = <T extends object>(schema: ZodSchema<T>): Resolver<T> =>
-  (zodResolver as (s: ZodSchema<T>) => Resolver<T>)(schema);
-
+  (zodResolver as unknown as (s: unknown) => unknown)(schema) as Resolver<T>;
 
 function getErrorMessage(err: unknown): string {
   if (typeof err === "string") return err;
@@ -88,12 +99,27 @@ function getErrorMessage(err: unknown): string {
   return "Ocurrió un error al actualizar el producto.";
 }
 
+/** helper: id -> codigo (solo para compat si aún te llega unitId en inventario) */
+const mapUnitIdToCode = (id?: number | null): UnidadMedidaCodigo => {
+  switch (id) {
+    case 3:
+      return "PIEZA";
+    case 4:
+      return "KG";
+    case 5:
+      return "LITRO";
+    case 6:
+      return "METRO";
+    default:
+      return "PIEZA";
+  }
+};
+
 export default function EditProductButton({
   product,
   onUpdated,
   paramsActuales,
 
-  // ✅ NUEVO (control modal desde afuera)
   open: controlledOpen,
   hideTrigger,
   onOpenChange,
@@ -106,12 +132,12 @@ export default function EditProductButton({
   hideTrigger?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
- const { mutateAsync, isPending } = useUpdateProduct(paramsActuales);
- const auth = useAuth();
- 
+    useDisableNumberWheel();
+  const { mutateAsync, isPending } = useUpdateProduct(paramsActuales);
+  const auth = useAuth();
+
   const isSuper = auth.hasRole ? auth.hasRole("SUPER_ADMIN") : auth.user?.role === "SUPER_ADMIN";
 
-  // Derivado de la sucursal elegida
   const [derivedBT, setDerivedBT] = useState<number | null>(null);
 
   const isControlled = typeof controlledOpen === "boolean";
@@ -126,25 +152,27 @@ export default function EditProductButton({
     },
     [isControlled, onOpenChange]
   );
+
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
-  if (!toast) return;
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 7000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
-  const timer = setTimeout(() => {
-    setToast(null);
-  }, 7000); // 7 segundos
-
-  return () => clearTimeout(timer);
-}, [toast]);
-
-  // schema & form
-  const schema: ZodSchema<FormValues> = useMemo(
-    () => (isSuper ? superSchema : baseSchema),
-    [isSuper]
-  );
+   const schema = useMemo(() => (isSuper ? superSchema : baseSchema), [isSuper]);
   const resolver = useMemo<Resolver<FormValues>>(() => makeResolver<FormValues>(schema), [schema]);
+
+  const defaultUnidadCodigo: UnidadMedidaCodigo = useMemo(() => {
+    // prioridad: product.unidadMedidaCodigo
+    const raw = (product.unidadMedidaCodigo ?? "").toString().trim().toUpperCase();
+    if (UNIDAD_CODES.includes(raw as UnidadMedidaCodigo)) return raw as UnidadMedidaCodigo;
+
+    // compat: si todavía trae unidadMedidaId
+    return mapUnitIdToCode(product.unidadMedidaId ?? null);
+  }, [product.unidadMedidaCodigo, product.unidadMedidaId]);
 
   const {
     register,
@@ -153,9 +181,8 @@ export default function EditProductButton({
     formState: { errors },
     setFocus,
     watch,
-    setValue, 
+    setValue,
   } = useForm<FormValues>({
-
     resolver,
     defaultValues: {
       name: product.name,
@@ -170,181 +197,133 @@ export default function EditProductButton({
       branchId: (auth.user?.branchId ?? product.branchId) ?? undefined,
       minStock: 0,
       maxStock: 0,
-     unidadMedidaId: product.unidadMedidaId ?? 3,
+
+      // ✅ ahora es codigo
+      unidadMedidaCodigo: defaultUnidadCodigo,
     },
   });
 
+  const watchedBranchId = watch("branchId");
 
+  const { data: branches = [], isLoading: branchesLoading } = useBranches({
+    isSuper,
+    businessTypeId: isSuper ? undefined : auth.user?.businessType ?? undefined,
+    oneBranchId: isSuper ? null : auth.user?.branchId ?? product.branchId ?? null,
+  });
 
-  // Observa la sucursal elegida en el form (o la inicial del producto)
-  const watchedBranchId = watch("branchId"); // number | undefined
-const {
-  data: branches = [],
-  isLoading: branchesLoading,
-} = useBranches({
-  isSuper,
-  businessTypeId: isSuper
-    ? undefined
-    : auth.user?.businessType ?? undefined,
-  oneBranchId: isSuper
-    ? null
-    : auth.user?.branchId ?? product.branchId ?? null,
-});
+  const effectiveBranchId = useMemo<number | undefined>(() => {
+    if (isSuper) return watchedBranchId ?? undefined;
+    return (auth.user?.branchId ?? product.branchId) ?? undefined;
+  }, [isSuper, watchedBranchId, auth.user?.branchId, product.branchId]);
 
+  const branchName = useMemo(() => {
+    if (!effectiveBranchId) return "—";
+    const found = branches.find((b) => b.id === effectiveBranchId);
+    return found?.name ?? "—";
+  }, [branches, effectiveBranchId]);
 
-const effectiveBranchId = useMemo<number | undefined>(() => {
-  if (isSuper) return watchedBranchId ?? undefined;
-  return (auth.user?.branchId ?? product.branchId) ?? undefined;
-}, [isSuper, watchedBranchId, auth.user?.branchId, product.branchId]);
+  const defaultFormValues = useMemo(
+    () => ({
+      name: product.name,
+      sku: product.sku,
+      codigoBarras: product.codigoBarras,
+      description: product.description ?? "",
+      purchasePrice: product.purchasePrice ?? 0,
+      salePrice: product.salePrice ?? 0,
+      categoryId: product.categoryId ?? 0,
+      providerId: product.providerId ?? 0,
+      branchId: (auth.user?.branchId ?? product.branchId) ?? undefined,
+      unidadMedidaCodigo: defaultUnidadCodigo,
+    }),
+    [product, auth.user?.branchId, defaultUnidadCodigo]
+  );
 
-// Nombre legible para mostrar cuando NO es super
-const branchName = useMemo(() => {
-  if (!effectiveBranchId) return "—";
-  const found = branches.find(b => b.id === effectiveBranchId);
-  return found?.name ?? "—";
-}, [branches, effectiveBranchId]);
+  useEffect(() => {
+    if (!open) return;
 
-
-
-const defaultFormValues = useMemo(() => ({
-  name: product.name,
-  sku: product.sku,
-  codigoBarras: product.codigoBarras,
-  description: product.description ?? "",
-  purchasePrice: product.purchasePrice ?? 0,
-  salePrice: product.salePrice ?? 0,
-  categoryId: product.categoryId ?? 0,
-  providerId: product.providerId ?? 0,
-  branchId: (auth.user?.branchId ?? product.branchId) ?? undefined,
-  unidadMedidaId: product.unidadMedidaId ?? 3,
-}), [product, auth.user?.branchId]);
-
-
-
-useEffect(() => {
-  if (!open) return;
-
-  // reset inicial
- reset({
-  ...defaultFormValues,
-  purchasePrice: Number(defaultFormValues.purchasePrice ?? 0),
-  salePrice: Number(defaultFormValues.salePrice ?? 0),
-});
-  if (!effectiveBranchId) {
-    if (isSuper) setDerivedBT(null);
-    setValue("stock", 0);
-    setValue("minStock", 0);
-    setValue("maxStock", 0);
-    return;
-  }
-
-  let alive = true;
-  const unitFromProduct = product.unidadMedidaId;
-
-  (async () => {
-  try {
-    const [btInfo, inv] = await Promise.all([
-      isSuper
-        ? fetchBranchInfo(Number(effectiveBranchId), auth.token ?? "")
-        : null,
-      getInventarioDeProducto(
-          Number(effectiveBranchId),
-          product.id,
-        )
-        .catch(() => null),
-    ]);
-    const unitFromInv = inv?.unitId;
-
-    if (!alive) return;
-
-    if (isSuper) setDerivedBT(btInfo?.businessTypeId ?? null);
-
-
-    // Y seteamos los valores en el formulario
-    setValue("stock", inv?.stock ?? 0);
-    setValue("minStock", inv?.minStock ?? 0);
-    setValue("maxStock", inv?.maxStock ?? 0);
-    setValue(
-      "unidadMedidaId",
-      Number(unitFromProduct ?? unitFromInv ?? 3),
-      { shouldValidate: false, shouldDirty: false }
-    );
-
-  } catch {
-    if (!alive) return;
-    if (isSuper) setDerivedBT(null);
-
-    setValue("stock", 0);
-    setValue("minStock", 0);
-    setValue("maxStock", 0);
-  }
-})();
-
-  return () => { alive = false };
-}, [
-  open,
-  reset,
-  defaultFormValues,
-  effectiveBranchId,
-  isSuper,
-  auth.token,
-  product.id,
-   product.unidadMedidaId,
-  setValue
-]);
-
-
-  // Catálogos (filtrados por BT derivado cuando aplica)
-const {
-  data: categories = [],
-  isLoading: catsLoading,
-} = useCategories({
-  businessTypeId: isSuper
-    ? (derivedBT ?? undefined)
-    : (auth.user?.businessType ?? undefined),
-});
-
-const provs = useProviders({
-  isSuper,
-  businessTypeId: isSuper ? derivedBT ?? undefined : undefined,
-  branchId: !isSuper
-    ? (auth.user?.branchId ?? product.branchId ?? null)
-    : undefined,
-});
-
-const onClose = useCallback(() => {
-  setOpen(false);
-}, [setOpen]);
-
-
-useEffect(() => {
-  if (!open) return;
-
-  const categoryId = product.categoryId;
-  const providerId = product.providerId;
-
-  if (categories.length > 0 && categoryId) {
-    setValue("categoryId", categoryId, {
-      shouldValidate: false,
-      shouldDirty: false,
+    reset({
+      ...defaultFormValues,
+      purchasePrice: Number(defaultFormValues.purchasePrice ?? 0),
+      salePrice: Number(defaultFormValues.salePrice ?? 0),
     });
-  }
 
-  if (provs.data?.length && providerId) {
-    setValue("providerId", providerId, {
-      shouldValidate: false,
-      shouldDirty: false,
-    });
-  }
-}, [
-  open,
-  categories,
-  provs.data,
-  product.categoryId,
-  product.providerId,
-  setValue
-]);
-  // Escape + focus inicial
+    if (!effectiveBranchId) {
+      if (isSuper) setDerivedBT(null);
+      setValue("stock", 0);
+      setValue("minStock", 0);
+      setValue("maxStock", 0);
+      return;
+    }
+
+    let alive = true;
+
+    (async () => {
+      try {
+        const [btInfo, inv] = await Promise.all([
+          isSuper ? fetchBranchInfo(Number(effectiveBranchId), auth.token ?? "") : null,
+          getInventarioDeProducto(Number(effectiveBranchId), product.id).catch(() => null),
+        ]);
+
+        if (!alive) return;
+
+        if (isSuper) setDerivedBT(btInfo?.businessTypeId ?? null);
+
+        setValue("stock", inv?.stock ?? 0);
+        setValue("minStock", inv?.minStock ?? 0);
+        setValue("maxStock", inv?.maxStock ?? 0);
+
+        // ✅ unidad: intenta desde product, si no, desde inventario unitId (compat)
+        const invUnitId = inv?.unitId ?? null;
+        const nextCodigo =
+          (product.unidadMedidaCodigo &&
+            UNIDAD_CODES.includes(product.unidadMedidaCodigo.toString().trim().toUpperCase() as UnidadMedidaCodigo) &&
+            (product.unidadMedidaCodigo.toString().trim().toUpperCase() as UnidadMedidaCodigo)) ||
+          (invUnitId ? mapUnitIdToCode(Number(invUnitId)) : "PIEZA");
+
+        setValue("unidadMedidaCodigo", nextCodigo, { shouldValidate: false, shouldDirty: false });
+      } catch {
+        if (!alive) return;
+        if (isSuper) setDerivedBT(null);
+        setValue("stock", 0);
+        setValue("minStock", 0);
+        setValue("maxStock", 0);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [open, reset, defaultFormValues, effectiveBranchId, isSuper, auth.token, product.id, product.unidadMedidaCodigo, setValue]);
+
+  const { data: categories = [], isLoading: catsLoading } = useCategories({
+    businessTypeId: isSuper ? (derivedBT ?? undefined) : auth.user?.businessType ?? undefined,
+  });
+
+  const provs = useProviders({
+    isSuper,
+    businessTypeId: isSuper ? derivedBT ?? undefined : undefined,
+    branchId: !isSuper ? auth.user?.branchId ?? product.branchId ?? null : undefined,
+  });
+
+  const onClose = useCallback(() => {
+    setOpen(false);
+  }, [setOpen]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const categoryId = product.categoryId;
+    const providerId = product.providerId;
+
+    if (categories.length > 0 && categoryId) {
+      setValue("categoryId", categoryId, { shouldValidate: false, shouldDirty: false });
+    }
+
+    if (provs.data?.length && providerId) {
+      setValue("providerId", providerId, { shouldValidate: false, shouldDirty: false });
+    }
+  }, [open, categories, provs.data, product.categoryId, product.providerId, setValue]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -358,56 +337,47 @@ useEffect(() => {
     };
   }, [open, setFocus, onClose]);
 
+  const onSubmit = async (values: FormValues) => {
+    try {
+      // ✅ payload ahora manda unidadMedidaCodigo (String)
+      const payload = {
+        name: values.name,
+        sku: values.sku,
+        codigoBarras: values.codigoBarras,
+        description: values.description,
+        purchasePrice: Number(values.purchasePrice),
+        salePrice: Number(values.salePrice),
+        categoryId: Number(values.categoryId),
+        providerId: Number(values.providerId),
+        stock: Number(values.stock),
+        branchId: isSuper ? Number(values.branchId) : Number(auth.user?.branchId ?? product.branchId),
+        unidadMedidaCodigo: values.unidadMedidaCodigo,
+      };
 
-const onSubmit = async (values: FormValues) => {
-  try {
-    const payload = {
-      name: values.name,
-      sku: values.sku,
-      codigoBarras: values.codigoBarras,
-      description: values.description,
-      purchasePrice: Number(values.purchasePrice ),
-      salePrice: Number(values.salePrice ),
-      categoryId: Number(values.categoryId),
-      providerId: Number(values.providerId),
-      stock: Number(values.stock),
-      branchId: isSuper
-        ? Number(values.branchId)
-        : Number(auth.user?.branchId ?? product.branchId),
-      unidadMedidaId: Number(values.unidadMedidaId),
-    };
-    await mutateAsync({ id: product.id, payload });
-    setToast({ type: "success", message: "Producto actualizado." });
-    onClose();
-    onUpdated?.();
-  } catch (err) {
-    setToast({ type: "error", message: getErrorMessage(err) });
-  }
-};
+      await mutateAsync({ id: product.id, payload });
+      setToast({ type: "success", message: "Producto actualizado." });
+      onClose();
+      onUpdated?.();
+    } catch (err) {
+      setToast({ type: "error", message: getErrorMessage(err) });
+    }
+  };
 
-  // UI helpers
   const disableCatsProv = isSuper && !watchedBranchId;
 
   return (
     <>
-     {!hideTrigger && (
-      <button
-        type="button"
-        className="
-          inline-flex items-center gap-2
-          px-2 py-1 text-xs
-          rounded border
-          hover:bg-slate-100
-          transition
-        "
-        onClick={() => setOpen(true)}
-        title="Editar"
-      >
-        <Pencil className="h-4 w-4" />
-      </button>
-    )}
+      {!hideTrigger && (
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 px-2 py-1 text-xs rounded border hover:bg-slate-100 transition"
+          onClick={() => setOpen(true)}
+          title="Editar"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+      )}
 
-      {/* Toast */}
       {toast &&
         createPortal(
           <div className="fixed bottom-4 right-4 z-[11000]">
@@ -425,10 +395,8 @@ const onSubmit = async (values: FormValues) => {
       {open &&
         createPortal(
           <div className="fixed inset-0 z-[10000] isolate">
-            {/* Backdrop */}
             <div className="fixed inset-0 bg-black/40" onClick={onClose} />
 
-            {/* Sheet */}
             <div
               role="dialog"
               aria-modal="true"
@@ -437,156 +405,109 @@ const onSubmit = async (values: FormValues) => {
                          max-h-[85vh] rounded-xl bg-white shadow-2xl
                          flex flex-col overflow-hidden"
             >
-              {/* Header sticky */}
               <div className="px-4 sm:px-6 py-4 border-b sticky top-0 bg-white/95 backdrop-blur z-10">
                 <h2 className="text-lg font-semibold">Editar producto</h2>
               </div>
 
-              {/* Body scrollable */}
-              <form
-                onSubmit={handleSubmit(onSubmit)}
-                className="px-4 sm:px-6 py-4 pb-0 overflow-y-auto"
-              >
-                {/* Grid */}
+              <form onSubmit={handleSubmit(onSubmit)} className="px-4 sm:px-6 py-4 pb-0 overflow-y-auto">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {/* Nombre */}
                   <label className="flex flex-col gap-1 sm:col-span-2">
                     <span className="text-sm">Nombre</span>
-                    <input
-                      className="border rounded px-3 py-2"
-                      {...register("name")}
-                      inputMode="text"
-                    />
-                    {errors.name && (
-                      <p className="text-red-600 text-xs">{errors.name.message}</p>
-                    )}
+                    <input className="border rounded px-3 py-2" {...register("name")} inputMode="text" />
+                    {errors.name && <p className="text-red-600 text-xs">{errors.name.message}</p>}
                   </label>
 
-                  {/* SKU */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">SKU</span>
                     <input className="border rounded px-3 py-2" {...register("sku")} />
-                    {errors.sku && (
-                      <p className="text-red-600 text-xs">{errors.sku.message}</p>
-                    )}
+                    {errors.sku && <p className="text-red-600 text-xs">{errors.sku.message}</p>}
                   </label>
 
-                  {/* Código de barras */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Código de barras</span>
-                   <div className="flex gap-2">
-                    <input
-                      className="flex-1 border rounded px-3 py-2"
-                      {...register("codigoBarras")}
-                      inputMode="numeric"
-                    />
-
-                    <button
-                      type="button"
-                      className="px-3 py-2 rounded bg-green-600 text-white"
-                      onClick={() => setShowScanner(true)}
-                    >
-                      📷
-                    </button>
-                  </div>
-                    {errors.codigoBarras && (
-                      <p className="text-red-600 text-xs">{errors.codigoBarras.message}</p>
-                    )}
+                    <div className="flex gap-2">
+                      <input className="flex-1 border rounded px-3 py-2" {...register("codigoBarras")} inputMode="numeric" />
+                      <button
+                        type="button"
+                        className="px-3 py-2 rounded bg-green-600 text-white"
+                        onClick={() => setShowScanner(true)}
+                      >
+                        📷
+                      </button>
+                    </div>
+                    {errors.codigoBarras && <p className="text-red-600 text-xs">{errors.codigoBarras.message}</p>}
                   </label>
 
-                  {/* Descripción */}
                   <label className="flex flex-col gap-1 sm:col-span-2">
                     <span className="text-sm">Descripción</span>
-                    <textarea
-                      rows={3}
-                      className="border rounded px-3 py-2 resize-y"
-                      {...register("description")}
-                    />
-                    {errors.description && (
-                      <p className="text-red-600 text-xs">{errors.description.message}</p>
-                    )}
+                    <textarea rows={3} className="border rounded px-3 py-2 resize-none" {...register("description")} />
+                    {errors.description && <p className="text-red-600 text-xs">{errors.description.message}</p>}
                   </label>
 
-                  {/* Precio compra */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Precio compra</span>
                     <input
                       type="number"
+                      data-no-wheel="true"
                       step="0.01"
                       inputMode="decimal"
                       className="border rounded px-3 py-2"
                       {...register("purchasePrice", { valueAsNumber: true })}
                     />
-                    {errors.purchasePrice && (
-                      <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>
-                    )}
+                    {errors.purchasePrice && <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>}
                   </label>
 
-                    {/* Precio venta */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Precio venta</span>
                     <input
                       type="number"
+                      data-no-wheel="true"
                       step="0.01"
                       className="border rounded px-3 py-2"
                       {...register("salePrice", { valueAsNumber: true })}
                     />
-                    {errors.salePrice && (
-                      <p className="text-red-600 text-xs">{errors.salePrice.message}</p>
+                    {errors.salePrice && <p className="text-red-600 text-xs">{errors.salePrice.message}</p>}
+                  </label>
+
+                  {/* ✅ Unidad de medida (CODIGO) */}
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm">Unidad de medida</span>
+                    <select className="border rounded px-3 py-2" {...register("unidadMedidaCodigo")}>
+                      <option value="">Selecciona…</option>
+                      {UNIDADES.map((u) => (
+                        <option key={u.code} value={u.code}>
+                          {u.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.unidadMedidaCodigo && (
+                      <p className="text-red-600 text-xs">{errors.unidadMedidaCodigo.message}</p>
                     )}
                   </label>
+
                   <label className="flex flex-col gap-1">
-                        <span className="text-sm">Unidad de medida</span>
-
-                        <select
-                          className="border rounded px-3 py-2"
-                          {...register("unidadMedidaId", { valueAsNumber: true })}
-                        >
-                          <option value="">Selecciona…</option>
-                          {UNIDADES.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.label}
-                            </option>
-                          ))}
-                        </select>
-
-                        {errors.unidadMedidaId && (
-                          <p className="text-red-600 text-xs">{errors.unidadMedidaId.message}</p>
-                        )}
-                      </label>
-                    {/* Stock (solo lectura, viene del inventario por sucursal) */}
-                    <label className="flex flex-col gap-1">
                     <span className="text-sm">En existencia</span>
                     <input
-                        type="number"
-                        inputMode="numeric"
-                        className="border rounded px-3 py-2"
-                         {...register("stock", { valueAsNumber: true })} readOnly
-                    />
-                    {errors.stock && (
-                        <p className="text-red-600 text-xs">{errors.stock.message}</p>
-                    )}
-                    </label>
-                  {/* Min Stock */}
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm">Stock mínimo</span>
-                    <input
                       type="number"
+                      data-no-wheel="true"
+                      inputMode="numeric"
                       className="border rounded px-3 py-2"
-                      {...register("minStock", { valueAsNumber: true })} readOnly
+                      {...register("stock", { valueAsNumber: true })}
+                      readOnly
                     />
+                    {errors.stock && <p className="text-red-600 text-xs">{errors.stock.message}</p>}
                   </label>
 
-                  {/* Max Stock */}
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm">Stock mínimo</span>
+                    <input type="number" data-no-wheel="true"  className="border rounded px-3 py-2" {...register("minStock", { valueAsNumber: true })} readOnly />
+                  </label>
+
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Stock máximo</span>
-                    <input
-                      type="number"
-                      className="border rounded px-3 py-2"
-                      {...register("maxStock", { valueAsNumber: true })} readOnly
-                    />
+                    <input type="number" data-no-wheel="true" className="border rounded px-3 py-2" {...register("maxStock", { valueAsNumber: true })} readOnly />
                   </label>
-                  {/* Categoría */}
+
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Categoría</span>
                     <select
@@ -595,25 +516,21 @@ const onSubmit = async (values: FormValues) => {
                       disabled={catsLoading || disableCatsProv}
                     >
                       <option value="">Selecciona…</option>
-
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
                       ))}
                     </select>
-                    {errors.categoryId && (
-                      <p className="text-red-600 text-xs">{errors.categoryId.message}</p>
-                    )}
+                    {errors.categoryId && <p className="text-red-600 text-xs">{errors.categoryId.message}</p>}
                   </label>
 
-                  {/* Proveedor */}
                   <label className="flex flex-col gap-1">
                     <span className="text-sm">Proveedor</span>
                     <select
                       className="border rounded px-3 py-2"
                       {...register("providerId", { valueAsNumber: true })}
-                        disabled={provs.isLoading || disableCatsProv}
+                      disabled={provs.isLoading || disableCatsProv}
                     >
                       <option value="">Selecciona…</option>
                       {provs.data?.map((p) => (
@@ -622,78 +539,60 @@ const onSubmit = async (values: FormValues) => {
                         </option>
                       ))}
                     </select>
-                    {errors.providerId && (
-                      <p className="text-red-600 text-xs">{errors.providerId.message}</p>
-                    )}
+                    {errors.providerId && <p className="text-red-600 text-xs">{errors.providerId.message}</p>}
                   </label>
 
-                  {/* Sucursal (solo SUPER_ADMIN) */}
                   {isSuper ? (
                     <label className="flex flex-col gap-1 sm:col-span-2">
-                        <span className="text-sm">Sucursal</span>
-                        <select
+                      <span className="text-sm">Sucursal</span>
+                      <select
                         className="border rounded px-3 py-2"
                         {...register("branchId", { valueAsNumber: true })}
                         disabled={branchesLoading}
-                        >
+                      >
                         <option value="">Selecciona…</option>
                         {branches.map((b) => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
+                          <option key={b.id} value={b.id}>
+                            {b.name}
+                          </option>
                         ))}
-                        </select>
-                        {errors.branchId && <p className="text-red-600 text-xs">{errors.branchId.message}</p>}
+                      </select>
+                      {errors.branchId && <p className="text-red-600 text-xs">{errors.branchId.message}</p>}
                     </label>
-                    ) : (
+                  ) : (
                     <label className="flex flex-col gap-1 sm:col-span-2">
-                        <span className="text-sm">Sucursal</span>
-                        {/* Solo mostramos el nombre */}
-                        <input
-                        className="border rounded px-3 py-2 bg-slate-50"
-                        value={branchName}
-                        readOnly
-                        tabIndex={-1}
-                        />
-                        {/* Y enviamos el branchId como hidden */}
-                        <input
+                      <span className="text-sm">Sucursal</span>
+                      <input className="border rounded px-3 py-2 bg-slate-50" value={branchName} readOnly tabIndex={-1} />
+                      <input
                         type="hidden"
                         {...register("branchId", { valueAsNumber: true })}
-                        value={effectiveBranchId ?? ""}   // mejor 'value' que 'defaultValue' para mantenerlo sincronizado
+                        value={effectiveBranchId ?? ""}
                         readOnly
-                        />
+                      />
                     </label>
-                    )}
+                  )}
                 </div>
 
-                {/* Footer sticky */}
                 <div className="sticky bottom-0 z-10 mt-4 bg-white/95 backdrop-blur border-t px-4 sm:px-6 py-3">
                   <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-4 py-2 rounded border"
-                    >
+                    <button type="button" onClick={onClose} className="px-4 py-2 rounded border">
                       Cancelar
                     </button>
-                    <button
-                      type="submit"
-                      disabled={isPending}
-                      className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-60"
-                    >
+                    <button type="submit" disabled={isPending} className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-60">
                       {isPending ? "Guardando..." : "Guardar cambios"}
                     </button>
                   </div>
                 </div>
               </form>
+
               {showScanner && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[12000] flex items-center justify-center">
                   <div className="bg-white rounded-xl p-4 w-[95%] max-w-md shadow-xl">
-                    <h2 className="text-xl font-semibold mb-3">
-                      Escanear código de barras
-                    </h2>
+                    <h2 className="text-xl font-semibold mb-3">Escanear código de barras</h2>
 
                     <BarcodeCameraScanner
                       onResult={(code: string) => {
-                        setValue("codigoBarras", code, {
+                        setValue("codigoBarras", String(code).replace(/\D+/g, ""), {
                           shouldValidate: true,
                           shouldDirty: true,
                         });
@@ -716,6 +615,5 @@ const onSubmit = async (values: FormValues) => {
           document.body
         )}
     </>
-    
   );
 }

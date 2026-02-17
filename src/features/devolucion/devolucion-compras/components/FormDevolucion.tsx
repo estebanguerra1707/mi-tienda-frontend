@@ -8,6 +8,7 @@ import type {
   DetalleCompraResponseDTO,
 } from "@/features/compras/api";
 import type { Devolucion } from "../types/Devolucion";
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 
 const baseSchema = z.object({
   cantidad: z.number().min(1, "Debe ser mayor a 0"),
@@ -35,6 +36,7 @@ export default function FormDevolucion({
   detalle,
   onSuccess,
 }: Props) {
+   useDisableNumberWheel();
   const crearDevolucion = useCrearDevolucion();
 
   const form = useForm<FormValues>({
@@ -85,6 +87,7 @@ export default function FormDevolucion({
         </label>
         <input
           type="number"
+          data-no-wheel="true"
           {...form.register("cantidad", { valueAsNumber: true })}
           className={inputCls}
         />

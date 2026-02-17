@@ -1,11 +1,9 @@
-import { api } from '@/lib/api';
-import { cleanParams } from '@/lib/http-params';
-import { ProductoResponseDTO } from './productos.api';
-export type UnidadMedida =
-  | "PIEZA"
-  | "KILOGRAMO"
-  | "LITRO"
-  | "METRO";
+import { api } from "@/lib/api";
+import { cleanParams } from "@/lib/http-params";
+import { ProductoResponseDTO } from "./productos.api";
+
+export type UnidadMedida = "PIEZA" | "KG" | "LITRO" | "METRO";
+export type UnidadMedidaCodigo = "PIEZA" | "KG" | "LITRO" | "METRO";
 
 export type Product = {
   id: number;
@@ -22,31 +20,32 @@ export type Product = {
   businessTypeName: string;
   creationDate: string;
   codigoBarras: string;
+
   unidadMedidaId: number;
   unidadMedida?: UnidadMedida;
+
   permiteDecimales: boolean;
 };
-export type UpdateProductPayload = {
+
+export type UpdateProductPayload = Partial<{
   name: string;
   sku: string;
   codigoBarras: string;
-  description?: string;
+  description: string;
   purchasePrice: number;
   salePrice: number;
   categoryId: number;
   providerId: number;
-  stock?: number;
-  minStock?: number;
-  maxStock?: number;
-   unidadMedidaId: number;
-};
-
+  stock: number;
+  minStock: number;
+  maxStock: number;
+  unidadMedidaCodigo: UnidadMedidaCodigo;
+}>;
 
 export type BusinessType = {
   id: number;
   name: string;
 };
-
 
 export type ProductsQuery = Readonly<{
   barcodeName?: string;
@@ -61,7 +60,6 @@ export type ProductsPage = {
   pageSize: number;
 };
 
-
 type SpringPage<T> = {
   content: T[];
   totalElements: number;
@@ -69,7 +67,10 @@ type SpringPage<T> = {
   size: number;
 };
 
-export type CreateProductPayload = Omit<Product, 'id' | 'categoryName' | 'providerName' | 'businessTypeId' | 'businessTypeName' | 'creationDate'> & {
+export type CreateProductPayload = Omit<
+  Product,
+  "id" | "categoryName" | "providerName" | "businessTypeId" | "businessTypeName" | "creationDate"
+> & {
   branchId?: number;
 };
 
@@ -81,12 +82,11 @@ export async function fetchProducts(params: ProductsQuery): Promise<ProductsPage
     q: params.barcodeName || undefined,
     page: Math.max(0, (params.page ?? 1) - 1),
     size: params.pageSize ?? 10,
-    sort: 'name,asc',
+    sort: "name,asc",
   });
 
-  const { data } = await api.get<MaybePaged<Product>>('/productos', { params: springParams });
+  const { data } = await api.get<MaybePaged<Product>>("/productos", { params: springParams });
 
-  // ¿Backend devuelve array plano?
   if (Array.isArray(data)) {
     return {
       items: data,
@@ -96,7 +96,6 @@ export async function fetchProducts(params: ProductsQuery): Promise<ProductsPage
     };
   }
 
-  // Página de Spring -> nuestra shape
   return {
     items: data.content ?? [],
     total: data.totalElements ?? 0,
@@ -106,14 +105,12 @@ export async function fetchProducts(params: ProductsQuery): Promise<ProductsPage
 }
 
 export async function createProduct(payload: CreateProductPayload): Promise<Product> {
-  const { data } = await api.post<Product>('/productos', payload);
+  const { data } = await api.post<Product>("/productos", payload);
   return data;
 }
 
-export async function updateProduct(
-  id: number | string,
-  payload: UpdateProductPayload
-): Promise<Product> {
+// PUT /productos/:id (pero payload parcial)
+export async function updateProduct(id: number | string, payload: UpdateProductPayload): Promise<Product> {
   const { data } = await api.put<Product>(`/productos/${id}`, payload);
   return data;
 }

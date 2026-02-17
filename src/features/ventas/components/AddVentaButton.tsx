@@ -22,6 +22,7 @@ import ConfirmarVentaModal from "@/features/ventas/components/ConfirmarVentaModa
 import {ResumenVenta} from "@/types/catalogs";
 import { toastError } from "@/lib/toast";
 import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
 
 
 
@@ -87,6 +88,7 @@ const makeZodResolver = <T extends object>(schema: ZodSchema<T>): Resolver<T> =>
 /* ---------- Componente ---------- */
 export default function AddVentaButton({ onCreated }: { onCreated: () => void }) {
   const { mutateAsync, isPending } = useCreateVenta();
+    useDisableNumberWheel();
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
   const userBranchId = auth.user?.branchId ?? null;
@@ -703,6 +705,7 @@ useEffect(() => {
                                 <div className="flex items-center gap-2">
                                   <Input
                                     type="number"
+                                    data-no-wheel="true"
                                     min={u.min}
                                     step={u.step}
                                     className="w-full md:w-24"
@@ -803,6 +806,7 @@ useEffect(() => {
                       <span className="text-sm text-right">Cantidad pagada ($)</span>
                       <Input
                         type="number"
+                        data-no-wheel="true"
                         step="0.01"
                         className={`border rounded px-3 py-2 text-right ${
                           Number(localCash) < totalVenta && localCash !== ""

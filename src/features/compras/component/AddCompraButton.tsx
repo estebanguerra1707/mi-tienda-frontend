@@ -24,6 +24,8 @@ import { FormSelect } from "@/components/ui/FormSelect";
 import BarcodeScannerModal from "@/components/BarcodeScannerModal";
 import { AxiosError } from "axios";
 import { ProductoResumen } from "@/types/catalogs";
+import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
+
 
 
 /* ---------- Schema ---------- */
@@ -90,6 +92,7 @@ type ToastState = { type: "success" | "error"; message: string } | null;
 
 /* ---------- Componente principal ---------- */
 export default function AddCompraButton({ onCreated }: { onCreated?: () => void }) {
+  useDisableNumberWheel();
   const { mutateAsync, isPending } = useCreateCompra();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
@@ -863,6 +866,7 @@ const resetearFormularioCompra = () => {
                                     </button>
                                     <input
                                         type="number"
+                                        data-no-wheel="true"
                                          min={u.min}
                                          step={u.step}
                                         className="w-14 text-center border rounded"
@@ -992,6 +996,7 @@ const resetearFormularioCompra = () => {
                                 </button>
                                 <input
                                   type="number"
+                                  data-no-wheel="true"
                                      min={u.min}
                                     step={u.step}
                                   className="w-16 text-center border rounded"
@@ -1081,6 +1086,7 @@ const resetearFormularioCompra = () => {
                         <span className="text-sm text-right">Cantidad pagada ($)</span>
                         <input
                           type="number"
+                          data-no-wheel="true"
                           step="0.01"
                           className={`border rounded px-3 py-2 text-right ${
                             Number(localCash) < totalCompra && localCash !== ""
