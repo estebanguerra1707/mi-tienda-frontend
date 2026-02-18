@@ -192,6 +192,11 @@ function InventarioContent() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+  allInv.refetch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
   return (
     <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 overflow-x-hidden">
       {/* ===== MOBILE HEADER (COMPACT) ===== */}
@@ -566,7 +571,7 @@ function InventarioContent() {
         onScroll={handleListScroll}
         className="
           md:hidden
-          pt-[156px]
+          pt-[250px]
           pb-[calc(72px+env(safe-area-inset-bottom))]
           overflow-y-auto
           overflow-x-hidden

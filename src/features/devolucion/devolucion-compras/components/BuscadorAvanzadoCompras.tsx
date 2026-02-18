@@ -85,7 +85,17 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
       });
 
       const page: CompraPage = await buscar.mutateAsync(clean);
-      setResultados(page.content);
+
+      const sorted = [...(page.content ?? [])].sort((a, b) => {
+        const ta = new Date(a.purchaseDate).getTime();
+        const tb = new Date(b.purchaseDate).getTime();
+        if (Number.isNaN(ta) && Number.isNaN(tb)) return 0;
+        if (Number.isNaN(ta)) return 1;
+        if (Number.isNaN(tb)) return -1;
+        return tb - ta; // DESC
+      });
+
+      setResultados(sorted);
     };
 
     const { user, hasRole } = useAuth() as {
@@ -96,7 +106,6 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
     const isSuper = hasRole?.("SUPER_ADMIN") ?? false;
     const isAdmin = hasRole?.("ADMIN") ?? false;
     const canFilterByUser = isSuper || isAdmin;
-
 
     const { data: providers = [] } = useProviders({
       isSuper,
@@ -115,7 +124,7 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
         month: "",
         year: "",
         active: "",
-        username: "", 
+        username: "",
       });
 
       setResultados([]);
@@ -137,6 +146,7 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
 
     const input =
       "w-full border rounded-lg px-3 py-3 text-sm focus:ring-2 focus:ring-blue-500";
+
     const handlePick = (c: CompraItem) => {
       onSelect(c);
     };
@@ -197,9 +207,7 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
               <PopoverTrigger asChild>
                 <button type="button" className={`${input} text-left`}>
                   {parseDate(filtros.end)
-                    ? format(parseDate(filtros.end)!, "dd MMM yyyy", {
-                        locale: es,
-                      })
+                    ? format(parseDate(filtros.end)!, "dd MMM yyyy", { locale: es })
                     : "Hasta"}
                 </button>
               </PopoverTrigger>
@@ -217,10 +225,7 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 justify-end">
-            <Button
-              type="submit"
-              className="bg-blue-600 text-white w-full sm:w-auto"
-            >
+            <Button type="submit" className="bg-blue-600 text-white w-full sm:w-auto">
               Buscar
             </Button>
 
@@ -234,11 +239,7 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
             </Button>
 
             {!showAdvanced && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowAdvanced(true)}
-              >
+              <Button type="button" variant="ghost" onClick={() => setShowAdvanced(true)}>
                 Búsqueda avanzada
               </Button>
             )}
@@ -262,37 +263,21 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
               />
 
               <div className="grid grid-cols-3 gap-2">
-                <input
-                  name="day"
-                  placeholder="Día"
-                  value={filtros.day}
-                  onChange={handleChange}
-                  className={input}
-                />
-                <input
-                  name="month"
-                  placeholder="Mes"
-                  value={filtros.month}
-                  onChange={handleChange}
-                  className={input}
-                />
-                <input
-                  name="year"
-                  placeholder="Año"
-                  value={filtros.year}
-                  onChange={handleChange}
-                  className={input}
-                />
+                <input name="day" placeholder="Día" value={filtros.day} onChange={handleChange} className={input} />
+                <input name="month" placeholder="Mes" value={filtros.month} onChange={handleChange} className={input} />
+                <input name="year" placeholder="Año" value={filtros.year} onChange={handleChange} className={input} />
               </div>
-                {canFilterByUser && (
-                  <input
-                    name="username"
-                    placeholder="Usuario (vendor)"
-                    value={filtros.username}
-                    onChange={handleChange}
-                    className={input}
-                  />
-                )}
+
+              {canFilterByUser && (
+                <input
+                  name="username"
+                  placeholder="Usuario (vendor)"
+                  value={filtros.username}
+                  onChange={handleChange}
+                  className={input}
+                />
+              )}
+
               <select
                 name="active"
                 value={filtros.active}
@@ -304,34 +289,22 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
                 <option value="false">Sólo inactivos</option>
               </select>
 
-              <Button
-                type="submit"
-                className="bg-blue-600 text-white w-full sm:w-auto"
-              >
+              <Button type="submit" className="bg-blue-600 text-white w-full sm:w-auto">
                 Aplicar
               </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={clearAll}
-                className="w-full sm:w-auto"
-              >
+              <Button type="button" variant="outline" onClick={clearAll} className="w-full sm:w-auto">
                 Limpiar
               </Button>
 
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowAdvanced(false)}
-              >
+              <Button type="button" variant="ghost" onClick={() => setShowAdvanced(false)}>
                 Ocultar avanzada
               </Button>
             </div>
           )}
         </form>
 
-        {/* -------- RESULTADOS MOBILE -------- */}
+        {/* ✅ RESULTADOS MOBILE (solo < lg) */}
         <div className="space-y-2 lg:hidden">
           {resultados.map((c) => {
             const selected = selectedId === c.id;
@@ -357,61 +330,56 @@ const BuscadorAvanzadoCompras = forwardRef<BuscadorAvanzadoComprasHandle, Props>
                 <p className="text-xs text-gray-600">
                   {c.paymentName} · ${c.amountPaid.toFixed(2)}
                 </p>
-                <p className="text-xs text-gray-600">
-                  Usuario: {c.userName}
-                </p>
+                <p className="text-xs text-gray-600">Usuario: {c.userName}</p>
               </button>
             );
           })}
         </div>
 
-        {/* -------- RESULTADOS DESKTOP -------- */}
+        {/* ✅ RESULTADOS DESKTOP (solo >= lg) */}
         {resultados.length > 0 && (
-        <div className="space-y-2">
-          {resultados.map((c) => {
-            const selected = selectedId === c.id;
+          <div className="hidden lg:block space-y-2">
+            {resultados.map((c) => {
+              const selected = selectedId === c.id;
 
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onSelect(c)} // ✅ misma funcionalidad que el botón
-                className={`
-                  w-full flex justify-between items-center
-                  px-4 py-4
-                  rounded-xl border
-                  text-left transition
-                  ${selected
-                    ? "bg-blue-50 border-blue-400 ring-2 ring-blue-200"
-                    : "bg-white border-gray-200 hover:bg-blue-50 active:bg-blue-100"}
-                `}
-              >
-                <div className="space-y-1">
-                  <p className="font-semibold text-gray-900">
-                    Compra #{c.id}
-                  </p>
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onSelect(c)}
+                  className={`
+                    w-full flex justify-between items-center
+                    px-4 py-4
+                    rounded-xl border
+                    text-left transition
+                    ${
+                      selected
+                        ? "bg-blue-50 border-blue-400 ring-2 ring-blue-200"
+                        : "bg-white border-gray-200 hover:bg-blue-50 active:bg-blue-100"
+                    }
+                  `}
+                >
+                  <div className="space-y-1">
+                    <p className="font-semibold text-gray-900">Compra #{c.id}</p>
 
-                  <p className="text-xs text-gray-600">
-                    {new Date(c.purchaseDate).toLocaleString("es-MX")} Monto · $
-                    {Number(c.amountPaid).toFixed(2)} MXN
-                  </p>
+                    <p className="text-xs text-gray-600">
+                      {new Date(c.purchaseDate).toLocaleString("es-MX")} Monto · $
+                      {Number(c.amountPaid).toFixed(2)} MXN
+                    </p>
 
-                  <p className="text-xs text-gray-600">
-                    Proveedor: {c.providerName} · Método de pago:  {c.paymentName}
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    Usuario: {c.userName}
-                  </p>
-                </div>
+                    <p className="text-xs text-gray-600">
+                      Proveedor: {c.providerName} · Método de pago: {c.paymentName}
+                    </p>
 
-                <span className="text-blue-600 text-xl leading-none">
-                  ›
-                </span>
-              </button>
-            );
-          })}
-        </div>
-          )}
+                    <p className="text-xs text-gray-600">Usuario: {c.userName}</p>
+                  </div>
+
+                  <span className="text-blue-600 text-xl leading-none">›</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
