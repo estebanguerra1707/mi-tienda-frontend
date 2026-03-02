@@ -367,7 +367,7 @@ function VentaCard(props: {
         <div className="shrink-0 text-right">
           <div className="text-sm text-slate-500">Monto</div>
           <div className="text-lg font-bold text-slate-900 tabular-nums">
-            {formatMoney(v.amountPaid)}
+            {formatMoney(v.totalAmount)}
           </div>
         </div>
       </div>

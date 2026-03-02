@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { toastError } from "@/lib/toast";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { Eye, EyeOff } from "lucide-react";
 
 const schema = z.object({
   email: z.string().email("Correo inválido").min(1, "Requerido"),
@@ -17,13 +18,13 @@ type FormValues = z.infer<typeof schema>;
 export default function LoginPage() {
   const nav = useNavigate();
   const location = useLocation();
-const { login, user } = useAuth();
+  const { login, user } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
 
   const params = new URLSearchParams(location.search);
   const reason = params.get("reason");
- 
+
   const isMobile = useIsMobile(768);
 
   const {
@@ -34,14 +35,14 @@ const { login, user } = useAuth();
     resolver: zodResolver(schema),
   });
 
-    const onSubmit = async (data: FormValues) => {
-      try {
-        await login(data.email, data.password);
-      } catch (err) {
-        console.warn(err);
-        toastError("Usuario o contraseña incorrectos.");
-      }
-    };
+  const onSubmit = async (data: FormValues) => {
+    try {
+      await login(data.email, data.password);
+    } catch (err) {
+      console.warn(err);
+      toastError("Usuario o contraseña incorrectos.");
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -69,7 +70,6 @@ const { login, user } = useAuth();
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-
       {/* Fondo */}
       <div
         className="absolute inset-0 bg-cover bg-center"
@@ -96,7 +96,6 @@ const { login, user } = useAuth();
         </h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-
           {/* Usuario */}
           <div>
             <label className="block text-sm text-white/80 mb-1">Usuario</label>
@@ -106,6 +105,8 @@ const { login, user } = useAuth();
               focus:ring-blue-400 placeholder-white/40"
               placeholder="Correo electrónico"
               {...register("email")}
+              autoComplete="email"
+              inputMode="email"
             />
             {errors.email && (
               <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>
@@ -124,15 +125,30 @@ const { login, user } = useAuth();
                 focus:ring-blue-400 placeholder-white/40"
                 placeholder="••••••••"
                 {...register("password")}
+                autoComplete="current-password"
               />
 
               {/* Botón ver/ocultar */}
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-3 flex items-center text-white/70 hover:text-white"
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                className="
+                  absolute inset-y-0 right-2 my-2
+                  inline-flex items-center justify-center
+                  w-10 rounded-lg
+                  text-white/70 hover:text-white
+                  hover:bg-white/10
+                  focus:outline-none focus:ring-2 focus:ring-blue-400
+                  transition
+                "
               >
-                {showPassword ? "👁️" : "👁️‍🗨️"}
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-5 w-5" aria-hidden="true" />
+                )}
               </button>
             </div>
 

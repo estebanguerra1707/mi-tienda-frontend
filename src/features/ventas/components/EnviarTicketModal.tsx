@@ -1,18 +1,35 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/Button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sendVentaTicketByEmail } from "@/features/ventas/api";
 import { EnviarTicketModalProps } from "@/types/catalogs";
 import { toastSuccess } from "@/lib/toastSuccess";
 import { toastError } from "@/lib/toast";
 import { printTicketUniversal } from "@/lib/printTicket";
 
-export default function EnviarTicketModal({ ventaId, open, onClose }: EnviarTicketModalProps) {
+export default function EnviarTicketModal({
+  ventaId,
+  open,
+  onClose,
+}: EnviarTicketModalProps) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // ✅ Limpia el input cada vez que se abre el modal
+  useEffect(() => {
+    if (open) {
+      setEmail("");
+      setLoading(false);
+    }
+  }, [open]);
 
   const handleSend = async () => {
     if (!ventaId) return;
@@ -50,7 +67,6 @@ export default function EnviarTicketModal({ ventaId, open, onClose }: EnviarTick
           />
 
           <div className="flex justify-between items-center mt-6">
-
             <button
               onClick={() => {
                 if (!ventaId) {
