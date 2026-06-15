@@ -13,7 +13,8 @@ interface Props {
 }
 
 export function RadarProductosPorUsuario({ data }: Props) {
-  const usuarios = Array.from(new Set(data.map((d) => d.username)));
+const usuarios = Array.from(new Set(data.map((d) => d.username)))
+  .filter((u): u is string => typeof u === "string" && u.trim() !== "");
 
   // Convertir data por producto → usuarios
   const dataset = data.map((p) => {
@@ -21,8 +22,8 @@ export function RadarProductosPorUsuario({ data }: Props) {
       productName: p.productName,
     };
 
-    usuarios.forEach((u) => {
-      row[u] = p.username === u ? p.totalQuantity : 0;
+   usuarios.forEach((u) => {
+      row[u] = p.username === u ? Number(p.totalQuantity ?? 0) : 0;
     });
 
     return row;
@@ -45,11 +46,11 @@ export function RadarProductosPorUsuario({ data }: Props) {
           <PolarAngleAxis dataKey="productName" />
           <Tooltip />
 
-          {usuarios.map((u, idx) => (
-            <Radar
-              key={u}
-              name={u}
-              dataKey={u}
+         {usuarios.map((u, idx) => (
+              <Radar
+                key={u}
+                name={u}
+                dataKey={u}
               stroke={colores[idx % colores.length]}
               fill={colores[idx % colores.length]}
               fillOpacity={0.6}

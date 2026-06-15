@@ -69,7 +69,7 @@ export function HeatmapProductos({ data }: Props) {
   const productosMap: Record<string, number> = {};
   data.forEach((p) => {
     productosMap[p.productName] =
-      (productosMap[p.productName] ?? 0) + p.totalQuantity;
+    (productosMap[p.productName] ?? 0) + Number(p.totalQuantity ?? 0);
   });
 
   // Formato que usa Treemap

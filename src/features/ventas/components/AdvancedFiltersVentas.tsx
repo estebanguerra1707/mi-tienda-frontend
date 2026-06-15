@@ -168,8 +168,7 @@ const periodoSemanalLabel =
     "w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
-    <div className="space-y-1">
-
+    <div className="space-y-4">
       <h3 className="text-base font-semibold">
         Filtros ·  ventas
       </h3>
@@ -219,7 +218,7 @@ const periodoSemanalLabel =
         </select>
 
         {/* FECHAS */}
-        <div className="flex flex-col sm:flex-row lg:col-span-4 gap-3">
+        <div className="sm:col-span-2 lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
 
           <Popover open={openStart} onOpenChange={setOpenStart}>
             <PopoverTrigger asChild>
@@ -263,41 +262,45 @@ const periodoSemanalLabel =
             </PopoverContent>
           </Popover>
         </div>
-{showWeeklyConsolidation && (
-  <div className="lg:col-span-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-      <div>
-        <p className="text-sm font-semibold text-blue-900">
-          Periodo semanal para ticket consolidado
-        </p>
-        <p className="text-xs text-blue-700">
-          El ticket semanal debe tomar ventas de martes a lunes.
-        </p>
-        <p className="mt-1 text-sm font-medium text-slate-800">
-          {periodoSemanalLabel}
-        </p>
-      </div>
+        {showWeeklyConsolidation && (
+          <div className="col-span-full w-full rounded-xl border border-blue-100 bg-blue-50 p-3 sm:p-4">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-blue-900">
+                  Periodo semanal para ticket consolidado
+                </p>
 
-      <div className="flex flex-col sm:flex-row gap-2">
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto bg-white"
-          onClick={() => applySemanaMartesLunes(0)}
-        >
-          Semana actual
-        </Button>
+                <p className="text-xs text-blue-700 leading-snug">
+                  El ticket semanal debe tomar ventas de martes a lunes.
+                </p>
 
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto bg-white"
-          onClick={() => applySemanaMartesLunes(1)}
-        >
-          Semana anterior
-        </Button>
-      </div>
-    </div>
-  </div>
-)}
+                <p className="mt-1 text-sm font-medium text-slate-800 break-words">
+                  {periodoSemanalLabel}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full xl:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full bg-white whitespace-nowrap"
+                  onClick={() => applySemanaMartesLunes(0)}
+                >
+                  Semana actual
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full bg-white whitespace-nowrap"
+                  onClick={() => applySemanaMartesLunes(1)}
+                >
+                  Semana anterior
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ---------- BOTONES ---------- */}

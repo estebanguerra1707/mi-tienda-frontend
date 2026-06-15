@@ -63,8 +63,16 @@ const [selectedVentaIds, setSelectedVentaIds] = useState<number[]>([]);
 
 const currentBranchId =
   user?.branchId == null ? null : Number(user.branchId);
+
+const isTienditaVirtualByBranch =
+  currentBranchId !== null &&
+  TIENDITA_VIRTUAL_BRANCH_IDS.includes(currentBranchId);
+
+const isTienditaVirtualByEmail =
+  (email ?? "").toLowerCase().includes("tienditavirtual");
+
 const isTienditaVirtual =
-  currentBranchId !== null && TIENDITA_VIRTUAL_BRANCH_IDS.includes(currentBranchId);
+  isTienditaVirtualByBranch || isTienditaVirtualByEmail;
 
 const hasVentasSeleccionadas = selectedVentaIds.length > 0;
 
@@ -392,15 +400,15 @@ useEffect(() => {
         <AdvancedFiltersVentas
           onApply={onApplyFilters}
           showId={true}
-          showWeeklyConsolidation={mostrarConsolidadoSemanal}
-        />      
+          showWeeklyConsolidation={isTienditaVirtual}
+        />   
       </div>
 
       {/* LISTA (mobile) + TABLA (desktop) */}
       <div className="space-y-3">
         {/* Mobile cards */}
-        <div className="block md:hidden">
-          {ventas.isLoading ? (
+          <div className="block lg:hidden">
+            {ventas.isLoading ? (
             <div className="rounded-xl border bg-white p-4 text-center text-slate-500">
               Cargando…
             </div>
@@ -412,10 +420,13 @@ useEffect(() => {
             <div className="space-y-3">
               {sortedItems.map((v) => (
                 <VentaCard
-                  key={v.id}
+                  key={v.rowId ?? v.id}
                   v={v}
                   isSuperAdmin={isSuperAdmin}
                   isAdmin={isAdmin}
+                  puedeSeleccionarVentas={puedeSeleccionarVentas}
+                  selectedVentaIds={selectedVentaIds}
+                  onToggleVentaSelection={toggleVentaSelection}
                   onOpen={() => handleRowClick(v)}
                   onDeleted={() => ventas.refetch()}
                   formatDate={formatDate}
@@ -427,7 +438,7 @@ useEffect(() => {
         </div>
 
         {/* Desktop table */}
-        <div className="hidden md:block">
+       <div className="hidden lg:block">
           <VentasTable
             isLoading={ventas.isLoading}
             rows={sortedItems}
@@ -455,12 +466,11 @@ useEffect(() => {
                 venta(s) seleccionada(s)
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={clearSelectedVentas}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
+                  className="w-full sm:w-auto rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"                >
                   Limpiar selección
                 </button>
 
@@ -469,6 +479,7 @@ useEffect(() => {
                   onClick={handleGenerarDetalle}
                   disabled={generarDetalleMutation.isPending}
                   className="
+                    w-full sm:w-auto
                     rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white
                     hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50
                   "
@@ -482,7 +493,7 @@ useEffect(() => {
       {/* ===== PAGINACIÓN MOBILE (FIJA) ===== */}
       <div
         className="
-          md:hidden
+          lg:hidden
           fixed bottom-0 left-0 right-0 z-40
           bg-white border-t shadow-sm
           px-3 py-2
@@ -499,8 +510,8 @@ useEffect(() => {
       </div>
 
       {/* ===== PAGINACIÓN DESKTOP ===== */}
-      <div className="hidden md:flex pt-2 justify-end">
-        <ServerPagination
+        <div className="hidden lg:flex pt-2 justify-end">
+          <ServerPagination
           page={pageUI}
           totalPages={totalPages}
           onChange={(nextPageUI: number) =>
@@ -578,12 +589,28 @@ function VentaCard(props: {
   v: VentaItem;
   isSuperAdmin: boolean;
   isAdmin: boolean;
+  puedeSeleccionarVentas: boolean;
+  selectedVentaIds: number[];
+  onToggleVentaSelection: (ventaId: number) => void;
   onOpen: () => void;
   onDeleted: () => void;
   formatMoney: (n?: number | null) => string;
   formatDate: (iso: string, withTime: boolean) => string;
 }) {
-  const { v, isSuperAdmin, isAdmin, onOpen, onDeleted, formatMoney, formatDate } = props;
+const {
+  v,
+  isSuperAdmin,
+  isAdmin,
+  puedeSeleccionarVentas,
+  selectedVentaIds,
+  onToggleVentaSelection,
+  onOpen,
+  onDeleted,
+  formatMoney,
+  formatDate,
+} = props;
+
+const isSelected = selectedVentaIds.includes(v.id);
 
   return (
     <div
@@ -631,6 +658,34 @@ function VentaCard(props: {
           </div>
         </div>
       </div>
+    {puedeSeleccionarVentas && (
+        <div
+          className="mt-3 flex justify-start"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {v.rowType === "CONSOLIDADA" ? (
+            <span className="inline-flex rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-700">
+              Venta consolidada
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onToggleVentaSelection(v.id)}
+              className={`
+                inline-flex items-center justify-center rounded-lg border px-3 py-1.5
+                text-xs font-semibold transition
+                ${
+                  isSelected
+                    ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                    : "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                }
+              `}
+            >
+              {isSelected ? "✓ Deseleccionar" : "Seleccionar"}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* FOOTER SUPER ADMIN */}
       {(isSuperAdmin || isAdmin) && (
