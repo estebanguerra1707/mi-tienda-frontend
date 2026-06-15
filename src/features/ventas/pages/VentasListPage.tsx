@@ -4,17 +4,25 @@ import { useState, useMemo, useEffect } from "react";
 import {
   useVentas,
   useSearchVentasPaginadas,
+  useGenerarDetalleVentaConsolidada,
+  useGenerarVentaConsolidada,
+  useDetalleVentaConsolidadaPorTicket,
   type VentaSearchFiltro,
 } from "@/hooks/useVentas";
+
+import { toastError } from "@/lib/toast";
 import AddVentaButton from "@/features/ventas/components/AddVentaButton";
 import DeleteVentaButton from "@/features/ventas/components/DeleteVentabutton";
 import AdvancedFiltersVentas from "@/features/ventas/components/AdvancedFiltersVentas";
 import { useAuth } from "@/hooks/useAuth";
 import VentaDetalleModal from "@/features/ventas/components/VentaDetalleModal";
-import type { VentaItem } from "@/features/ventas/api";
+import VentaConsolidadaDetalleModal from "@/features/ventas/components/VentaConsolidadaDetalleModal";
+import type { VentaItem, VentaConsolidadaResponse } from "@/features/ventas/api";
+import EnviarTicketConsolidadoModal from "@/features/ventas/components/EnviarTicketConsolidadoModal";
+
 import type { ReactNode } from "react";
 import { ServerPagination } from "@/components/pagination/ServerPagination";
-
+import { toastSuccess } from "@/lib/toastSuccess";
 // Campos ordenables
 type SortKey =
   | "id"
@@ -32,28 +40,162 @@ export default function VentasListPage() {
   const [filtros, setFiltros] = useState<VentaSearchFiltro>({});
   const { user } = useAuth();
 
-  const role = (user?.role)as
+const role = (user?.role ?? null) as
   | "SUPER_ADMIN"
   | "ADMIN"
   | "VENDOR"
   | null;
 
+const isSuperAdmin = role === "SUPER_ADMIN";
+const isAdmin = role === "ADMIN";
+const isVendor = role === "VENDOR";
 
-  const isSuperAdmin = role === "SUPER_ADMIN";
-  const isAdmin = role === "ADMIN";
-  const isVendor = role === "VENDOR";
+const TIENDITA_VIRTUAL_BRANCH_IDS = [8, 10];
 
-  const email: string | undefined =
-  (user?.email ?? user?.username ?? undefined) ?? undefined;
+const email: string | undefined = user?.email ?? user?.username ?? undefined;
+
+
 
   const [selectedVenta, setSelectedVenta] = useState<VentaItem | null>(null);
   const [openDetalle, setOpenDetalle] = useState(false);
 
-  const handleRowClick = (venta: VentaItem) => {
-    setSelectedVenta(venta);
-    setOpenDetalle(true);
-  };
+const [selectedVentaIds, setSelectedVentaIds] = useState<number[]>([]);
 
+const currentBranchId =
+  user?.branchId == null ? null : Number(user.branchId);
+const isTienditaVirtual =
+  currentBranchId !== null && TIENDITA_VIRTUAL_BRANCH_IDS.includes(currentBranchId);
+
+const hasVentasSeleccionadas = selectedVentaIds.length > 0;
+
+const mostrarConsolidadoSemanal =
+  isTienditaVirtual && hasVentasSeleccionadas;
+
+const puedeSeleccionarVentas = isTienditaVirtual;
+
+const generarDetalleMutation = useGenerarDetalleVentaConsolidada();
+const generarVentaConsolidadaMutation = useGenerarVentaConsolidada();
+
+
+const [detalleConsolidado, setDetalleConsolidado] =
+  useState<VentaConsolidadaResponse | null>(null);
+
+const [openDetalleConsolidado, setOpenDetalleConsolidado] = useState(false);
+
+const [openEnviarTicketConsolidado, setOpenEnviarTicketConsolidado] =
+  useState(false);
+const [selectedWeeklyTicketId, setSelectedWeeklyTicketId] =
+  useState<number | string | null>(null);
+
+const handleRowClick = (venta: VentaItem) => {
+  if (venta.rowType === "CONSOLIDADA") {
+    if (!venta.weeklyTicketId) {
+      toastError("No se encontró el ticket consolidado.");
+      return;
+    }
+
+    setSelectedVenta(null);
+    setOpenDetalle(false);
+    setOpenDetalleConsolidado(false);
+    setSelectedWeeklyTicketId(venta.weeklyTicketId);
+    return;
+  }
+
+  setSelectedVenta(venta);
+  setOpenDetalle(true);
+};
+  const toggleVentaSelection = (ventaId: number) => {
+  setSelectedVentaIds((prev) =>
+    prev.includes(ventaId)
+      ? prev.filter((id) => id !== ventaId)
+      : [...prev, ventaId]
+  );
+};
+
+const clearSelectedVentas = () => {
+  setSelectedVentaIds([]);
+};
+
+const handleGenerarDetalle = () => {
+  if (selectedVentaIds.length === 0) {
+    toastError("Selecciona al menos una venta");
+    return;
+  }
+
+  if (!filtros.startDate || !filtros.endDate) {
+    toastError("Primero selecciona el rango de fechas martes a lunes");
+    return;
+  }
+
+  generarDetalleMutation.mutate(
+    {
+      clienteId: filtros.clientId ?? null,
+      userId: filtros.userId ?? null,
+      startDate: filtros.startDate,
+      endDate: filtros.endDate,
+      ventaIds: selectedVentaIds,
+    },
+    {
+      onSuccess: (detalle) => {
+        setDetalleConsolidado(detalle);
+        setOpenDetalleConsolidado(true);
+        toastSuccess("Detalle consolidado generado correctamente");
+      },
+      onError: (error) => {
+        toastError(
+          getApiErrorMessage(
+            error,
+            "Error al generar el detalle consolidado"
+          )
+        );
+      },
+    }
+  );
+};
+
+const handleGenerarTicketConsolidado = () => {
+  if (!detalleConsolidado) {
+    toastError("No hay detalle consolidado para generar ticket");
+    return;
+  }
+
+  if (!filtros.startDate || !filtros.endDate) {
+    toastError("Falta el rango de fechas del consolidado");
+    return;
+  }
+
+  generarVentaConsolidadaMutation.mutate(
+    {
+      clienteId: detalleConsolidado.clienteId ?? filtros.clientId ?? null,
+      userId: detalleConsolidado.userId ?? filtros.userId ?? null,
+      startDate: filtros.startDate,
+      endDate: filtros.endDate,
+      ventaIds: detalleConsolidado.ventaIds,
+    },
+    {
+      onSuccess: (detalleGenerado) => {
+        setDetalleConsolidado(detalleGenerado);
+
+        setOpenDetalleConsolidado(false);
+        setOpenEnviarTicketConsolidado(true);
+
+        setSelectedVentaIds([]);
+
+        ventas.refetch();
+
+        toastSuccess("Ticket consolidado generado correctamente");
+      },
+      onError: (error) => {
+        toastError(
+          getApiErrorMessage(
+            error,
+            "Error al generar el ticket consolidado"
+          )
+        );
+      },
+    }
+  );
+};
   // Ordenamiento local
   const [localSort, setLocalSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>(
     {
@@ -90,7 +232,8 @@ export default function VentasListPage() {
 
   const ventasNormales = useVentas(params, filtros);
   const ventas = hasFilters ? ventasPaginadas : ventasNormales;
-
+  const detalleConsolidadoPorTicketQuery =
+  useDetalleVentaConsolidadaPorTicket(selectedWeeklyTicketId);
   const onApplyFilters = (next: Record<string, string | undefined>) => {
     const clean = Object.fromEntries(
       Object.entries(next).filter(([, v]) => v !== undefined && v !== "")
@@ -173,6 +316,8 @@ export default function VentasListPage() {
   const totalPages = ventas.data?.totalPages ?? 1;
   const pageUI = Number(params.page ?? 0) + 1;
 
+
+
   useEffect(() => {
     if (!isVendor) return;
     if (!email) return;
@@ -187,6 +332,26 @@ export default function VentasListPage() {
       window.scrollTo({ top: 0 });
     }, [pageUI]);
 
+    useEffect(() => {
+  if (!detalleConsolidadoPorTicketQuery.data) return;
+
+  setDetalleConsolidado(detalleConsolidadoPorTicketQuery.data);
+  setOpenDetalleConsolidado(true);
+  setSelectedWeeklyTicketId(null);
+}, [detalleConsolidadoPorTicketQuery.data]);
+
+useEffect(() => {
+  if (!detalleConsolidadoPorTicketQuery.isError) return;
+
+  toastError("Error al cargar el detalle consolidado.");
+  setSelectedWeeklyTicketId(null);
+}, [detalleConsolidadoPorTicketQuery.isError]);
+
+useEffect(() => {
+  if (!isTienditaVirtual) {
+    setSelectedVentaIds([]);
+  }
+}, [isTienditaVirtual]);
   return (
     <div
       className="
@@ -224,7 +389,11 @@ export default function VentasListPage() {
 
       {/* FILTROS */}
       <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200">
-        <AdvancedFiltersVentas onApply={onApplyFilters} showId={true} />
+        <AdvancedFiltersVentas
+          onApply={onApplyFilters}
+          showId={true}
+          showWeeklyConsolidation={mostrarConsolidadoSemanal}
+        />      
       </div>
 
       {/* LISTA (mobile) + TABLA (desktop) */}
@@ -262,6 +431,9 @@ export default function VentasListPage() {
           <VentasTable
             isLoading={ventas.isLoading}
             rows={sortedItems}
+            selectedVentaIds={selectedVentaIds}
+            onToggleVentaSelection={toggleVentaSelection}
+            puedeSeleccionarVentas={puedeSeleccionarVentas}
             isSuperAdmin={isSuperAdmin}
             isAdmin={isAdmin}
             toggleSort={toggleSort}
@@ -273,6 +445,39 @@ export default function VentasListPage() {
           />
         </div>
       </div>
+
+      {mostrarConsolidadoSemanal && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-900">
+                  {selectedVentaIds.length}
+                </span>{" "}
+                venta(s) seleccionada(s)
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={clearSelectedVentas}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Limpiar selección
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleGenerarDetalle}
+                  disabled={generarDetalleMutation.isPending}
+                  className="
+                    rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white
+                    hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50
+                  "
+                >
+                  {generarDetalleMutation.isPending ? "Generando..." : "Generar detalle"}
+                </button>
+              </div>
+            </div>
+          )}
 
       {/* ===== PAGINACIÓN MOBILE (FIJA) ===== */}
       <div
@@ -305,11 +510,66 @@ export default function VentasListPage() {
       </div>
 
       {/* MODAL DETALLE */}
-      {openDetalle && selectedVenta && (
+     {openDetalle && selectedVenta && (
         <VentaDetalleModal venta={selectedVenta} onClose={() => setOpenDetalle(false)} />
       )}
+
+      {openDetalleConsolidado && detalleConsolidado && (
+        <VentaConsolidadaDetalleModal
+          detalle={detalleConsolidado}
+          onClose={() => setOpenDetalleConsolidado(false)}
+          onGenerarVenta={handleGenerarTicketConsolidado}
+          isGenerating={generarVentaConsolidadaMutation.isPending}
+        />
+      )}
+
+      <EnviarTicketConsolidadoModal
+        open={openEnviarTicketConsolidado}
+        detalle={detalleConsolidado}
+        onClose={() => setOpenEnviarTicketConsolidado(false)}
+      />
     </div>
   );
+}
+
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const err = error as {
+    message?: string;
+    response?: {
+      data?: unknown;
+    };
+  };
+
+  const data = err.response?.data;
+
+  if (typeof data === "string") {
+    return data;
+  }
+
+  if (data && typeof data === "object") {
+    const obj = data as {
+      message?: unknown;
+      error?: unknown;
+    };
+
+    if (typeof obj.message === "string") {
+      return obj.message;
+    }
+
+    if (typeof obj.error === "string" && obj.error !== "Bad Request") {
+      return obj.error;
+    }
+  }
+
+  if (
+    typeof err.message === "string" &&
+    !err.message.includes("status code")
+  ) {
+    return err.message;
+  }
+
+  return fallback;
 }
 
 /* ------------------ Mobile Card ------------------ */
@@ -393,8 +653,11 @@ function VentaCard(props: {
 function VentasTable(props: {
   isLoading: boolean;
   rows: VentaItem[];
+  selectedVentaIds: number[];
+  onToggleVentaSelection: (ventaId: number) => void;
+  puedeSeleccionarVentas: boolean;
   isSuperAdmin: boolean;
-  isAdmin:boolean
+  isAdmin: boolean;
   toggleSort: (k: SortKey) => void;
   Arrow: (p: { k: SortKey }) => ReactNode;
   onOpen: (v: VentaItem) => void;
@@ -403,10 +666,13 @@ function VentasTable(props: {
   formatDate: (iso: string, withTime: boolean) => string;
 }) {
   const {
-    isLoading,
-    rows,
-    isSuperAdmin,
-    isAdmin,
+  isLoading,
+  rows,
+  selectedVentaIds,
+  onToggleVentaSelection,
+  puedeSeleccionarVentas,
+  isSuperAdmin,
+  isAdmin,
     toggleSort,
     Arrow,
     onOpen,
@@ -421,6 +687,10 @@ function VentasTable(props: {
         <table className="min-w-[1000px] w-full text-sm">
           <thead className="bg-slate-100 border-b sticky top-0 z-10">
             <tr className="text-gray-700">
+               {puedeSeleccionarVentas && (
+                    <th className="px-4 py-3 text-center font-semibold">
+                    </th>
+                  )}
               <th className="px-4 py-3">
                 <button
                   onClick={() => toggleSort("id")}
@@ -486,20 +756,42 @@ function VentasTable(props: {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500">
+                <td colSpan={8} className="p-4 text-center text-gray-500">
                   Cargando…
                 </td>
               </tr>
             )}
 
-            {!isLoading &&
+           {!isLoading &&
               rows.map((v) => (
                 <tr
-                  key={v.id}
+                  key={v.rowId ?? v.id}
                   onClick={() => onOpen(v)}
                   className="border-t hover:bg-blue-50 transition cursor-pointer"
                 >
-                  <td className="px-4 py-3">{v.id}</td>
+                  {puedeSeleccionarVentas && (
+                      <td
+                        className="px-4 py-3 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {v.rowType === "CONSOLIDADA" ? (
+                          <span className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+                            Consolidada
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={selectedVentaIds.includes(v.id)}
+                            onChange={() => onToggleVentaSelection(v.id)}
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300"
+                          />
+                        )}
+                      </td>
+                    )}
+
+                  <td className="px-4 py-3 font-semibold">
+                    {v.folioDisplay ?? v.id}
+                  </td>
                   <td className="px-4 py-3">{v.clientName}</td>
 
                   <td className="px-4 py-3">{formatDate(v.saleDate, isSuperAdmin)}</td>
@@ -525,7 +817,7 @@ function VentasTable(props: {
 
             {!isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-slate-500">
+                <td colSpan={8} className="p-4 text-center text-slate-500">
                   Sin registros
                 </td>
               </tr>

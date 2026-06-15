@@ -3,11 +3,26 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBranches } from "@/hooks/useCatalogs";
 import { useDashboard } from "@/features/reportes/hooks/useDashboard";
 import { Card } from "@/components/Card";
-import { ProductosChart } from "../components/ProductChart";
+import {
+  ProductosChart,
+  type UsuarioVentaResumenDTO,
+} from "../components/ProductChart";
 import { ProductosPorUsuarioChart } from "@/features/reportes/components/ProductosPorUsuarioChart";
 import { Tabs } from "@/components/ui/Tabs";
 import { useTopProductos } from "@/features/reportes/hooks/useTopProducts";
 
+
+  const toNumber = (value: number | string | null | undefined) => {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const formatMoney = (value: number | string | null | undefined) =>
+  new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(toNumber(value));
+  
 export default function DashboardPage() {
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
@@ -27,6 +42,25 @@ export default function DashboardPage() {
   const { data: dashboardData, isLoading: dashboardLoading } = useDashboard(branchId);
 
   const resumen = dashboardData?.data;
+
+   const ventasHoyPorUsuario =
+  (resumen?.ventasHoyPorUsuario ?? []) as UsuarioVentaResumenDTO[];
+
+  const ingresosMesPorUsuario =
+    (resumen?.ingresosMesPorUsuario ?? []) as UsuarioVentaResumenDTO[];
+
+  const ventasHoyDetalles = ventasHoyPorUsuario.map((u) => ({
+    label: u.username ?? "Usuario sin nombre",
+    value: `${u.salesCount ?? 0} ventas`,
+    subValue: `Ingreso: ${formatMoney(u.totalIncome)}`,
+  }));
+
+  const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
+    label: u.username ?? "Usuario sin nombre",
+    value: formatMoney(u.totalIncome),
+    subValue: `${u.salesCount ?? 0} ventas`,
+  }));
+
   const topWeek = (dashboardData?.topWeek ?? []).slice(0, 12);   // ✅ opcional: evita charts pesados
   const topMonth = (dashboardData?.topMonth ?? []).slice(0, 12); // ✅ opcional
 
@@ -121,9 +155,22 @@ export default function DashboardPage() {
           {/* ---------- CARDS ---------- */}
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 pt-2">
             <Card titulo="Productos" valor={resumen?.totalProductos ?? 0} />
+
             <Card titulo="Stock crítico" valor={resumen?.productosCriticos ?? 0} />
-            <Card titulo="Ventas hoy" valor={resumen?.ventasHoy ?? 0} />
-            <Card titulo="Ingresos mes" valor={`$${resumen?.ingresosMes ?? 0}`} />
+
+            <Card
+              titulo="Ventas hoy"
+              valor={resumen?.ventasHoy ?? 0}
+              detalleTitulo="Ventas de hoy por usuario"
+              detalles={ventasHoyDetalles}
+            />
+
+            <Card
+              titulo="Ingresos mes"
+              valor={formatMoney(resumen?.ingresosMes ?? 0)}
+              detalleTitulo="Ingresos del mes por usuario"
+              detalles={ingresosMesDetalles}
+            />
           </div>
 
           {/* ---------- TABS ---------- */}

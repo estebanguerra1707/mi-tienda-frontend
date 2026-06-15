@@ -6,11 +6,17 @@ import {
   createVenta,
   deleteVenta,
   devolucionVenta,
+  generarDetalleVentaConsolidada,
+  generarVentaConsolidada,
+  type GenerarVentaConsolidadaResponse,
+  obtenerDetalleVentaConsolidadaPorTicket,
   type VentaPage,
   type VentaItem,
   type VentaCreate,
   type VentaSearchFiltro,
-  type VentaParams, 
+  type VentaParams,
+  type VentaConsolidadaRequest,
+  type VentaConsolidadaResponse,
 } from "@/features/ventas/api";
 
 export const ventaKeys = {
@@ -20,6 +26,8 @@ export const ventaKeys = {
   search: (filtros?: VentaSearchFiltro) =>
     [...ventaKeys.all, "search", filtros ?? {}] as const,
   detail: (id: number) => [...ventaKeys.all, "detail", id] as const,
+  consolidadoDetail: (weeklyTicketId: number | string) =>
+  [...ventaKeys.all, "consolidado-detail", weeklyTicketId] as const,
 };
 
 export function useVentas(
@@ -96,4 +104,45 @@ export function useDevolucionVenta() {
     },
   });
 }
-export type { VentaSearchFiltro, VentaParams, VentaPage, VentaItem, VentaCreate } from "@/features/ventas/api";
+
+export function useGenerarDetalleVentaConsolidada() {
+  return useMutation<VentaConsolidadaResponse, Error, VentaConsolidadaRequest>({
+    mutationFn: (payload) => generarDetalleVentaConsolidada(payload),
+  });
+}
+export function useGenerarVentaConsolidada() {
+  const qc = useQueryClient();
+
+  return useMutation<
+    GenerarVentaConsolidadaResponse,
+    Error,
+    VentaConsolidadaRequest
+  >({
+    mutationFn: (payload) => generarVentaConsolidada(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ventaKeys.all });
+    },
+  });
+}
+
+export function useDetalleVentaConsolidadaPorTicket(
+  weeklyTicketId?: number | string | null
+) {
+  return useQuery<VentaConsolidadaResponse, Error>({
+    queryKey: ventaKeys.consolidadoDetail(weeklyTicketId ?? ""),
+    queryFn: () => obtenerDetalleVentaConsolidadaPorTicket(weeklyTicketId!),
+    enabled: !!weeklyTicketId,
+  });
+}
+
+export type {
+  VentaSearchFiltro,
+  VentaParams,
+  VentaPage,
+  VentaItem,
+  VentaCreate,
+  VentaConsolidadaRequest,
+  VentaConsolidadaResponse,
+  GenerarVentaConsolidadaResponse,
+  obtenerDetalleVentaConsolidadaPorTicket,
+} from "@/features/ventas/api";

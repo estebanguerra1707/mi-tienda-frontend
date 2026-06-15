@@ -13,12 +13,15 @@ interface Props {
   onApply: (next: Record<string, string | undefined>) => void;
   showId?: boolean;
   onClear?: () => void;
+  showWeeklyConsolidation?: boolean;
+
 }
 
 export default function AdvancedFiltersVentas({
   onApply,
   showId = false,
   onClear,
+  showWeeklyConsolidation = false,
 }: Props) {
   const [filtros, setFiltros] = useState<Record<string, string | undefined>>({
     clientId: "",
@@ -48,6 +51,67 @@ export default function AdvancedFiltersVentas({
 
   const startDate = parseLocalDate(filtros.startDate);
   const endDate = parseLocalDate(filtros.endDate);
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+const toBackendDateTime = (date: Date) => {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate()
+  )}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+    date.getSeconds()
+  )}`;
+};
+
+const buildSemanaMartesLunes = (weeksBack: number) => {
+  const today = new Date();
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // JS: domingo=0, lunes=1, martes=2...
+  const diffToTuesday = (base.getDay() - 2 + 7) % 7;
+
+  const currentTuesday = new Date(base);
+  currentTuesday.setDate(base.getDate() - diffToTuesday);
+
+  const start = new Date(currentTuesday);
+  start.setDate(currentTuesday.getDate() - weeksBack * 7);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return {
+    startDate: toBackendDateTime(start),
+    endDate: toBackendDateTime(end),
+  };
+};
+
+const applySemanaMartesLunes = (weeksBack: number) => {
+  const semana = buildSemanaMartesLunes(weeksBack);
+
+  const next = {
+    ...filtros,
+    startDate: semana.startDate,
+    endDate: semana.endDate,
+  };
+
+  setFiltros(next);
+
+  const clean = Object.fromEntries(
+    Object.entries(next).filter(([, v]) => v != null && v !== "")
+  );
+
+  onApply({ ...clean, page: "0", size: "20" });
+};
+
+const periodoSemanalLabel =
+  startDate && endDate
+    ? `${format(startDate, "EEEE dd MMM yyyy", { locale: es })} - ${format(
+        endDate,
+        "EEEE dd MMM yyyy",
+        { locale: es }
+      )}`
+    : "Sin periodo semanal seleccionado";
 
   const setDate = (key: "startDate" | "endDate", d?: Date) => {
     if (!d) {
@@ -199,6 +263,41 @@ export default function AdvancedFiltersVentas({
             </PopoverContent>
           </Popover>
         </div>
+{showWeeklyConsolidation && (
+  <div className="lg:col-span-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p className="text-sm font-semibold text-blue-900">
+          Periodo semanal para ticket consolidado
+        </p>
+        <p className="text-xs text-blue-700">
+          El ticket semanal debe tomar ventas de martes a lunes.
+        </p>
+        <p className="mt-1 text-sm font-medium text-slate-800">
+          {periodoSemanalLabel}
+        </p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto bg-white"
+          onClick={() => applySemanaMartesLunes(0)}
+        >
+          Semana actual
+        </Button>
+
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto bg-white"
+          onClick={() => applySemanaMartesLunes(1)}
+        >
+          Semana anterior
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
 
       {/* ---------- BOTONES ---------- */}

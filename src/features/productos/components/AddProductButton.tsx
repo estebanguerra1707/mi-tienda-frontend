@@ -289,6 +289,23 @@ export default function AddProductButton({
 
   const branchId = watch("branchId");
 
+  const purchasePriceValue = watch("purchasePrice") ?? "";
+  const salePriceValue = watch("salePrice") ?? "";
+
+  const setDecimalField = useCallback(
+    (field: "purchasePrice" | "salePrice", raw: string) => {
+      const cleaned = sanitizeDecimal(raw);
+      const normalized = normalizeLeadingDot(cleaned);
+
+      setValue(field, normalized, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+    },
+    [setValue]
+  );
+
   useEffect(() => {
     if (!open) return;
     if (!isSuper) return;
@@ -560,72 +577,51 @@ export default function AddProductButton({
                     )}
                   </label>
 
-                  {/* Precio compra */}
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm">Precio compra</span>
-                    <input
-                      type="text"
-                      data-no-wheel="true"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      className="border rounded px-3 py-2"
-                      {...register("purchasePrice")}
-                      onChange={(e) => {
-                        const cleaned = sanitizeDecimal(e.target.value);
-                        const normalized = normalizeLeadingDot(cleaned);
-                        setValue("purchasePrice", normalized, {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                        });
-                      }}
-                      onBlur={(e) => {
-                        // aquí ya normalizas bonito
-                        const v = e.target.value.trim().replace(",", ".");
-                        const normalized = normalizeLeadingDot(v); // ".2" -> "0.2"
-                        setValue("purchasePrice", normalized, {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                        });
-                      }}
-                      
-                    />
-                    {errors.purchasePrice && (
-                      <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>
-                    )}
-                  </label>
-
-                  {/* Precio venta */}
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm">Precio venta</span>
-                    <input
-                      type="text"
-                      data-no-wheel="true"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      className="border rounded px-3 py-2"
-                      {...register("salePrice")}
-                      onChange={(e) => {
-                        const cleaned = sanitizeDecimal(e.target.value);
-                        const normalized = normalizeLeadingDot(cleaned);
-                        setValue("salePrice", normalized, {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                        });
-                      }}
-                      onBlur={(e) => {
-                      // aquí ya normalizas bonito
-                      const v = e.target.value.trim().replace(",", ".");
-                      const normalized = normalizeLeadingDot(v); // ".2" -> "0.2"
-                      setValue("purchasePrice", normalized, {
-                        shouldValidate: true,
-                        shouldDirty: true,
-                      });
+                 {/* Precio compra */}
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm">Precio compra</span>
+                  <input
+                    type="text"
+                    data-no-wheel="true"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    className="border rounded px-3 py-2"
+                    {...register("purchasePrice")}
+                    value={purchasePriceValue}
+                    onChange={(e) => {
+                      setDecimalField("purchasePrice", e.target.value);
                     }}
-                    />
-                    {errors.salePrice && (
-                      <p className="text-red-600 text-xs">{errors.salePrice.message}</p>
-                    )}
-                  </label>
+                    onBlur={(e) => {
+                      setDecimalField("purchasePrice", e.target.value);
+                    }}
+                  />
+                  {errors.purchasePrice && (
+                    <p className="text-red-600 text-xs">{errors.purchasePrice.message}</p>
+                  )}
+                </label>
+
+                {/* Precio venta */}
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm">Precio venta</span>
+                  <input
+                    type="text"
+                    data-no-wheel="true"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    className="border rounded px-3 py-2"
+                    {...register("salePrice")}
+                    value={salePriceValue}
+                    onChange={(e) => {
+                      setDecimalField("salePrice", e.target.value);
+                    }}
+                    onBlur={(e) => {
+                      setDecimalField("salePrice", e.target.value);
+                    }}
+                  />
+                  {errors.salePrice && (
+                    <p className="text-red-600 text-xs">{errors.salePrice.message}</p>
+                  )}
+                </label>
 
                   {/* ✅ Unidad de medida (CODIGO) */}
                   <label className="flex flex-col gap-1">
