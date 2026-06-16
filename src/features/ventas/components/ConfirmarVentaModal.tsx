@@ -85,12 +85,20 @@ export default function ConfirmarVentaModal({
 
           {metodoPago === "EFECTIVO" && (
             <>
-              <p>
-                Pago recibido: <strong>${pago.toFixed(2)}</strong>
+             <p>
+                Pago inicial: <strong>${pago.toFixed(2)}</strong>
               </p>
+
               <p>
-                Cambio: <strong>${cambio.toFixed(2)}</strong>
+                Saldo pendiente:{" "}
+                <strong>${Math.max(total - pago, 0).toFixed(2)}</strong>
               </p>
+
+              {metodoPago === "EFECTIVO" && cambio > 0 && (
+                <p>
+                  Cambio: <strong>${cambio.toFixed(2)}</strong>
+                </p>
+              )}
             </>
           )}
 

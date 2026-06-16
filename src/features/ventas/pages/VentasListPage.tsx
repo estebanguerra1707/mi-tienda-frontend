@@ -29,7 +29,7 @@ type SortKey =
   | "clientName"
   | "saleDate"
   | "paymentMethodName"
-  | "amountPaid"
+  | "totalPaid"
   | "userName";
 
 export default function VentasListPage() {
@@ -252,6 +252,12 @@ const handleGenerarTicketConsolidado = () => {
     const newFiltros: VentaSearchFiltro = {
       clientId: clean.clientId ? Number(clean.clientId) : undefined,
       paymentMethodId: clean.paymentMethodId ?? undefined,
+      paymentStatus:
+      clean.paymentStatus === "PAGADA" ||
+      clean.paymentStatus === "PARCIAL" ||
+      clean.paymentStatus === "PENDIENTE"
+        ? clean.paymentStatus
+        : undefined,
       startDate: clean.startDate,
       endDate: clean.endDate,
       min: clean.min ? Number(clean.min) : undefined,
@@ -285,7 +291,7 @@ const handleGenerarTicketConsolidado = () => {
       const bv = b[localSort.key];
 
       switch (localSort.key) {
-        case "amountPaid":
+        case "totalPaid":
           return (Number(av ?? 0) - Number(bv ?? 0)) * mult;
 
         case "saleDate":
@@ -522,7 +528,15 @@ useEffect(() => {
 
       {/* MODAL DETALLE */}
      {openDetalle && selectedVenta && (
-        <VentaDetalleModal venta={selectedVenta} onClose={() => setOpenDetalle(false)} />
+        <VentaDetalleModal
+          venta={selectedVenta}
+          onClose={() => setOpenDetalle(false)}
+          onAbonoSuccess={() => {
+            setOpenDetalle(false);
+            setSelectedVenta(null);
+            ventas.refetch();
+          }}
+        />
       )}
 
       {openDetalleConsolidado && detalleConsolidado && (
@@ -583,6 +597,19 @@ function getApiErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+ function getPaymentStatusBadge(status?: string) {
+    const value = status ?? "PAGADA";
+
+    if (value === "PENDIENTE") {
+      return "bg-red-50 text-red-700 border-red-200";
+    }
+
+    if (value === "PARCIAL") {
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    }
+
+    return "bg-green-50 text-green-700 border-green-200";
+  }
 /* ------------------ Mobile Card ------------------ */
 
 function VentaCard(props: {
@@ -611,6 +638,10 @@ const {
 } = props;
 
 const isSelected = selectedVentaIds.includes(v.id);
+const statusClass = getPaymentStatusBadge(v.paymentStatus);
+const pendingBalance = Number(v.pendingBalance ?? 0);
+const totalPaid = Number(v.totalPaid ?? 0);
+
 
   return (
     <div
@@ -642,6 +673,11 @@ const isSelected = selectedVentaIds.includes(v.id);
             <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700">
               {v.paymentMethodName}
             </span>
+            <span
+              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${statusClass}`}
+            >
+              {v.paymentStatus}
+            </span>
           </div>
 
           <div className="mt-2 font-semibold text-slate-900 truncate">{v.clientName}</div>
@@ -656,6 +692,25 @@ const isSelected = selectedVentaIds.includes(v.id);
           <div className="text-lg font-bold text-slate-900 tabular-nums">
             {formatMoney(v.totalAmount)}
           </div>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 text-sm">
+        <div>
+          <p className="text-xs text-slate-500">Pagado</p>
+          <p className="font-semibold text-slate-800 tabular-nums">
+            {formatMoney(totalPaid)}
+          </p>
+        </div>
+
+        <div className="text-right">
+          <p className="text-xs text-slate-500">Saldo</p>
+          <p
+            className={`font-semibold tabular-nums ${
+              pendingBalance > 0 ? "text-red-600" : "text-green-600"
+            }`}
+          >
+            {formatMoney(pendingBalance)}
+          </p>
         </div>
       </div>
     {puedeSeleccionarVentas && (
@@ -784,11 +839,18 @@ function VentasTable(props: {
 
               <th className="px-4 py-3 text-right">
                 <button
-                  onClick={() => toggleSort("amountPaid")}
+                  onClick={() => toggleSort("totalPaid")}
                   className="flex items-center justify-end gap-1 font-semibold hover:text-blue-600 w-full"
                 >
-                  Monto pagado <Arrow k="amountPaid" />
+                  Pagado <Arrow k="totalPaid" />
                 </button>
+              </th>
+              <th className="px-4 py-3 text-right font-semibold">
+                Saldo
+              </th>
+
+              <th className="px-4 py-3 text-center font-semibold">
+                Estado
               </th>
 
               {(isSuperAdmin || isAdmin) && (
@@ -811,7 +873,7 @@ function VentasTable(props: {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={8} className="p-4 text-center text-gray-500">
+                <td colSpan={10} className="p-4 text-center text-gray-500">
                   Cargando…
                 </td>
               </tr>
@@ -854,9 +916,26 @@ function VentasTable(props: {
                   <td className="px-4 py-3">{v.paymentMethodName}</td>
 
                   <td className="px-4 py-3 text-right font-semibold text-gray-700">
-                    {formatMoney(v.amountPaid)}
+                    {formatMoney(v.totalPaid)}
                   </td>
 
+                  <td
+                    className={`px-4 py-3 text-right font-semibold ${
+                      Number(v.pendingBalance ?? 0) > 0 ? "text-red-600" : "text-green-600"
+                    }`}
+                  >
+                    {formatMoney(v.pendingBalance)}
+                  </td>
+
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${getPaymentStatusBadge(
+                        v.paymentStatus
+                      )}`}
+                    >
+                      {v.paymentStatus}
+                    </span>
+                  </td>
                   {(isSuperAdmin || isAdmin)  && <td className="px-4 py-3 text-center">{v.userName}</td>}
 
                   {isSuperAdmin && (
@@ -872,7 +951,7 @@ function VentasTable(props: {
 
             {!isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-4 text-center text-slate-500">
+                <td colSpan={10} className="p-4 text-center text-slate-500">
                   Sin registros
                 </td>
               </tr>

@@ -8,6 +8,10 @@ import {
   devolucionVenta,
   generarDetalleVentaConsolidada,
   generarVentaConsolidada,
+  registrarAbonoVenta,
+  obtenerPagosVenta,
+  type VentaPagoRequest,
+  type VentaPagoResponse,
   type GenerarVentaConsolidadaResponse,
   obtenerDetalleVentaConsolidadaPorTicket,
   type VentaPage,
@@ -26,6 +30,7 @@ export const ventaKeys = {
   search: (filtros?: VentaSearchFiltro) =>
     [...ventaKeys.all, "search", filtros ?? {}] as const,
   detail: (id: number) => [...ventaKeys.all, "detail", id] as const,
+  pagos: (ventaId: number) => [...ventaKeys.all, "pagos", ventaId] as const,
   consolidadoDetail: (weeklyTicketId: number | string) =>
   [...ventaKeys.all, "consolidado-detail", weeklyTicketId] as const,
 };
@@ -74,12 +79,40 @@ export function useVentaById(id: number) {
   });
 }
 
+export function usePagosVenta(ventaId?: number | null) {
+  return useQuery<VentaPagoResponse[], Error>({
+    queryKey: ventaKeys.pagos(ventaId ?? 0),
+    queryFn: () => obtenerPagosVenta(ventaId!),
+    enabled: !!ventaId,
+  });
+}
+
 export function useCreateVenta() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: VentaCreate) => createVenta(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ventaKeys.all });
+    },
+  });
+}
+
+export function useRegistrarAbonoVenta() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      ventaId,
+      payload,
+    }: {
+      ventaId: number;
+      payload: VentaPagoRequest;
+    }) => registrarAbonoVenta(ventaId, payload),
+
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ventaKeys.all });
+      qc.invalidateQueries({ queryKey: ventaKeys.detail(variables.ventaId) });
+      qc.invalidateQueries({ queryKey: ventaKeys.pagos(variables.ventaId) });
     },
   });
 }
@@ -144,5 +177,7 @@ export type {
   VentaConsolidadaRequest,
   VentaConsolidadaResponse,
   GenerarVentaConsolidadaResponse,
+  VentaPagoRequest,
+  VentaPagoResponse,
   obtenerDetalleVentaConsolidadaPorTicket,
 } from "@/features/ventas/api";

@@ -2,6 +2,8 @@ import { api } from "@/lib/api";
 
 type OwnerType = "PROPIO" | "CONSIGNACION";
 type VentaRowType = "NORMAL" | "CONSOLIDADA";
+export type PaymentStatus = "PAGADA" | "PARCIAL" | "PENDIENTE";
+
 export interface VentaItem {
   id: number;
 
@@ -30,6 +32,9 @@ export interface VentaItem {
 
   ventaIdsConsolidadas?: number[];
   totalVentasConsolidadas?: number | null;
+  totalPaid: number;
+  pendingBalance: number;
+  paymentStatus: PaymentStatus;
 }
 
 interface VentaBackendDTO {
@@ -61,6 +66,9 @@ interface VentaBackendDTO {
 
   ventaIdsConsolidadas?: number[];
   totalVentasConsolidadas?: number | null;
+  totalPaid?: number;
+  pendingBalance?: number;
+  paymentStatus?: PaymentStatus;
 }
 
 
@@ -93,6 +101,9 @@ interface VentaFilterBackendDTO {
   ventaIdsConsolidadas?: number[];
   totalVentasConsolidadas?: number | null;
   active?: boolean;
+  totalPaid?: number;
+  pendingBalance?: number;
+  paymentStatus?: PaymentStatus;
 }
 
 interface VentaFilterBackendPage {
@@ -143,6 +154,7 @@ export interface VentaSearchFiltro {
   page?: number;
   size?: number;
   username?: string;
+  paymentStatus?: PaymentStatus;
 }
 
 
@@ -161,6 +173,7 @@ interface VentaFilterPayloadBackend {
   active?: boolean;
   consolidated?: boolean;
   username?: string;
+  paymentStatus?: PaymentStatus;
 }
 
 export interface VentaConsolidadaRequest {
@@ -248,6 +261,7 @@ function buildVentaFilterPayload(
     active: filtros?.active,
     consolidated: filtros?.consolidated,
     username: filtros?.username,
+    paymentStatus: filtros?.paymentStatus,
   };
 }
 
@@ -297,6 +311,9 @@ const content: VentaItem[] = raw.map((v) => {
     clientName: v.clientName,
     saleDate: v.saleDate,
     totalAmount: v.totalAmount,
+    totalPaid: v.totalPaid ?? 0,
+    pendingBalance: v.pendingBalance ?? 0,
+    paymentStatus: v.paymentStatus ?? "PAGADA",
     changeAmount: v.changeAmount ?? 0,
     amountInWords: v.amountInWords ?? "",
     paymentMethodName: v.paymentMethodName ?? v.paymentName ?? "",
@@ -370,6 +387,9 @@ const content: VentaItem[] = raw.content.map((v) => {
     clientName: v.clientName,
     saleDate: v.saleDate,
     totalAmount: v.totalAmount,
+    totalPaid: v.totalPaid ?? 0,
+    pendingBalance: v.pendingBalance ?? 0,
+    paymentStatus: v.paymentStatus ?? "PAGADA",
     changeAmount: v.changeAmount ?? 0,
     amountInWords: v.amountInWords ?? "",
     paymentMethodName: v.paymentMethodName ?? v.paymentName ?? "",
@@ -409,19 +429,22 @@ export async function fetchVentaById(id: number): Promise<VentaItem> {
   const res = await api.get<VentaBackendWithDetails>(`/ventas/${id}/detail`);
   const v = res.data;
 
-  return {
-    id: v.id ?? 0,
-    clientName: v.clientName,
-    saleDate: v.saleDate,
-    totalAmount: v.totalAmount,
-    changeAmount: v.changeAmount ?? 0,
-    amountPaid: v.amountPaid ?? 0,
-    amountInWords: v.amountInWords ?? "",
-    paymentMethodName: v.paymentMethodName ?? v.paymentName ?? "",
-    userName: v.userName ?? "-",
-    active: v.active ?? true,
-    details: v.details ?? [],
-  };
+ return {
+  id: v.id ?? 0,
+  clientName: v.clientName,
+  saleDate: v.saleDate,
+  totalAmount: v.totalAmount,
+  totalPaid: v.totalPaid ?? 0,
+  pendingBalance: v.pendingBalance ?? 0,
+  paymentStatus: v.paymentStatus ?? "PAGADA",
+  changeAmount: v.changeAmount ?? 0,
+  amountPaid: v.amountPaid ?? 0,
+  amountInWords: v.amountInWords ?? "",
+  paymentMethodName: v.paymentMethodName ?? v.paymentName ?? "",
+  userName: v.userName ?? "-",
+  active: v.active ?? true,
+  details: v.details ?? [],
+};
 }
 
 export async function createVenta(payload: VentaCreate): Promise<VentaItem> {
@@ -449,6 +472,28 @@ export async function createVenta(payload: VentaCreate): Promise<VentaItem> {
   }
 }
 
+export async function registrarAbonoVenta(
+  ventaId: number,
+  payload: VentaPagoRequest
+): Promise<VentaPagoResponse> {
+  const res = await api.post<VentaPagoResponse>(
+    `/ventas/${ventaId}/pagos`,
+    payload
+  );
+
+  return res.data;
+}
+
+export async function obtenerPagosVenta(
+  ventaId: number
+): Promise<VentaPagoResponse[]> {
+  const res = await api.get<VentaPagoResponse[]>(
+    `/ventas/${ventaId}/pagos`
+  );
+
+  return res.data ?? [];
+}
+
 export async function deleteVenta(id: number): Promise<void> {
   await api.delete(`/ventas/${id}`);
 }
@@ -457,6 +502,24 @@ export interface DevolucionVentaPayload {
   codigoBarras: string;
   cantidad: number;
   motivo: string;
+}
+
+export interface VentaPagoRequest {
+  amount: number;
+  paymentMethodId: number;
+  note?: string;
+}
+
+export interface VentaPagoResponse {
+  id: number;
+  ventaId: number;
+  amount: number;
+  paymentMethodId: number;
+  paymentName: string;
+  userName?: string;
+  paymentDate: string;
+  note?: string;
+  active: boolean;
 }
 
 export async function devolucionVenta(

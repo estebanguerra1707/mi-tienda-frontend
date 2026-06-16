@@ -265,10 +265,15 @@ const onSubmit = async (values: VentaForm) => {
   const method = paymentMethods?.find((m) => m.id === values.paymentMethodId);
 
   const isCashMethod = method?.name?.toUpperCase() === "EFECTIVO";
-  const pagoReal = isCashMethod ? values.cashGiven ?? 0 : totalVenta;
+  const pagoReal = Number(values.cashGiven ?? 0);
 
-  if (isCashMethod && pagoReal < totalVenta) {
-    toastError("El monto pagado es insuficiente.");
+  if (pagoReal < 0) {
+    toastError("El monto pagado no puede ser negativo.");
+    return;
+  }
+
+  if (!isCashMethod && pagoReal > totalVenta) {
+    toastError("El monto pagado no puede ser mayor al total.");
     return;
   }
 
@@ -401,9 +406,7 @@ const confirmarVentaFinal = async () => {
 
   const v = ventaFormSnapshot.current;
 
-  const method = paymentMethods?.find((m) => m.id === v.paymentMethodId);
-  const isCashMethod = method?.name?.toUpperCase() === "EFECTIVO";
-  const pagoReal = isCashMethod ? v.cashGiven ?? 0 : totalVenta;
+const pagoReal = Number(v.cashGiven ?? 0);
 
   const payload = {
     clientId: v.clientId,
@@ -782,10 +785,8 @@ useEffect(() => {
                     const isNowCash = selected?.name?.toUpperCase() === "EFECTIVO";
                     setIsCash(isNowCash);
                     if (!isNowCash) {
-                      setLocalCash("");
-                      setValue("cashGiven", 0);
-                      setValue("changeAmount", 0);
-                    }
+                        setValue("changeAmount", 0);
+                      }
                   }}
                   className="border rounded px-2 py-1 w-full"
                 >
@@ -799,48 +800,59 @@ useEffect(() => {
                 )}
                 </div>
               </div>
-                {isCash && (
-                  <div className="flex flex-col items-end gap-1 w-64">
 
-                    <label className="flex flex-col gap-1 w-full">
-                      <span className="text-sm text-right">Cantidad pagada ($)</span>
-                      <Input
-                        type="number"
-                        data-no-wheel="true"
-                        step="0.01"
-                        className={`border rounded px-3 py-2 text-right ${
-                          Number(localCash) < totalVenta && localCash !== ""
-                            ? "border-yellow-500 bg-yellow-50"
-                            : ""
-                        }`}
-                        value={localCash}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setLocalCash(val);
-                          const num = parseFloat(val);
-                          if (!isNaN(num)) {
-                            setValue("cashGiven", num, {
-                              shouldValidate: false,
-                              shouldDirty: true,
-                            });
-                          }
-                        }}
-                        onBlur={() => {
-                          if (localCash === "" || isNaN(Number(localCash))) {
-                            setLocalCash("0");
-                            setValue("cashGiven", 0, { shouldValidate: false });
-                          }
-                        }}
-                      />
-                    </label>
+               <div className="flex flex-col items-end gap-1 w-64">
+                  <label className="flex flex-col gap-1 w-full">
+                    <span className="text-sm text-right">Pago inicial ($)</span>
 
-                    {/* Advertencia */}
-                    {Number(localCash) < totalVenta && localCash !== "" && (
-                      <p className="text-yellow-700 text-sm text-right font-medium">
-                        ⚠️ Debe pagar la cantidad exacta o superior (${totalVenta.toFixed(2)})
-                      </p>
-                    )}
+                    <Input
+                      type="number"
+                      data-no-wheel="true"
+                      step="0.01"
+                      min="0"
+                      className={`border rounded px-3 py-2 text-right ${
+                        !isCash && Number(localCash) > totalVenta
+                          ? "border-red-500 bg-red-50"
+                          : Number(localCash) < totalVenta && localCash !== ""
+                          ? "border-yellow-500 bg-yellow-50"
+                          : ""
+                      }`}
+                      value={localCash}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLocalCash(val);
 
+                        const num = parseFloat(val);
+
+                        if (!isNaN(num)) {
+                          setValue("cashGiven", num, {
+                            shouldValidate: false,
+                            shouldDirty: true,
+                          });
+                        }
+                      }}
+                      onBlur={() => {
+                        if (localCash === "" || isNaN(Number(localCash))) {
+                          setLocalCash("0");
+                          setValue("cashGiven", 0, { shouldValidate: false });
+                        }
+                      }}
+                    />
+                  </label>
+
+                  {localCash !== "" && Number(localCash) < totalVenta && (
+                    <p className="text-yellow-700 text-sm text-right font-medium">
+                      ⚠️ La venta quedará con saldo pendiente.
+                    </p>
+                  )}
+
+                  {!isCash && Number(localCash) > totalVenta && (
+                    <p className="text-red-600 text-sm text-right font-medium">
+                      El pago no puede ser mayor al total.
+                    </p>
+                  )}
+
+                  {isCash && (
                     <div className="text-sm">
                       <strong>Cambio:</strong>{" "}
                       {new Intl.NumberFormat("es-MX", {
@@ -848,28 +860,25 @@ useEffect(() => {
                         currency: "MXN",
                       }).format(watch("changeAmount") ?? 0)}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             
               {/* Botones */}
               <div className="flex justify-end gap-2 border-t pt-4">
-              <Button
+             <Button
                 type="submit"
-                disabled={
-                  isPending ||
-                  (isCash && Number(localCash) < totalVenta)
-                }
+                disabled={isPending || (!isCash && Number(localCash) > totalVenta)}
                 className={`bg-blue-600 text-white ${
-                  isCash && Number(localCash) < totalVenta
+                  !isCash && Number(localCash) > totalVenta
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:bg-blue-700"
                 }`}
               >
                 {isPending
                   ? "Guardando…"
-                  : isCash && Number(localCash) < totalVenta
-                  ? "Pago insuficiente"
+                  : !isCash && Number(localCash) > totalVenta
+                  ? "Pago inválido"
                   : "Guardar venta"}
               </Button>
                 <Button 

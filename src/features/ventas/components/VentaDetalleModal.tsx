@@ -3,18 +3,26 @@ import { useEffect, useState } from "react";
 import { type VentaItem, type VentaDetalleItem, getVentaDetails } from "@/features/ventas/api";
 import { useAuth } from "@/hooks/useAuth";
 import { printTicketUniversal } from "@/lib/printTicket";
+import RegistrarAbonoVentaModal from "@/features/ventas/components/RegistrarAbonoVentaModal";
+
 interface VentaDetalleModalProps {
   venta: VentaItem;
   onClose: () => void;
+  onAbonoSuccess?: () => void;
 }
 
-export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalProps) {
+export default function VentaDetalleModal({
+  venta,
+  onClose,
+  onAbonoSuccess,
+}: VentaDetalleModalProps) {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const [details, setDetails] = useState<VentaDetalleItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [openAbonoModal, setOpenAbonoModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +60,12 @@ export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalP
   }, [venta?.id]);
 
   if (!venta) return null;
+
+  const pendingBalance = Number(venta.pendingBalance ?? 0);
+  const totalPaid = Number(venta.totalPaid ?? 0);
+  const paymentStatus = venta.paymentStatus ?? "PAGADA";
+  const puedeRegistrarAbono =
+    venta.rowType !== "CONSOLIDADA" && pendingBalance > 0;
   
   const getUM = (d: VentaDetalleItem): string => {
     const u = (d.unitAbbr ?? d.unitName ?? "").trim();
@@ -60,7 +74,7 @@ export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalP
 
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl w-[95%] max-w-3xl p-4 sm:p-6 shadow-xl 
                       max-h-[85vh] overflow-y-auto">
  
@@ -92,6 +106,7 @@ export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalP
           </p>
 
           <p><strong>Método pago:</strong> {venta.paymentMethodName}</p>
+          <p><strong>Estado pago:</strong> {paymentStatus}</p>
           <p><strong>Atendido por:</strong> {venta.userName}</p>
         </div>
 
@@ -146,23 +161,55 @@ export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalP
 
         {/* Totales */}
         <div className="mt-4 text-right text-sm pr-1">
-          <p className="text-lg font-semibold">
-            Total: ${Number(venta.totalAmount ?? 0).toFixed(2)}
-          </p>
+            <p className="text-lg font-semibold">
+              Total: ${Number(venta.totalAmount ?? 0).toFixed(2)}
+            </p>
 
-          <p className="mt-1 text-xs italic tracking-tight leading-tight">
-            {venta.amountInWords}
-          </p>
+            <p className="mt-1 text-xs italic tracking-tight leading-tight">
+              {venta.amountInWords}
+            </p>
 
-          {venta.paymentMethodName === "EFECTIVO" && (
-            <>
-              <p>Total pagado:${Number(venta.amountPaid ?? 0).toFixed(2)}</p>
-              <p>Cambio: ${Number(venta.changeAmount ?? 0).toFixed(2)}</p>
-            </>
-          )}
-        </div>
+            <div className="mt-2 space-y-1">
+              <p>
+                Total pagado:{" "}
+                <span className="font-semibold text-green-700">
+                  ${totalPaid.toFixed(2)}
+                </span>
+              </p>
+
+              <p>
+                Saldo pendiente:{" "}
+                <span
+                  className={
+                    pendingBalance > 0
+                      ? "font-semibold text-red-600"
+                      : "font-semibold text-green-600"
+                  }
+                >
+                  ${pendingBalance.toFixed(2)}
+                </span>
+              </p>
+
+              {Number(venta.changeAmount ?? 0) > 0 && paymentStatus === "PAGADA" && (
+                <p>
+                  Cambio:{" "}
+                  <span className="font-semibold">
+                    ${Number(venta.changeAmount ?? 0).toFixed(2)}
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
 
         <div className="mt-6 flex justify-end gap-3">
+          {puedeRegistrarAbono && (
+            <button
+              onClick={() => setOpenAbonoModal(true)}
+              className="px-4 py-2 rounded bg-amber-500 text-white font-semibold hover:bg-amber-600"
+            >
+              💵 Registrar abono
+            </button>
+          )}
           <button
             onClick={() => printTicketUniversal(venta.id, "venta")}
             className="px-4 py-2 rounded bg-green-600 text-white"
@@ -177,6 +224,15 @@ export default function VentaDetalleModal({ venta, onClose }: VentaDetalleModalP
           </button>
 
         </div>
+       <RegistrarAbonoVentaModal
+        open={openAbonoModal}
+        venta={venta}
+        onClose={() => setOpenAbonoModal(false)}
+        onSuccess={() => {
+          setOpenAbonoModal(false);
+          onAbonoSuccess?.();
+        }}
+      />
       </div>
     </div>,
     document.body

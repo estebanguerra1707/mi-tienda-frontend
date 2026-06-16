@@ -34,6 +34,7 @@ export default function AdvancedFiltersVentas({
     month: "",
     year: "",
     active: "",
+    paymentStatus: "",
   });
 
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -215,6 +216,18 @@ const periodoSemanalLabel =
               {m.name}
             </option>
           ))}
+        </select>
+
+        <select
+          name="paymentStatus"
+          value={filtros.paymentStatus ?? ""}
+          onChange={handleChange}
+          className={inputCls}
+        >
+          <option value="">Estado de pago</option>
+          <option value="PAGADA">Pagada</option>
+          <option value="PARCIAL">Parcial</option>
+          <option value="PENDIENTE">Pendiente</option>
         </select>
 
         {/* FECHAS */}
