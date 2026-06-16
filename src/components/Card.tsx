@@ -4,6 +4,8 @@ interface CardDetalle {
   label: string;
   value: string;
   subValue?: string;
+  valueClassName?: string;
+  subValueClassName?: string;
 }
 
 interface CardProps {
@@ -51,7 +53,7 @@ export function Card({ titulo, valor, detalles = [], detalleTitulo }: CardProps)
             top-full
             mt-2
             z-50
-            w-[280px]
+            w-[300px]
             rounded-xl
             border
             bg-white
@@ -76,8 +78,16 @@ export function Card({ titulo, valor, detalles = [], detalleTitulo }: CardProps)
                 <p className="font-semibold text-gray-800 truncate">
                   {d.label}
                 </p>
-                <p className="text-blue-700 font-bold">{d.value}</p>
-                {d.subValue && <p className="text-gray-500">{d.subValue}</p>}
+
+                <p className={d.valueClassName ?? "text-blue-700 font-bold"}>
+                  {d.value}
+                </p>
+
+                {d.subValue && (
+                  <p className={d.subValueClassName ?? "text-gray-500"}>
+                    {d.subValue}
+                  </p>
+                )}
               </div>
             ))}
           </div>

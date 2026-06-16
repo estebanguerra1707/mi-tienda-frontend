@@ -22,7 +22,7 @@ const formatMoney = (value: number | string | null | undefined) =>
     style: "currency",
     currency: "MXN",
   }).format(toNumber(value));
-  
+
 export default function DashboardPage() {
   const auth = useAuth();
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
@@ -55,11 +55,12 @@ export default function DashboardPage() {
     subValue: `Ingreso: ${formatMoney(u.totalIncome)}`,
   }));
 
-  const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
-    label: u.username ?? "Usuario sin nombre",
-    value: formatMoney(u.totalIncome),
-    subValue: `${u.salesCount ?? 0} ventas`,
-  }));
+const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
+  label: u.username ?? "Usuario sin nombre",
+  value: `Total vendido: ${formatMoney(u.totalIncome)} · ${u.salesCount ?? 0} ventas`,
+  subValue: `Ganancia: ${formatMoney(u.netProfit)}`,
+  subValueClassName: "text-green-600 font-semibold",
+}));
 
   const topWeek = (dashboardData?.topWeek ?? []).slice(0, 12);   // ✅ opcional: evita charts pesados
   const topMonth = (dashboardData?.topMonth ?? []).slice(0, 12); // ✅ opcional
@@ -168,7 +169,7 @@ export default function DashboardPage() {
             <Card
               titulo="Ingresos mes"
               valor={formatMoney(resumen?.ingresosMes ?? 0)}
-              detalleTitulo="Ingresos del mes por usuario"
+                detalleTitulo="Ventas y ganancia del mes por usuario"
               detalles={ingresosMesDetalles}
             />
           </div>
