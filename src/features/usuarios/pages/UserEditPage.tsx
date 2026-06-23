@@ -7,6 +7,7 @@ import { useUserById } from "@/features/usuarios/useUserById";
 import { useUpdateUser } from "@/features/usuarios/useUpdateUser";
 import { toast } from "react-hot-toast";
 import { UpdateUserDto } from "../users.service";
+import { Eye, EyeOff } from "lucide-react";
 
 const ROLES = ["ADMIN", "VENDOR", "SUPER_ADMIN"] as const;
 
@@ -169,7 +170,7 @@ export default function UserEditPage() {
                   className="absolute right-3 top-2 text-gray-600"
                   onClick={() => setShowCurrent(!showCurrent)}
                 >
-                  {showCurrent ? "🙈" : "👁️"}
+                    {showCurrent ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
               {errors.currentPassword && (
@@ -189,7 +190,7 @@ export default function UserEditPage() {
                     className="absolute right-3 top-2 text-gray-600"
                     onClick={() => setShowNew(!showNew)}
                   >
-                    {showNew ? "🙈" : "👁️"}
+                      {showNew ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
                 {errors.newPassword && (
@@ -210,7 +211,7 @@ export default function UserEditPage() {
                     className="absolute right-3 top-2 text-gray-600"
                     onClick={() => setShowConfirm(!showConfirm)}
                   >
-                    {showConfirm ? "🙈" : "👁️"}
+                        {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
                 {errors.confirmPassword && (

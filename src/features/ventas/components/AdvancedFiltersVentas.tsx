@@ -101,7 +101,7 @@ const applySemanaMartesLunes = (weeksBack: number) => {
   const clean = Object.fromEntries(
     Object.entries(next).filter(([, v]) => v != null && v !== "")
   );
-
+  onClear?.();
   onApply({ ...clean, page: "0", size: "20" });
 };
 
@@ -322,21 +322,13 @@ const periodoSemanalLabel =
           Buscar
         </Button>
 
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto"
-          onClick={() => {
-            setFiltros({});
-            setShowAdvanced(false);
-            setOpenStart(false);
-            setOpenEnd(false);  
-
-            onApply({});
-            onClear?.();
-          }}
-        >
-          Limpiar
-        </Button>
+      <Button
+        variant="outline"
+        className="w-full sm:w-auto"
+        onClick={clear}
+      >
+        Limpiar
+      </Button>
 
         {!showAdvanced && (
           <Button

@@ -100,6 +100,7 @@ export default function AddVentaButton({ onCreated }: { onCreated: () => void })
   const [saleDateLocal, setSaleDateLocal] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<ProductItem[]>([]);
+  const [activeProductIndex, setActiveProductIndex] = useState(0);
   const [totalVenta, setTotalVenta] = useState<number>(0);
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
   const [ventaIdCreada, setVentaIdCreada] = useState<number | null>(null);
@@ -326,6 +327,37 @@ const onSubmit = async (values: VentaForm) => {
 
   setShowResumenModal(true);
 };
+const selectProductFromSearch = useCallback(
+  async (p: ProductItem) => {
+    const exists = details.find((d) => d.productId === p.id);
+
+    if (exists) {
+      setValue(
+        "details",
+        details.map((d) =>
+          d.productId === p.id
+            ? { ...d, quantity: (d.quantity ?? 0) + 1 }
+            : d
+        ),
+        { shouldValidate: true }
+      );
+    } else {
+      append({
+        productId: p.id,
+        quantity: 1,
+        ...(usaInventarioPorDuenio ? { ownerType: "PROPIO" } : {}),
+      });
+
+      await trigger("details");
+    }
+
+    await trigger("details");
+    setSearchTerm("");
+    setFilteredProducts([]);
+    setActiveProductIndex(0);
+  },
+  [details, setValue, append, trigger, usaInventarioPorDuenio]
+);
 
 const handleBarcodeScan = async (code: string) => {
   const cleanCode = code.trim();
@@ -476,6 +508,21 @@ useEffect(() => {
     setFormError("");
   }
 }, [errors]);
+
+useEffect(() => {
+  setActiveProductIndex(0);
+}, [searchTerm]);
+
+useEffect(() => {
+  if (filteredProducts.length === 0) {
+    setActiveProductIndex(0);
+    return;
+  }
+
+  setActiveProductIndex((prev) =>
+    prev > filteredProducts.length - 1 ? 0 : prev
+  );
+}, [filteredProducts.length]);
   /* ---------- Render ---------- */
   return (
     <>
@@ -563,8 +610,50 @@ useEffect(() => {
                           }
                           setLastKeyTime(now);
                         }}
-                        onKeyDown={(e) => {
+                       onKeyDown={async (e) => {
+                          if (e.key === "ArrowDown" && filteredProducts.length > 0) {
+                            e.preventDefault();
+
+                            setActiveProductIndex((prev) =>
+                              prev >= filteredProducts.length - 1 ? 0 : prev + 1
+                            );
+
+                            return;
+                          }
+
+                          if (e.key === "ArrowUp" && filteredProducts.length > 0) {
+                            e.preventDefault();
+
+                            setActiveProductIndex((prev) =>
+                              prev <= 0 ? filteredProducts.length - 1 : prev - 1
+                            );
+
+                            return;
+                          }
+
+                          if (e.key === "Enter" && filteredProducts.length > 0) {
+                            e.preventDefault();
+
+                            const selected =
+                              filteredProducts[activeProductIndex] ?? filteredProducts[0];
+
+                            if (selected) {
+                              await selectProductFromSearch(selected);
+                            }
+
+                            return;
+                          }
+
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            setSearchTerm("");
+                            setFilteredProducts([]);
+                            setActiveProductIndex(0);
+                            return;
+                          }
+
                           if (e.key === "Enter" && scanBuffer.length >= 6) {
+                            e.preventDefault();
                             handleBarcodeScan(scanBuffer.trim());
                             setScanBuffer("");
                             setSearchTerm("");
@@ -586,43 +675,43 @@ useEffect(() => {
                     {/* dropdown de resultados */}
                     {filteredProducts.length > 0 && (
                       <div className="absolute z-20 bg-white border rounded shadow-md w-full mt-1 max-h-56 overflow-y-auto">
-                        {filteredProducts.map((p) => (
-                          <div
-                            key={p.id}
-                            className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
-                            onClick={() => {
-                              const exists = details.find((d) => d.productId === p.id);
+                        {filteredProducts.map((p, index) => {
+                            const isActive = index === activeProductIndex;
 
-                              if (exists) {
-                                setValue(
-                                  "details",
-                                  details.map((d) =>
-                                    d.productId === p.id
-                                      ? { ...d, quantity: (d.quantity ?? 0) + 1 }
-                                      : d
-                                  )
-                                );
-                              } else {
-                             append({
-                                productId: p.id,
-                                quantity: 1,
-                                ...(usaInventarioPorDuenio ? { ownerType: "PROPIO" } : {}),
-                              });
-                              }
+                            return (
+                              <div
+                                key={p.id}
+                                role="option"
+                                aria-selected={isActive}
+                                onMouseEnter={() => setActiveProductIndex(index)}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  selectProductFromSearch(p);
+                                }}
+                                className={`
+                                  cursor-pointer px-3 py-3 border-b last:border-b-0 transition
+                                  ${
+                                    isActive
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-white text-slate-900 hover:bg-blue-50"
+                                  }
+                                `}
+                              >
+                                <div className="font-semibold">
+                                  {p.name}
+                                </div>
 
-                              trigger("details");
-
-                              setSearchTerm("");
-                              setFilteredProducts([]);
-                            }}
-                          >
-                            <div className="font-medium">{p.name}</div>
-                            <div className="text-xs text-gray-500">
-                              C.Barras: {p.codigoBarras ?? "N/A"} — SKU: {p.sku} – $
-                              {p.salePrice?.toFixed(2)}
-                            </div>
-                          </div>
-                        ))}
+                                <div
+                                  className={`text-sm ${
+                                    isActive ? "text-blue-100" : "text-slate-500"
+                                  }`}
+                                >
+                                  C.Barras: {p.codigoBarras ?? "N/A"} — SKU: {p.sku} – $
+                                  {p.salePrice?.toFixed(2)}
+                                </div>
+                              </div>
+                            );
+                          })}
                       </div>
                     )}
                   </div>

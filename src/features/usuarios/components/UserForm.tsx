@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Sucursal } from "@/hooks/useCatalogs";
 import type { Role } from "../users.service";
+import { Eye, EyeOff } from "lucide-react";
 
 export type UserFormValues = {
   name: string;
@@ -30,6 +31,8 @@ export default function UserForm({
   const [form, setForm] = useState<UserFormValues>(
     defaultValues ?? { name: "", email: "", password: "", role: "VENDOR", branchId: undefined }
   );
+
+  const [showPassword, setShowPassword] = useState(false);
 
 useEffect(() => {
   if (defaultValues) {
@@ -109,22 +112,40 @@ useEffect(() => {
     </div>
 
     {/* Password solo al crear */}
-    {requirePassword && (
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-700">Contraseña</label>
-        <input
-          type="password"
-          className="
-            w-full rounded-lg border border-gray-300 
-            px-3 py-2 
-            focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-          "
-          value={form.password ?? ""}
-          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-          required
-        />
-      </div>
-    )}
+      {requirePassword && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Contraseña</label>
+
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              className="
+                w-full rounded-lg border border-gray-300 
+                px-3 py-2 pr-12 text-gray-800
+                focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+              "
+              value={form.password ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              required
+              autoComplete="new-password"
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="
+                absolute right-3 top-1/2 -translate-y-1/2
+                text-lg text-gray-500 hover:text-gray-800
+                focus:outline-none
+              "
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+        </div>
+      )}
 
     {/* Rol */}
     <div className="flex flex-col gap-1">

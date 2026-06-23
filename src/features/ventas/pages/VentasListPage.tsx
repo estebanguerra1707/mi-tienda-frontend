@@ -29,7 +29,10 @@ type SortKey =
   | "clientName"
   | "saleDate"
   | "paymentMethodName"
+  | "paymentStatus"
   | "totalPaid"
+  | "pendingBalance"
+  | "netProfit"
   | "userName";
 
 export default function VentasListPage() {
@@ -277,7 +280,7 @@ const handleGenerarTicketConsolidado = () => {
         ? email
         : undefined,
     };
-
+    clearSelectedVentas();
     setFiltros(newFiltros);
     setParams((p) => ({ ...p, page: 0 }));
   };
@@ -292,6 +295,8 @@ const handleGenerarTicketConsolidado = () => {
 
       switch (localSort.key) {
         case "totalPaid":
+        case "pendingBalance":
+        case "netProfit":
           return (Number(av ?? 0) - Number(bv ?? 0)) * mult;
 
         case "saleDate":
@@ -303,6 +308,18 @@ const handleGenerarTicketConsolidado = () => {
 
         case "id":
           return (Number(av ?? 0) - Number(bv ?? 0)) * mult;
+        case "paymentStatus": {
+          const order: Record<string, number> = {
+            PAGADA: 1,
+            PARCIAL: 2,
+            PENDIENTE: 3,
+          };
+
+          return (
+            (order[String(av ?? "PAGADA")] ?? 99) -
+            (order[String(bv ?? "PAGADA")] ?? 99)
+          ) * mult;
+        }
 
         default:
           return collator.compare(String(av ?? ""), String(bv ?? "")) * mult;
@@ -407,7 +424,8 @@ useEffect(() => {
           onApply={onApplyFilters}
           showId={true}
           showWeeklyConsolidation={isTienditaVirtual}
-        />   
+          onClear={clearSelectedVentas}
+        /> 
       </div>
 
       {/* LISTA (mobile) + TABLA (desktop) */}
@@ -494,7 +512,7 @@ useEffect(() => {
                 </button>
               </div>
             </div>
-          )}
+        )}
 
       {/* ===== PAGINACIÓN MOBILE (FIJA) ===== */}
       <div
@@ -509,7 +527,8 @@ useEffect(() => {
           page={pageUI}
           totalPages={totalPages}
           onChange={(nextPageUI: number) => {
-            setParams((p) => ({ ...p, page: nextPageUI - 1 })); // UI 1-based -> backend 0-based
+            clearSelectedVentas();
+            setParams((p) => ({ ...p, page: nextPageUI - 1 }));
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         />
@@ -520,9 +539,10 @@ useEffect(() => {
           <ServerPagination
           page={pageUI}
           totalPages={totalPages}
-          onChange={(nextPageUI: number) =>
-            setParams((p) => ({ ...p, page: nextPageUI - 1 }))
-          }
+          onChange={(nextPageUI: number) => {
+            clearSelectedVentas();
+            setParams((p) => ({ ...p, page: nextPageUI - 1 }));
+          }}
         />
       </div>
 
@@ -641,6 +661,7 @@ const isSelected = selectedVentaIds.includes(v.id);
 const statusClass = getPaymentStatusBadge(v.paymentStatus);
 const pendingBalance = Number(v.pendingBalance ?? 0);
 const totalPaid = Number(v.totalPaid ?? 0);
+const showAdminColumns = isSuperAdmin || isAdmin;
 
 
   return (
@@ -694,25 +715,38 @@ const totalPaid = Number(v.totalPaid ?? 0);
           </div>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 text-sm">
-        <div>
-          <p className="text-xs text-slate-500">Pagado</p>
-          <p className="font-semibold text-slate-800 tabular-nums">
-            {formatMoney(totalPaid)}
-          </p>
-        </div>
+     <div
+  className={`mt-3 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm ${
+    showAdminColumns ? "grid-cols-3" : "grid-cols-2"
+  }`}
+>
+  <div>
+    <p className="text-xs text-slate-500">Pagado</p>
+    <p className="font-semibold text-slate-800 tabular-nums">
+      {formatMoney(totalPaid)}
+    </p>
+  </div>
 
-        <div className="text-right">
-          <p className="text-xs text-slate-500">Saldo</p>
-          <p
-            className={`font-semibold tabular-nums ${
-              pendingBalance > 0 ? "text-red-600" : "text-green-600"
-            }`}
-          >
-            {formatMoney(pendingBalance)}
-          </p>
-        </div>
-      </div>
+  <div className="text-right">
+    <p className="text-xs text-slate-500">Saldo</p>
+    <p
+      className={`font-semibold tabular-nums ${
+        pendingBalance > 0 ? "text-red-600" : "text-green-600"
+      }`}
+    >
+      {formatMoney(pendingBalance)}
+    </p>
+  </div>
+
+  {showAdminColumns && (
+    <div className="text-right">
+      <p className="text-xs text-slate-500">Ganancia</p>
+      <p className="font-bold text-emerald-600 tabular-nums">
+        {formatMoney(v.netProfit ?? 0)}
+      </p>
+    </div>
+  )}
+</div>
     {puedeSeleccionarVentas && (
         <div
           className="mt-3 flex justify-start"
@@ -790,6 +824,13 @@ function VentasTable(props: {
     formatMoney,
     formatDate,
   } = props;
+const showAdminColumns = isSuperAdmin || isAdmin;
+
+const desktopColSpan =
+  7 +
+  (puedeSeleccionarVentas ? 1 : 0) +
+  (showAdminColumns ? 2 : 0) +
+  (isSuperAdmin ? 1 : 0);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -849,9 +890,24 @@ function VentasTable(props: {
                 Saldo
               </th>
 
-              <th className="px-4 py-3 text-center font-semibold">
-                Estado
+              <th className="px-4 py-3 text-center">
+                <button
+                  onClick={() => toggleSort("paymentStatus")}
+                  className="flex items-center justify-center gap-1 font-semibold hover:text-blue-600 w-full"
+                >
+                  Estado <Arrow k="paymentStatus" />
+                </button>
               </th>
+              {(isSuperAdmin || isAdmin) && (
+                <th className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => toggleSort("netProfit")}
+                    className="flex items-center justify-end gap-1 font-semibold hover:text-blue-600 w-full"
+                  >
+                    Ganancia <Arrow k="netProfit" />
+                  </button>
+                </th>
+              )}
 
               {(isSuperAdmin || isAdmin) && (
                 <th className="px-4 py-3 text-center">
@@ -873,7 +929,7 @@ function VentasTable(props: {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={10} className="p-4 text-center text-gray-500">
+                <td colSpan={desktopColSpan} className="p-4 text-center text-gray-500">
                   Cargando…
                 </td>
               </tr>
@@ -936,6 +992,11 @@ function VentasTable(props: {
                       {v.paymentStatus}
                     </span>
                   </td>
+                  {(isSuperAdmin || isAdmin) && (
+                    <td className="px-4 py-3 text-right font-bold text-emerald-600">
+                      {formatMoney(v.netProfit ?? 0)}
+                    </td>
+                  )}
                   {(isSuperAdmin || isAdmin)  && <td className="px-4 py-3 text-center">{v.userName}</td>}
 
                   {isSuperAdmin && (
@@ -951,7 +1012,7 @@ function VentasTable(props: {
 
             {!isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={10} className="p-4 text-center text-slate-500">
+                <td colSpan={desktopColSpan} className="p-4 text-center text-slate-500">
                   Sin registros
                 </td>
               </tr>

@@ -35,6 +35,7 @@ export interface VentaItem {
   totalPaid: number;
   pendingBalance: number;
   paymentStatus: PaymentStatus;
+  netProfit?: number | null;
 }
 
 interface VentaBackendDTO {
@@ -69,6 +70,7 @@ interface VentaBackendDTO {
   totalPaid?: number;
   pendingBalance?: number;
   paymentStatus?: PaymentStatus;
+  netProfit?: number | null;
 }
 
 
@@ -104,6 +106,7 @@ interface VentaFilterBackendDTO {
   totalPaid?: number;
   pendingBalance?: number;
   paymentStatus?: PaymentStatus;
+  netProfit?: number | null;
 }
 
 interface VentaFilterBackendPage {
@@ -313,7 +316,6 @@ const content: VentaItem[] = raw.map((v) => {
     totalAmount: v.totalAmount,
     totalPaid: v.totalPaid ?? 0,
     pendingBalance: v.pendingBalance ?? 0,
-    paymentStatus: v.paymentStatus ?? "PAGADA",
     changeAmount: v.changeAmount ?? 0,
     amountInWords: v.amountInWords ?? "",
     paymentMethodName: v.paymentMethodName ?? v.paymentName ?? "",
@@ -332,6 +334,8 @@ const content: VentaItem[] = raw.map((v) => {
 
     ventaIdsConsolidadas: v.ventaIdsConsolidadas ?? [],
     totalVentasConsolidadas: v.totalVentasConsolidadas ?? null,
+    paymentStatus: v.paymentStatus ?? "PAGADA",
+    netProfit: v.netProfit ?? null,
   };
 });
 
@@ -343,6 +347,7 @@ const content: VentaItem[] = raw.map((v) => {
     last: true,
     number: 0,
     size: raw.length,
+    
   };
 }
 
@@ -408,6 +413,7 @@ const content: VentaItem[] = raw.content.map((v) => {
 
     ventaIdsConsolidadas: v.ventaIdsConsolidadas ?? [],
     totalVentasConsolidadas: v.totalVentasConsolidadas ?? null,
+    netProfit: v.netProfit ?? null,
   };
 });
 
@@ -444,6 +450,7 @@ export async function fetchVentaById(id: number): Promise<VentaItem> {
   userName: v.userName ?? "-",
   active: v.active ?? true,
   details: v.details ?? [],
+  netProfit: v.netProfit ?? null,
 };
 }
 
