@@ -1,10 +1,13 @@
 import { api } from "@/lib/api";
 
 export const reportesApi = {
-  getResumen: async (branchId: number) => {
-    const { data } = await api.get(`/reportes/resumen`, {
-      params: { branchId },
-    });
+  // 1. Añade semanasAtras con un valor por defecto
+ getResumen: async (branchId: number) => {
+    const { data } = await api.get(`/reportes/resumen`, { params: { branchId } });
+    return data;
+  },
+  getResumenSemana: async (branchId: number, semanasAtras: number) => {
+    const { data } = await api.get(`/reportes/resumen/grafica-semana`, { params: { branchId, semanasAtras } });
     return data;
   },
 

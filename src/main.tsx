@@ -79,6 +79,12 @@ const router = createBrowserRouter([
                 }),
               },
               {
+                path: "gastos",
+                lazy: async () => ({
+                  Component: (await import("@/features/gastos/GastosPage")).default,
+                }),
+              },
+              {
                 path: "inventario",
                 lazy: async () => ({
                   Component: (await import("@/features/inventario/pages/InventarioListPage")).default,

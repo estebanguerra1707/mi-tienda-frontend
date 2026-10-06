@@ -46,6 +46,7 @@ export const UNIDADES = [
   { id: 4, code: "KG", label: "Kilogramo" },
   { id: 5, code: "LITRO", label: "Litro" },
   { id: 6, code: "METRO", label: "Metro" },
+  { id: 7, code: "GRAMO", label: "Gramo" },
 ] as const;
 
 type UnidadCode = (typeof UNIDADES)[number]["code"];

@@ -59,11 +59,13 @@ function Toast({
 export default function EditInventarioButton({
   row,
   onUpdated,
+  triggerId, // <-- NUEVA PROPIEDAD AQUÍ
 }: {
   row: InventoryItem;
   onUpdated?: () => void;
+  triggerId?: string; // <-- NUEVA PROPIEDAD AQUÍ
 }) {
-    useDisableNumberWheel();
+  useDisableNumberWheel();
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -121,19 +123,17 @@ export default function EditInventarioButton({
   return (
     <>
       <button
+        id={triggerId} // ASIGNAMOS EL ID
         type="button"
         onClick={() => setOpen(true)}
         title="Editar"
         aria-label="Editar"
-        className="
-          inline-flex items-center justify-center
-          h-10 w-10
-          rounded-xl
-          bg-slate-200 text-slate-900
-          hover:bg-slate-300
-          active:scale-[0.98]
-          transition
-        "
+        // OCULTAMOS EL BOTÓN SI RECIBE UN TRIGGER ID
+        className={
+          triggerId 
+            ? "hidden" 
+            : "inline-flex items-center justify-center h-10 w-10 rounded-xl bg-slate-200 text-slate-900 hover:bg-slate-300 active:scale-[0.98] transition"
+        }
       >
         <Pencil className="h-4 w-4" />
       </button>
@@ -171,7 +171,7 @@ export default function EditInventarioButton({
                   </div>
                 </div>
               )}
-               <label className="flex flex-col gap-1">
+                <label className="flex flex-col gap-1">
                   <span className="text-sm">Cantidad (stock)</span>
                   <input
                     type="number"

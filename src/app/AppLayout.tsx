@@ -79,6 +79,7 @@ export default function AppLayout() {
        { to: "/dashboard", label: "Dashboard", section: "ADMIN", show: isAdminOrSuper },
 
       { to: "/compras", label: "Compras", section: "OPERACION", show: !isVendor },
+      { to: "/gastos", label: "Gastos", section: "OPERACION", show: !isVendor },
       { to: "/categorias", label: "Categorías", section: "CATALOGOS", show: !isVendor },
       { to: "/clientes", label: "Clientes", section: "CATALOGOS", show: !isVendor },
       { to: "/proveedores", label: "Proveedores", section: "CATALOGOS", show: !isVendor },

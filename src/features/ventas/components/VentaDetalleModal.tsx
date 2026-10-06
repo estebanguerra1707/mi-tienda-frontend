@@ -138,23 +138,44 @@ export default function VentaDetalleModal({
                     </td>
                   </tr>
                 ) : details.length ? (
-                  details.map((d: VentaDetalleItem, i: number) => (
-                    <tr key={`${d.productId}-${i}`}>
-                      <td className="border px-2 py-1">{d.productName}</td>
-                      <td className="border px-2 py-1 text-center">{String(d.quantity ?? "")}</td>
-                      <td className="border px-2 py-1 text-center">{getUM(d)}</td>
-                      <td className="border px-2 py-1 text-center">
-                        ${Number(d.unitPrice ?? 0).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="text-center py-3 text-gray-500">
-                      Sin productos para mostrar.
+                 details.map((d: VentaDetalleItem, i: number) => (
+                  <tr key={`${d.productId}-${i}`}>
+                    <td className="border px-2 py-1">
+                      <div className="font-medium">{d.productName}</div>
+                      
+                      {/* Renderizado de Extras */}
+                      {d.extras && d.extras.length > 0 && (
+                        <div className="text-xs text-gray-600 mt-1">
+                          <span className="font-semibold">Extras: </span>
+                          {d.extras.map(e => e.productName).filter(Boolean).join(", ")}
+                        </div>
+                      )}
+
+                      {/* Renderizado de Notas */}
+                      {d.notes && (
+                        <div className="text-xs text-gray-500 italic mt-0.5">
+                          * {d.notes}
+                        </div>
+                      )}
+                    </td>
+                    <td className="border px-2 py-1 text-center align-top">
+                      {String(d.quantity ?? "")}
+                    </td>
+                    <td className="border px-2 py-1 text-center align-top">
+                      {getUM(d)}
+                    </td>
+                    <td className="border px-2 py-1 text-center align-top">
+                      ${Number(d.unitPrice ?? 0).toFixed(2)}
                     </td>
                   </tr>
-                )}
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center py-3 text-gray-500">
+                    Sin productos para mostrar.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

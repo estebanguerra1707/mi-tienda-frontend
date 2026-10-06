@@ -7,6 +7,7 @@ export type NavLabel =
   | "Dashboard"
   | "Productos"
   | "Compras"
+  | "Gastos"
   | "Ventas"
   | "Devoluciones"
   | "Reportes"

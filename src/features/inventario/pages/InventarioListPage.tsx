@@ -674,10 +674,15 @@ function InventarioContent() {
                 </tr>
               )}
 
-              {sortedRows.map((row) => (
+             {sortedRows.map((row) => (
                 <tr
                   key={`${row.productId}-${row.branchId}-${row.ownerType}`}
                   className="hover:bg-blue-50 transition cursor-pointer"
+                  // 1. Al hacer clic en la fila, accionamos el botón invisible
+                  onClick={() => {
+                    const btn = document.getElementById(`edit-trigger-${row.id}`);
+                    if (btn) btn.click();
+                  }}
                 >
                   <td className="px-4 py-3">{row.productId}</td>
                   <td className="px-4 py-3 max-w-[220px] truncate font-medium">{row.productName}</td>
@@ -720,8 +725,16 @@ function InventarioContent() {
                   {(isSuper || isAdmin) && <td className="px-4 py-3">{row.updatedBy ?? "—"}</td>}
 
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                      <EditInventarioButton row={row} onUpdated={refetchList} />
+                    {/* 2. stopPropagation para que clics aquí no abran el modal */}
+                    <div className="flex items-center justify-center gap-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      
+                      {/* 3. Pasamos el triggerId, lo que oculta el ícono del lápiz */}
+                      <EditInventarioButton 
+                        row={row} 
+                        onUpdated={refetchList} 
+                        triggerId={`edit-trigger-${row.id}`} 
+                      />
+                      
                       <MarkCriticalButton
                         id={row.id}
                         current={!!row.isStockCritico}

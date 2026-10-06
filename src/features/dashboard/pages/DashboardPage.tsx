@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBranches } from "@/hooks/useCatalogs";
-import { useDashboard } from "@/features/reportes/hooks/useDashboard";
+import { useDashboard, useDashboardSemana } from "@/features/reportes/hooks/useDashboard";
 import { Card } from "@/components/Card";
 import {
   ProductosChart,
@@ -10,9 +10,9 @@ import {
 import { ProductosPorUsuarioChart } from "@/features/reportes/components/ProductosPorUsuarioChart";
 import { Tabs } from "@/components/ui/Tabs";
 import { useTopProductos } from "@/features/reportes/hooks/useTopProducts";
+import { VentasDiariasChart } from "@/features/reportes/components/VentasDiariasChart";
 
-
-  const toNumber = (value: number | string | null | undefined) => {
+const toNumber = (value: number | string | null | undefined) => {
   const n = Number(value ?? 0);
   return Number.isFinite(n) ? n : 0;
 };
@@ -37,14 +37,17 @@ export default function DashboardPage() {
   const [branchId, setBranchId] = useState<number | null>(initialBranchId);
 
   const [activeTab, setActiveTab] = useState("semana");
+  
+  // NUEVO ESTADO: Control de semanas hacia atrás
+  const [semanasAtras, setSemanasAtras] = useState(0);
 
-  // ✅ 1) Dashboard (resumen + topSemana + topMes) - como lo tienes hoy
-  const { data: dashboardData, isLoading: dashboardLoading } = useDashboard(branchId);
-
+const { data: dashboardData, isLoading: dashboardLoading, isError, error } = useDashboard(branchId);  const { data: semanaData } = useDashboardSemana(branchId, semanasAtras);
   const resumen = dashboardData?.data;
 
-   const ventasHoyPorUsuario =
-  (resumen?.ventasHoyPorUsuario ?? []) as UsuarioVentaResumenDTO[];
+  const ventasGrafica = semanaData?.ventasDiariasSemana ?? [];
+  const totalProductosSemanaGrafica = semanaData?.productosVendidosSemana ?? 0;
+  const ventasHoyPorUsuario =
+    (resumen?.ventasHoyPorUsuario ?? []) as UsuarioVentaResumenDTO[];
 
   const ingresosMesPorUsuario =
     (resumen?.ingresosMesPorUsuario ?? []) as UsuarioVentaResumenDTO[];
@@ -55,17 +58,16 @@ export default function DashboardPage() {
     subValue: `Ingreso: ${formatMoney(u.totalIncome)}`,
   }));
 
-const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
-  label: u.username ?? "Usuario sin nombre",
-  value: `Total vendido: ${formatMoney(u.totalIncome)} · ${u.salesCount ?? 0} ventas`,
-  subValue: `Ganancia: ${formatMoney(u.netProfit)}`,
-  subValueClassName: "text-green-600 font-semibold",
-}));
+  const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
+    label: u.username ?? "Usuario sin nombre",
+    value: `Total vendido: ${formatMoney(u.totalIncome)} · ${u.salesCount ?? 0} ventas`,
+    subValue: `Ganancia: ${formatMoney(u.netProfit)}`,
+    subValueClassName: "text-green-600 font-semibold",
+  }));
 
-  const topWeek = (dashboardData?.topWeek ?? []).slice(0, 12);   // ✅ opcional: evita charts pesados
-  const topMonth = (dashboardData?.topMonth ?? []).slice(0, 12); // ✅ opcional
+  const topWeek = (dashboardData?.topWeek ?? []).slice(0, 12);
+  const topMonth = (dashboardData?.topMonth ?? []).slice(0, 12);
 
-  // ✅ 2) Top productos: SOLO cuando se necesita (tabs)
   const needsTop =
     branchId != null &&
     (activeTab === "Más vendidos" || (isSuper && activeTab === "usuario"));
@@ -76,12 +78,13 @@ const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
     needsTop
   );
 
-  const consolidado = (topData?.consolidado ?? []).slice(0, 12); // ✅ opcional
-  const porUsuario = (topData?.porUsuario ?? []).slice(0, 12);   // ✅ opcional
+  const consolidado = (topData?.consolidado ?? []).slice(0, 12);
+  const porUsuario = (topData?.porUsuario ?? []).slice(0, 12);
 
-  // ✅ Loading separado (NO global)
   const loadingDashboardBase = branchId != null && dashboardLoading;
   const loadingTabTop = needsTop && loadingTop;
+
+  const hasDashboardError = isError || error || (dashboardData === undefined && !loadingDashboardBase);
 
   // Fechas
   const hoy = new Date();
@@ -143,36 +146,93 @@ const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
         </div>
       )}
 
-      {/* ---------- LOADING BASE (solo resumen/semana/mes) ---------- */}
+      {/* ---------- LOADING BASE ---------- */}
       {branchId && loadingDashboardBase && (
         <p className="text-slate-500 text-center py-6 text-sm sm:text-base">
           Cargando dashboard…
         </p>
       )}
 
+      {/* ---------- ESTADO DE ERROR ---------- */}
+      {branchId && !loadingDashboardBase && hasDashboardError && (
+        <div className="mt-6 text-red-600 text-center py-10 bg-red-50 rounded-xl shadow border border-red-200">
+          <svg className="mx-auto h-12 w-12 text-red-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <h3 className="text-lg font-bold">Error de conexión</h3>
+          <p className="text-sm mt-1 text-red-500">
+            No se pudo cargar la información del dashboard. Verifica que el servidor backend esté activo y funcionando.
+          </p>
+        </div>
+      )}
+
       {/* ---------- CONTENIDO PRINCIPAL ---------- */}
-      {branchId && !loadingDashboardBase && resumen && (
+      {branchId && !loadingDashboardBase && !hasDashboardError && resumen && (
         <>
           {/* ---------- CARDS ---------- */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 pt-2">
-            <Card titulo="Productos" valor={resumen?.totalProductos ?? 0} />
-
-            <Card titulo="Stock crítico" valor={resumen?.productosCriticos ?? 0} />
-
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 pt-2">
             <Card
               titulo="Ventas hoy"
               valor={resumen?.ventasHoy ?? 0}
               detalleTitulo="Ventas de hoy por usuario"
               detalles={ventasHoyDetalles}
             />
-
+            {/* NUEVAS TARJETAS */}
+            <Card 
+              titulo="Ingresos hoy" 
+              valor={formatMoney(resumen?.ingresosHoy ?? 0)} 
+            />
+            <Card 
+              titulo="Ganancia hoy" 
+              valor={formatMoney(resumen?.gananciaHoy ?? 0)} 
+            />
+            {/* ---------------- */}
             <Card
               titulo="Ingresos mes"
               valor={formatMoney(resumen?.ingresosMes ?? 0)}
-                detalleTitulo="Ventas y ganancia del mes por usuario"
+              detalleTitulo="Ventas y ganancia del mes por usuario"
               detalles={ingresosMesDetalles}
             />
+            <Card titulo="Productos" valor={resumen?.totalProductos ?? 0} />
+            <Card titulo="Stock crítico" valor={resumen?.productosCriticos ?? 0} />
           </div>
+
+         {/* ---------- NUEVA GRÁFICA DE VENTAS DIARIAS ---------- */}
+          {ventasGrafica.length > 0 && (
+            <VentasDiariasChart 
+              data={ventasGrafica} 
+              semanasAtras={semanasAtras}      
+              onCambiarSemana={setSemanasAtras}   
+            />
+          )}
+
+          {/* ---------- SECCIÓN: TOTAL PRODUCTOS VENDIDOS ---------- */}
+          <div className="mt-8 sm:mt-10">
+            <div className="flex items-center mb-4 sm:mb-5">
+              <div className="flex-1 h-px bg-slate-200"></div>
+              <h2 className="mx-4 text-xs sm:text-sm font-bold text-slate-500 uppercase tracking-wider text-center">
+                Total productos vendidos
+              </h2>
+              <div className="flex-1 h-px bg-slate-200"></div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4 flex flex-col items-center justify-center shadow-sm transition-transform hover:scale-[1.02]">
+                <p className="text-[11px] sm:text-xs font-bold text-blue-600 uppercase tracking-wider">Hoy</p>
+                <p className="text-xl sm:text-2xl font-black text-blue-900 mt-1">{resumen?.productosVendidosHoy ?? 0}</p>
+              </div>
+              
+             <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 sm:p-4 flex flex-col items-center justify-center shadow-sm transition-transform hover:scale-[1.02]">
+                <p className="text-[11px] sm:text-xs font-bold text-emerald-600 uppercase tracking-wider">Semana</p>
+                <p className="text-xl sm:text-2xl font-black text-emerald-900 mt-1">{totalProductosSemanaGrafica}</p>
+              </div>
+              
+              <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 sm:p-4 flex flex-col items-center justify-center shadow-sm transition-transform hover:scale-[1.02]">
+                <p className="text-[11px] sm:text-xs font-bold text-violet-600 uppercase tracking-wider">Mes</p>
+                <p className="text-xl sm:text-2xl font-black text-violet-900 mt-1">{resumen?.productosVendidosMes ?? 0}</p>
+              </div>
+            </div>
+          </div>   
 
           {/* ---------- TABS ---------- */}
           <div className="border-b mt-6 sm:mt-8 pb-1 overflow-x-auto">
@@ -217,7 +277,6 @@ const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
               <h2 className="text-lg sm:text-xl font-semibold text-slate-800 mb-4">
                 Más vendidos (consolidado)
               </h2>
-
               {loadingTabTop ? (
                 <p className="text-slate-500 text-center py-6">Cargando top…</p>
               ) : (
@@ -232,7 +291,6 @@ const ingresosMesDetalles = ingresosMesPorUsuario.map((u) => ({
               <h2 className="text-lg sm:text-xl font-semibold text-slate-800 mb-4">
                 Más vendidos por usuario
               </h2>
-
               {loadingTabTop ? (
                 <p className="text-slate-500 text-center py-6">Cargando por usuario…</p>
               ) : (

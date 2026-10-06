@@ -236,7 +236,10 @@ export interface VentaDetalleItem {
   permiteDecimales?: boolean | null;
   unitName?: string | null;
  inventarioOwnerType?:OwnerType;
-   usaInventarioPorDuenio: boolean;
+   usaInventarioPorDuenio: boolean; 
+  comentarios?: string;
+  extras?: VentaDetalleExtraItem[]; 
+  notes?: string;
 }
 
 function buildVentaFilterPayload(
@@ -249,7 +252,7 @@ function buildVentaFilterPayload(
       ? Number(filtros.paymentMethodId)
       : undefined;
 
-  return {
+  const rawPayload = {
     id: filtros?.id,
     clienteId: filtros?.clientId,
     userId: filtros?.userId,
@@ -266,6 +269,16 @@ function buildVentaFilterPayload(
     username: filtros?.username,
     paymentStatus: filtros?.paymentStatus,
   };
+  const cleanPayload = Object.fromEntries(
+    Object.entries(rawPayload).filter(([, value]) =>
+      value !== undefined &&
+      value !== null &&
+      value !== "" &&
+      !(typeof value === "number" && isNaN(value))
+    )
+  );
+
+  return cleanPayload as VentaFilterPayloadBackend;
 }
 
 // ✅ Listar ventas (GET /ventas)
@@ -598,4 +611,21 @@ export async function sendVentaConsolidadaTicketByEmail(
     headers: { "Content-Type": "application/json" },
     data: { emailList },
   });
+}
+
+export interface VentaDetalleExtraItem {
+  id?: number;
+  productName?: string;
+  extraPrice?: number;
+}
+
+export async function fetchComandasEnPreparacion(): Promise<VentaItem[]> {
+  // Asegúrate de usar tu instancia configurada de axios (ej. api.get o axios.get)
+  const { data } = await api.get("/ventas/comandas/en-preparacion");
+  return data;
+}
+
+export async function actualizarEstadoOrdenVenta(id: number, estado: string): Promise<VentaItem> {
+  const { data } = await api.patch(`/ventas/${id}/estado-orden?estado=${estado}`);
+  return data;
 }

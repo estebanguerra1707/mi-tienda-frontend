@@ -21,6 +21,8 @@ import {
   type VentaParams,
   type VentaConsolidadaRequest,
   type VentaConsolidadaResponse,
+  fetchComandasEnPreparacion,
+  actualizarEstadoOrdenVenta,
 } from "@/features/ventas/api";
 
 export const ventaKeys = {
@@ -33,6 +35,7 @@ export const ventaKeys = {
   pagos: (ventaId: number) => [...ventaKeys.all, "pagos", ventaId] as const,
   consolidadoDetail: (weeklyTicketId: number | string) =>
   [...ventaKeys.all, "consolidado-detail", weeklyTicketId] as const,
+  comandasActivas: () => [...ventaKeys.all, "comandas-activas"] as const,
 };
 
 export function useVentas(
@@ -52,21 +55,12 @@ export function useVentas(
 }
 
 export function useSearchVentasPaginadas(
-  filtros?: VentaSearchFiltro & { page?: number; size?: number },
-  options?: { enabled?: boolean }
+  filtros?: VentaSearchFiltro & { page?: number; size?: number }
 ) {
-  const filtrosSinPaginacion = { ...filtros };
-  delete filtrosSinPaginacion.page;
-  delete filtrosSinPaginacion.size;
-
-  const hasFilters = Object.values(filtrosSinPaginacion ?? {}).some(v =>
-    v !== undefined && v !== "" && v !== null
-  );
-
   return useQuery<VentaPage, Error>({
     queryKey: ventaKeys.search(filtros),
     queryFn: () => searchVentasPaginadas(filtros ?? {}),
-    enabled: options?.enabled ?? hasFilters,
+    // Ya no bloqueamos la petición, queremos que cargue la página 0 al iniciar
     staleTime: 60_000,
   });
 }
@@ -92,7 +86,12 @@ export function useCreateVenta() {
   return useMutation({
     mutationFn: (payload: VentaCreate) => createVenta(payload),
     onSuccess: () => {
+      // Refresca la tabla y el historial de ventas
       qc.invalidateQueries({ queryKey: ventaKeys.all });
+      // Refresca las tarjetas estáticas del Dashboard
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      // Refresca la gráfica semanal del Dashboard
+      qc.invalidateQueries({ queryKey: ["dashboardSemana"] });
     },
   });
 }
@@ -168,6 +167,31 @@ export function useDetalleVentaConsolidadaPorTicket(
   });
 }
 
+export function useComandasEnPreparacion() {
+  return useQuery<VentaItem[], Error>({
+    queryKey: ventaKeys.comandasActivas(),
+    queryFn: () => fetchComandasEnPreparacion(),
+    // Opcional: refetchInterval hará que el tablero consulte nuevas comandas 
+    // automáticamente cada 15 segundos sin necesidad de recargar la página.
+    refetchInterval: 15000, 
+  });
+}
+
+export function useActualizarEstadoOrden() {
+  const qc = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, estado }: { id: number; estado: "ENTREGADO" | "CANCELADO" }) =>
+      actualizarEstadoOrdenVenta(id, estado),
+    onSuccess: () => {
+      // Invalida la lista de comandas para que desaparezca del Kanban
+      qc.invalidateQueries({ queryKey: ventaKeys.comandasActivas() });
+      // Invalida el historial de ventas general
+      qc.invalidateQueries({ queryKey: ventaKeys.all });
+    },
+  });
+}
+
 export type {
   VentaSearchFiltro,
   VentaParams,
@@ -181,3 +205,5 @@ export type {
   VentaPagoResponse,
   obtenerDetalleVentaConsolidadaPorTicket,
 } from "@/features/ventas/api";
+
+

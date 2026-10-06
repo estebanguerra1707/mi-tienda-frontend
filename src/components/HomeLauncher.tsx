@@ -14,12 +14,14 @@ import {
   Tags,
   Truck,
   Store,
+  Wallet,
 } from "lucide-react";
 
 const ICONS: Record<NavLabel, LucideIcon> = {
   Dashboard: LayoutGrid,
   Productos: Package,
   Compras: ShoppingCart,
+  Gastos: Wallet,
   Ventas: Receipt,
   Devoluciones: RotateCcw,
   Reportes: BarChart3,

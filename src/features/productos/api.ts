@@ -2,8 +2,8 @@ import { api } from "@/lib/api";
 import { cleanParams } from "@/lib/http-params";
 import { ProductoResponseDTO } from "./productos.api";
 
-export type UnidadMedida = "PIEZA" | "KG" | "LITRO" | "METRO";
-export type UnidadMedidaCodigo = "PIEZA" | "KG" | "LITRO" | "METRO";
+export type UnidadMedida = "PIEZA" | "KG" | "LITRO" | "METRO" | "GRAMO";
+export type UnidadMedidaCodigo = "PIEZA" | "KG" | "LITRO" | "METRO" | "GRAMO";
 
 export type Product = {
   id: number;

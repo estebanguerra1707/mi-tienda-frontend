@@ -9,6 +9,9 @@ export interface DashboardResumenDTO {
   totalProductos: number;
   productosCriticos: number;
   ventasHoy: number;
+  productosVendidosHoy: number;
+  productosVendidosSemana: number;
+  productosVendidosMes: number;
   ingresosMes: number;
 }
 export interface ReporteGananciasDTO {

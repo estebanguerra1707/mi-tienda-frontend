@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -40,6 +41,7 @@ type TooltipExtraProps = TooltipProps<number, string> & {
   payload?: {
     payload: TopProductoDTO;
   }[];
+  isMobile?: boolean;
 };
 
 const COLORS = [
@@ -74,7 +76,26 @@ const formatQty = (value: number | string | null | undefined) => {
 const truncate = (s: string, max = 14) =>
   s.length > max ? s.slice(0, max - 1) + "…" : s;
 
-const TooltipProducto = ({ active, payload }: TooltipExtraProps) => {
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+
+    check();
+    window.addEventListener("resize", check);
+
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  return isMobile;
+};
+
+const TooltipProducto = ({
+  active,
+  payload,
+  isMobile = false,
+}: TooltipExtraProps) => {
   if (!active || !payload || payload.length === 0) return null;
 
   const p = payload[0].payload;
@@ -82,24 +103,30 @@ const TooltipProducto = ({ active, payload }: TooltipExtraProps) => {
 
   return (
     <div
-      className="
-        w-[min(94vw,300px)]
-        max-h-[260px]
+      className={`
+        ${
+          isMobile
+            ? "inline-block w-fit max-w-[92vw]"
+            : "w-[min(94vw,330px)]"
+        }
+        max-h-[240px]
         overflow-y-auto
         rounded-xl
         border
+        border-slate-200
         bg-white
-        p-3
+        px-3
+        py-2.5
         shadow-xl
         text-[11px]
         leading-tight
-      "
+      `}
     >
       <p className="font-bold text-slate-900 text-sm border-b pb-2 mb-2 break-words">
         {p.productName}
       </p>
 
-      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap pb-2 border-b">
+      <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-2 border-b">
         <span className="font-semibold text-slate-700">
           Pzas:{" "}
           <span className="font-bold text-slate-900">
@@ -107,12 +134,14 @@ const TooltipProducto = ({ active, payload }: TooltipExtraProps) => {
           </span>
         </span>
 
-        <span className="font-semibold text-slate-700">
-          Bruto:{" "}
-          <span className="font-bold text-blue-700">
-            {formatMoney(p.totalIncome)}
+        {!isMobile && (
+          <span className="font-semibold text-slate-700">
+            Bruto:{" "}
+            <span className="font-bold text-blue-700">
+              {formatMoney(p.totalIncome)}
+            </span>
           </span>
-        </span>
+        )}
 
         <span className="font-semibold text-slate-700">
           Ganancia:{" "}
@@ -133,7 +162,7 @@ const TooltipProducto = ({ active, payload }: TooltipExtraProps) => {
                 {u.username ?? "Usuario sin nombre"}
               </p>
 
-              <div className="flex flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap text-[11px]">
+              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px]">
                 <span className="text-slate-600">
                   Pzas:{" "}
                   <span className="font-bold text-slate-900">
@@ -148,12 +177,14 @@ const TooltipProducto = ({ active, payload }: TooltipExtraProps) => {
                   </span>
                 </span>
 
-                <span className="text-slate-600">
-                  Bruto:{" "}
-                  <span className="font-bold text-blue-700">
-                    {formatMoney(u.totalIncome)}
+                {!isMobile && (
+                  <span className="text-slate-600">
+                    Bruto:{" "}
+                    <span className="font-bold text-blue-700">
+                      {formatMoney(u.totalIncome)}
+                    </span>
                   </span>
-                </span>
+                )}
 
                 <span className="text-slate-600">
                   Ganancia:{" "}
@@ -169,7 +200,10 @@ const TooltipProducto = ({ active, payload }: TooltipExtraProps) => {
     </div>
   );
 };
+
 export function ProductosChart({ data }: Props) {
+  const isMobile = useIsMobile();
+
   const top = data.slice(0, 12);
   const shouldRotate = top.length > 4;
 
@@ -277,8 +311,8 @@ export function ProductosChart({ data }: Props) {
                 allowDecimals={false}
               />
 
-             <Tooltip
-                content={<TooltipProducto />}
+              <Tooltip
+                content={<TooltipProducto isMobile={isMobile} />}
                 allowEscapeViewBox={{ x: true, y: true }}
                 wrapperStyle={{
                   outline: "none",

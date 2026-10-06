@@ -1,4 +1,4 @@
-export type UnidadMedida = "PIEZA" | "KILOGRAMO" | "LITRO" | "METRO";
+export type UnidadMedida = "PIEZA" | "KILOGRAMO" | "LITRO" | "METRO" | "GRAMO";
 export interface ProductItem {
   id: number;
   name: string;

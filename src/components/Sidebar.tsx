@@ -14,6 +14,7 @@ import {
   Store,
   Warehouse,
   Truck,
+  Wallet,
 } from "lucide-react";
 
 type Props = {
@@ -24,6 +25,7 @@ const ICONS: Record<NavLabel, LucideIcon> = {
   Dashboard: LayoutGrid,
   Productos: Package,
   Compras: ShoppingCart,
+  Gastos: Wallet,
   Ventas: Receipt,
   Devoluciones: RotateCcw,
   Reportes: BarChart3,

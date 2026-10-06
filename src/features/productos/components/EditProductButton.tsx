@@ -26,6 +26,7 @@ export const UNIDADES = [
   { code: "KG", label: "Kilogramo" },
   { code: "LITRO", label: "Litro" },
   { code: "METRO", label: "Metro" },
+  { code: "GRAMO", label: "Gramo" },
 ] as const;
 
 export type UnidadMedidaCodigo = (typeof UNIDADES)[number]["code"];
@@ -110,6 +111,8 @@ const mapUnitIdToCode = (id?: number | null): UnidadMedidaCodigo => {
       return "LITRO";
     case 6:
       return "METRO";
+    case 7:
+      return "GRAMO";
     default:
       return "PIEZA";
   }
