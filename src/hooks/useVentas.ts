@@ -55,13 +55,14 @@ export function useVentas(
 }
 
 export function useSearchVentasPaginadas(
-  filtros?: VentaSearchFiltro & { page?: number; size?: number }
+  filtros?: VentaSearchFiltro & { page?: number; size?: number },
+  options?: { enabled?: boolean } // 1. Agregamos el segundo parámetro
 ) {
   return useQuery<VentaPage, Error>({
     queryKey: ventaKeys.search(filtros),
     queryFn: () => searchVentasPaginadas(filtros ?? {}),
-    // Ya no bloqueamos la petición, queremos que cargue la página 0 al iniciar
     staleTime: 60_000,
+    enabled: options?.enabled, // 2. Se lo conectamos a React Query
   });
 }
 
