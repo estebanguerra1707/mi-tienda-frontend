@@ -4,23 +4,43 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 import { queryClient } from "@/lib/queryClient";
 
-
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
 // ======================================================================
 //   TIPOS
 // ======================================================================
 
-// Cola de peticiones fallidas mientras se refresca el token
 interface FailedRequest {
   resolve: (token: string) => void;
   reject: (error: unknown) => void;
 }
 
-// AxiosRequestConfig extendido con el flag `_retry`
 interface RetryAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
+
+// ======================================================================
+//   🟢 SISTEMA DE LOADING GLOBAL
+// ======================================================================
+
+let activeRequests = 0;
+
+const toggleLoading = (isLoading: boolean) => {
+  window.dispatchEvent(new CustomEvent("globalLoading", { detail: isLoading }));
+};
+
+// Función inteligente para restar peticiones evitando el parpadeo
+const finishRequest = () => {
+  activeRequests--;
+  // Damos 50ms de gracia. Si hay un refresh token en progreso o peticiones
+  // concurrentes, el contador subirá antes de que se ejecute el ocultamiento.
+  setTimeout(() => {
+    if (activeRequests <= 0) {
+      activeRequests = 0; // Previene números negativos
+      toggleLoading(false);
+    }
+  }, 50);
+};
 
 // ======================================================================
 //   HELPERS PARA TOKENS
@@ -58,6 +78,12 @@ export const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    // 🟢 MOSTRAR LOADER
+    if (activeRequests === 0) {
+      toggleLoading(true);
+    }
+    activeRequests++;
+
     const token = getAccessToken();
     if (token) {
       config.headers = config.headers || {};
@@ -65,7 +91,10 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    finishRequest(); // 🟢 OCULTAR SI FALLA AL INICIAR
+    return Promise.reject(error);
+  }
 );
 
 // ======================================================================
@@ -85,9 +114,13 @@ const processQueue = (error: unknown, token: string | null = null): void => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
-
+  (response) => {
+    finishRequest(); // 🟢 PETICIÓN EXITOSA, RESTAMOS AL CONTADOR
+    return response;
+  },
   async (error) => {
+    finishRequest(); // 🟢 FALLÓ LA PETICIÓN, RESTAMOS AL CONTADOR
+
     const originalRequest = error.config as RetryAxiosRequestConfig;
     const status = error.response?.status;
 
@@ -115,6 +148,10 @@ api.interceptors.response.use(
 
     // Si llegamos aquí, este request inicia un refresh
     isRefreshing = true;
+    
+    // 🟢 MANTENER EL LOADER ACTIVO DURANTE EL REFRESCO DEL TOKEN
+    // axios.post no pasa por el interceptor "api", así que sumamos manualmente
+    activeRequests++; 
 
     try {
       const refreshToken = getRefreshToken();
@@ -149,12 +186,13 @@ api.interceptors.response.use(
       // Falló el refresh → deslogueamos
       processQueue(refreshError, null);
       clearAuthData();
-        queryClient.clear();
-       window.location.href = "/login?reason=session_expired";
+      queryClient.clear();
+      window.location.href = "/login?reason=session_expired";
       return Promise.reject(refreshError);
 
     } finally {
       isRefreshing = false;
+      finishRequest(); // 🟢 SOLTAMOS EL LOADER DEL REFRESCO
     }
   }
 );

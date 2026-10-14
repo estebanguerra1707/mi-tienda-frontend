@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   useSearchVentasPaginadas,
   useGenerarDetalleVentaConsolidada,
@@ -28,6 +28,17 @@ import { toastSuccess } from "@/lib/toastSuccess";
 
 type SortKey = "id" | "clientName" | "saleDate" | "paymentMethodName" | "paymentStatus" | "totalPaid" | "pendingBalance" | "netProfit" | "userName";
 
+function useIsShortScreen(threshold = 700) {
+  const [isShort, setIsShort] = useState(false);
+  useEffect(() => {
+    const checkHeight = () => setIsShort(window.innerHeight < threshold);
+    checkHeight(); // Verificar al inicio
+    window.addEventListener("resize", checkHeight);
+    return () => window.removeEventListener("resize", checkHeight);
+  }, [threshold]);
+  return isShort;
+}
+
 export default function VentasListPage() {
   const [params, setParams] = useState<{ page: number; size: number }>({ page: 0, size: 10 });
   const [filtros, setFiltros] = useState<VentaSearchFiltro>({});
@@ -41,6 +52,7 @@ export default function VentasListPage() {
   const TIENDITA_VIRTUAL_BRANCH_IDS = [8, 10];
   const email: string | undefined = user?.email ?? user?.username ?? undefined;
 
+  const isShortScreen = useIsShortScreen(700);
   const [selectedVenta, setSelectedVenta] = useState<VentaItem | null>(null);
   const [openDetalle, setOpenDetalle] = useState(false);
   const [selectedVentaIds, setSelectedVentaIds] = useState<number[]>([]);
@@ -64,6 +76,72 @@ export default function VentasListPage() {
   // ESTADOS NUEVOS PARA EL MONITOR Y LAYOUT
   const [refreshKey, setRefreshKey] = useState(0);
   const [showHistorial, setShowHistorial] = useState(false);
+
+  // Estado para detectar si estamos en PC de forma responsiva (1024px o más)
+  const [isDesktop, setIsDesktop] = useState(true);
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    handleResize(); // Revisión inicial
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // ----- LÓGICA DE RESIZER -----
+  const DEFAULT_SIDEBAR_WIDTH = 380;
+  const MIN_SIDEBAR_WIDTH = 300;
+  const MAX_SIDEBAR_WIDTH = 900; 
+
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
+  
+  // Usamos Refs para el cálculo de DELTA (Diferencia de movimiento)
+  const isResizingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(DEFAULT_SIDEBAR_WIDTH);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    isResizingRef.current = true;
+    
+    // Guardamos la posición INICIAL exacta al hacer clic
+    startXRef.current = e.clientX;
+    startWidthRef.current = sidebarWidth;
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [sidebarWidth]);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+    isResizingRef.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizingRef.current) {
+      // Calculamos cuánto se ha movido el mouse desde el clic original (delta)
+      const deltaX = e.clientX - startXRef.current;
+      let newWidth = startWidthRef.current + deltaX;
+
+      // Aplicamos límites
+      if (newWidth < MIN_SIDEBAR_WIDTH) newWidth = MIN_SIDEBAR_WIDTH;
+      if (newWidth > MAX_SIDEBAR_WIDTH) newWidth = MAX_SIDEBAR_WIDTH;
+
+      setSidebarWidth(newWidth);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resize, stopResizing]);
+  // -----------------------------------------------------
 
   const handleRowClick = (venta: VentaItem) => {
     if (venta.rowType === "CONSOLIDADA") {
@@ -184,35 +262,63 @@ export default function VentasListPage() {
   useEffect(() => { if (!isTienditaVirtual) setSelectedVentaIds([]); }, [isTienditaVirtual]);
 
   return (
-    // Quitamos 'relative' de aquí, solo flex-col normal
-    <div className="flex flex-col h-[calc(100vh-64px)] w-full bg-slate-100 overflow-hidden">
+    // CONTENEDOR MAESTRO
+    <div 
+      className={`h-[calc(100vh-64px)] w-full bg-slate-100 relative custom-scrollbar ${
+        isShortScreen ? "block overflow-y-auto" : "flex flex-col overflow-hidden"
+      }`}
+    >
       
       {/* SECCIÓN SUPERIOR: Panel de Venta + Monitor Kanban */}
-      {/* Agregamos overflow-hidden y flex-1 puro para que no empuje hacia abajo */}
       <div 
-        className={`flex w-full transition-all duration-300 ease-in-out overflow-hidden ${
-          showHistorial ? 'h-[45vh] shrink-0' : 'flex-1'
+        className={`flex flex-col lg:flex-row w-full transition-all duration-300 ease-in-out ${
+          !isShortScreen && showHistorial ? 'lg:h-[45vh] shrink-0' : (!isShortScreen ? 'flex-1 min-h-0' : '')
         }`}
       >
         {/* Lado Izquierdo: Nueva Venta */}
-        <aside className="w-[35%] min-w-[380px] max-w-[450px] bg-white shadow-xl flex flex-col z-20 border-r h-full">
+        {/* Usamos w-full para móvil, y controlamos el ancho con styles solo en lg (Desktop) */}
+        <aside 
+          className={`bg-white shadow-xl flex flex-col z-20 border-b lg:border-b-0 shrink-0 w-full lg:w-auto ${
+            !isShortScreen ? 'lg:h-full lg:overflow-y-auto custom-scrollbar' : ''
+          }`}
+          style={ isDesktop ? { width: sidebarWidth, minWidth: MIN_SIDEBAR_WIDTH, maxWidth: MAX_SIDEBAR_WIDTH } : {} }
+        >
           <PanelNuevaVenta 
             onCreated={() => { 
               ventas.refetch(); 
-              setRefreshKey((k) => k + 1); // Dispara recarga en Kanban
+              setRefreshKey((k) => k + 1); 
             }} 
           />
         </aside>
 
+        {/* ==================================================== */}
+        {/* DIVISOR ARRASTRABLE VISIBLE (SE ELIMINÓ LA CONDICIÓN !isShortScreen) */}
+        {/* ==================================================== */}
+        <div
+          className="hidden lg:flex flex-col items-center justify-center w-2 cursor-col-resize bg-slate-300 border-x border-slate-400 hover:bg-blue-400 active:bg-blue-500 transition-colors z-30 shrink-0 group shadow-inner"
+          onMouseDown={startResizing}
+          title="Arrastra para ajustar el tamaño"
+        >
+          {/* Puntos de agarre (Grip) visuales super marcados */}
+          <div className="flex flex-col gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+            <div className="w-1.5 h-1.5 bg-slate-700 rounded-full"></div>
+            <div className="w-1.5 h-1.5 bg-slate-700 rounded-full"></div>
+            <div className="w-1.5 h-1.5 bg-slate-700 rounded-full"></div>
+          </div>
+        </div>
+
         {/* Lado Derecho: Tablero Kanban */}
-        <main className="flex-1 flex flex-col overflow-hidden h-full">
+        <main className={`flex-1 w-full flex flex-col bg-slate-50 lg:bg-transparent min-h-[200px] shrink-0 ${
+          !isShortScreen ? 'lg:min-h-0 lg:h-full lg:overflow-y-auto custom-scrollbar' : ''
+        } ${isResizing ? "pointer-events-none select-none" : ""}`}>
             <TableroKanban refreshTrigger={refreshKey} />
         </main>
       </div>
 
-      {/* BOTÓN DIVISOR: Toggle Historial */}
-      {/* Eliminamos 'absolute bottom-0', ahora es un bloque normal que se queda naturalmente al fondo */}
-      <div className="w-full bg-slate-200/50 p-2 flex justify-center items-center border-t border-slate-300 shadow-sm shrink-0 z-30">
+      {/* BOTÓN DIVISOR PRINCIPAL: Mostrar/Ocultar Historial */}
+      <div className={`w-full bg-slate-200/50 p-2 border-t border-slate-300 shadow-sm shrink-0 z-30 flex justify-center items-center ${
+        showHistorial ? "hidden lg:flex" : "flex"
+      }`}>
         <button
           onClick={() => setShowHistorial(!showHistorial)}
           className="flex items-center gap-2 px-8 py-2 bg-slate-800 border-2 border-slate-700 rounded-full shadow-lg text-sm font-bold text-white hover:bg-slate-700 transition-all active:scale-95 tracking-wide"
@@ -223,9 +329,25 @@ export default function VentasListPage() {
 
       {/* SECCIÓN INFERIOR: Historial de Ventas */}
       {showHistorial && (
-        <div className="flex-1 overflow-y-auto bg-white p-4 sm:p-6 custom-scrollbar pb-24">
+        <div className={`w-full bg-white p-4 sm:p-6 custom-scrollbar pb-24 lg:pb-6 relative shrink-0 ${
+           !isShortScreen ? "flex-1 lg:overflow-y-auto min-h-0" : ""
+        }`}>
+          
+          {/* BOTÓN FLOTANTE CERRAR CON TEXTO (Solo Móvil) */}
+          <div className="lg:hidden fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none">
+            <button
+              onClick={() => setShowHistorial(false)}
+              className="pointer-events-auto flex items-center gap-2 px-6 py-3 rounded-full bg-slate-800 text-white text-sm font-bold shadow-2xl hover:bg-slate-700 active:scale-95 transition-all border-2 border-slate-700"
+              aria-label="Cerrar historial"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Cerrar historial
+            </button>
+          </div>
+
           <div className="mx-auto max-w-7xl space-y-5">
-            
             <div className="flex items-start sm:items-center justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Historial de Ventas</h2>
@@ -271,7 +393,7 @@ export default function VentasListPage() {
             )}
 
             {/* Paginación */}
-            <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t shadow-sm px-3 py-2">
+            <div className="lg:hidden z-40 bg-white border-t shadow-sm px-3 py-4 mt-6">
               <ServerPagination page={pageUI} totalPages={totalPages} onChange={(nextPageUI: number) => { clearSelectedVentas(); setParams((p) => ({ ...p, page: nextPageUI - 1 })); }} />
             </div>
             <div className="hidden lg:flex pt-2 justify-end">

@@ -14,7 +14,6 @@ interface Props {
   showId?: boolean;
   onClear?: () => void;
   showWeeklyConsolidation?: boolean;
-
 }
 
 export default function AdvancedFiltersVentas({
@@ -24,6 +23,7 @@ export default function AdvancedFiltersVentas({
   showWeeklyConsolidation = false,
 }: Props) {
   const [filtros, setFiltros] = useState<Record<string, string | undefined>>({
+    id: "",
     clientId: "",
     paymentMethodId: "",
     startDate: "",
@@ -37,6 +37,8 @@ export default function AdvancedFiltersVentas({
     paymentStatus: "",
   });
 
+  // NUEVO ESTADO: Controla si se muestra u oculta todo el panel de filtros
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [openStart, setOpenStart] = useState(false);
   const [openEnd, setOpenEnd] = useState(false);
@@ -55,64 +57,63 @@ export default function AdvancedFiltersVentas({
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
-const toBackendDateTime = (date: Date) => {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate()
-  )}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
-    date.getSeconds()
-  )}`;
-};
-
-const buildSemanaMartesLunes = (weeksBack: number) => {
-  const today = new Date();
-  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-  // JS: domingo=0, lunes=1, martes=2...
-  const diffToTuesday = (base.getDay() - 2 + 7) % 7;
-
-  const currentTuesday = new Date(base);
-  currentTuesday.setDate(base.getDate() - diffToTuesday);
-
-  const start = new Date(currentTuesday);
-  start.setDate(currentTuesday.getDate() - weeksBack * 7);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-
-  return {
-    startDate: toBackendDateTime(start),
-    endDate: toBackendDateTime(end),
-  };
-};
-
-const applySemanaMartesLunes = (weeksBack: number) => {
-  const semana = buildSemanaMartesLunes(weeksBack);
-
-  const next = {
-    ...filtros,
-    startDate: semana.startDate,
-    endDate: semana.endDate,
+  const toBackendDateTime = (date: Date) => {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate()
+    )}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+      date.getSeconds()
+    )}`;
   };
 
-  setFiltros(next);
+  const buildSemanaMartesLunes = (weeksBack: number) => {
+    const today = new Date();
+    const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-  const clean = Object.fromEntries(
-    Object.entries(next).filter(([, v]) => v != null && v !== "")
-  );
-  onClear?.();
-  onApply({ ...clean, page: "0", size: "20" });
-};
+    const diffToTuesday = (base.getDay() - 2 + 7) % 7;
 
-const periodoSemanalLabel =
-  startDate && endDate
-    ? `${format(startDate, "EEEE dd MMM yyyy", { locale: es })} - ${format(
-        endDate,
-        "EEEE dd MMM yyyy",
-        { locale: es }
-      )}`
-    : "Sin periodo semanal seleccionado";
+    const currentTuesday = new Date(base);
+    currentTuesday.setDate(base.getDate() - diffToTuesday);
+
+    const start = new Date(currentTuesday);
+    start.setDate(currentTuesday.getDate() - weeksBack * 7);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    return {
+      startDate: toBackendDateTime(start),
+      endDate: toBackendDateTime(end),
+    };
+  };
+
+  const applySemanaMartesLunes = (weeksBack: number) => {
+    const semana = buildSemanaMartesLunes(weeksBack);
+
+    const next = {
+      ...filtros,
+      startDate: semana.startDate,
+      endDate: semana.endDate,
+    };
+
+    setFiltros(next);
+
+    const clean = Object.fromEntries(
+      Object.entries(next).filter(([, v]) => v != null && v !== "")
+    );
+    onClear?.();
+    onApply({ ...clean, page: "0", size: "20" });
+  };
+
+  const periodoSemanalLabel =
+    startDate && endDate
+      ? `${format(startDate, "EEEE dd MMM yyyy", { locale: es })} - ${format(
+          endDate,
+          "EEEE dd MMM yyyy",
+          { locale: es }
+        )}`
+      : "Sin periodo semanal seleccionado";
 
   const setDate = (key: "startDate" | "endDate", d?: Date) => {
     if (!d) {
@@ -124,7 +125,6 @@ const periodoSemanalLabel =
     if (key === "startDate") local.setHours(0, 0, 0, 0);
     else local.setHours(23, 59, 59, 999);
 
-    const pad = (n: number) => String(n).padStart(2, "0");
     const formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(
       local.getDate()
     )}T${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(
@@ -152,7 +152,6 @@ const periodoSemanalLabel =
       Object.entries(filtros).filter(([, v]) => v != null && v !== "")
     );
     onApply({ ...clean, page: "0", size: "20" });
-
   };
 
   const clear = () => {
@@ -168,218 +167,250 @@ const periodoSemanalLabel =
   const inputCls =
     "w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
+  // Contador de filtros activos para mostrar en el botón
+  const activeFiltersCount = Object.values(filtros).filter(
+    (v) => v !== undefined && v !== ""
+  ).length;
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-base font-semibold">
-        Filtros ·  ventas
-      </h3>
-      <p className="text-sm text-gray-500">
-        Busca una venta, selecciona y haz devolución de producto
-      </p>
-
-      {/* ---------- FILTROS PRINCIPALES ---------- */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-
-        {showId && (
-          <input
-            name="id"
-            value={filtros.id ?? ""}
-            onChange={handleChange}
-            placeholder="Folio (ID)"
-            className={inputCls}
-          />
-        )}
-
-        <select
-          name="clientId"
-          value={filtros.clientId ?? ""}
-          onChange={handleChange}
-          className={inputCls}
-        >
-          <option value="">Cliente</option>
-          {clients.map((c) => (
-            <option key={c.id} value={String(c.id)}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          name="paymentMethodId"
-          value={filtros.paymentMethodId ?? ""}
-          onChange={handleChange}
-          className={inputCls}
-        >
-          <option value="">Método de pago</option>
-          {paymentMethods.map((m) => (
-            <option key={m.id} value={String(m.id)}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          name="paymentStatus"
-          value={filtros.paymentStatus ?? ""}
-          onChange={handleChange}
-          className={inputCls}
-        >
-          <option value="">Estado de pago</option>
-          <option value="PAGADA">Pagada</option>
-          <option value="PARCIAL">Parcial</option>
-          <option value="PENDIENTE">Pendiente</option>
-        </select>
-
-        {/* FECHAS */}
-        <div className="sm:col-span-2 lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-          <Popover open={openStart} onOpenChange={setOpenStart}>
-            <PopoverTrigger asChild>
-              <button className={`${inputCls} text-left`}>
-                {startDate
-                  ? format(startDate, "dd MMM yyyy", { locale: es })
-                  : "Desde"}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={(d) => {
-                  setDate("startDate", d);
-                  setOpenStart(false);
-                }}
-                locale={es}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover open={openEnd} onOpenChange={setOpenEnd}>
-            <PopoverTrigger asChild>
-              <button className={`${inputCls} text-left`}>
-                {endDate
-                  ? format(endDate, "dd MMM yyyy", { locale: es })
-                  : "Hasta"}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={(d) => {
-                  setDate("endDate", d);
-                  setOpenEnd(false);
-                }}
-                locale={es}
-              />
-            </PopoverContent>
-          </Popover>
+    <div className="flex flex-col space-y-4">
+      {/* ---------- ENCABEZADO Y BOTÓN TOGGLE ---------- */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold">Filtros · ventas</h3>
+          <p className="text-sm text-gray-500">
+            Busca una venta, selecciona y haz devolución de producto
+          </p>
         </div>
-        {showWeeklyConsolidation && (
-          <div className="col-span-full w-full rounded-xl border border-blue-100 bg-blue-50 p-3 sm:p-4">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-blue-900">
-                  Periodo semanal para ticket consolidado
-                </p>
-
-                <p className="text-xs text-blue-700 leading-snug">
-                  El ticket semanal debe tomar ventas de martes a lunes.
-                </p>
-
-                <p className="mt-1 text-sm font-medium text-slate-800 break-words">
-                  {periodoSemanalLabel}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full xl:w-auto">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-white whitespace-nowrap"
-                  onClick={() => applySemanaMartesLunes(0)}
-                >
-                  Semana actual
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-white whitespace-nowrap"
-                  onClick={() => applySemanaMartesLunes(1)}
-                >
-                  Semana anterior
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ---------- BOTONES ---------- */}
-      <div className="flex flex-col sm:flex-row gap-2 justify-end">
-        <Button className="bg-blue-600 text-white w-full sm:w-auto" onClick={apply}>
-          Buscar
+        
+        <Button
+          variant={isExpanded ? "ghost" : "outline"}
+          className="w-full sm:w-auto font-semibold border-slate-300"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {isExpanded ? "Ocultar filtros ↑" : "Mostrar filtros ↓"}
+          {/* Badge para mostrar si hay filtros aplicados cuando está cerrado */}
+          {!isExpanded && activeFiltersCount > 0 && (
+            <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+              {activeFiltersCount}
+            </span>
+          )}
         </Button>
-
-      <Button
-        variant="outline"
-        className="w-full sm:w-auto"
-        onClick={clear}
-      >
-        Limpiar
-      </Button>
-
-        {!showAdvanced && (
-          <Button
-            variant="ghost"
-            className="w-full sm:w-auto"
-            onClick={() => setShowAdvanced(true)}
-          >
-            Búsqueda avanzada
-          </Button>
-        )}
       </div>
 
-      {/* ---------- AVANZADO ---------- */}
-      {showAdvanced && (
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t pt-3">
+      {/* ---------- CONTENIDO COLAPSABLE ---------- */}
+      {isExpanded && (
+        <div className="pt-4 border-t border-slate-100 space-y-4 animate-in fade-in duration-200">
+          
+          {/* ---------- FILTROS PRINCIPALES ---------- */}
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {showId && (
+              <input
+                name="id"
+                value={filtros.id ?? ""}
+                onChange={handleChange}
+                placeholder="Folio (ID)"
+                className={inputCls}
+              />
+            )}
 
-          <input name="min" placeholder="Monto mínimo" value={filtros.min ?? ""} onChange={handleChange} className={inputCls} />
-          <input name="max" placeholder="Monto máximo" value={filtros.max ?? ""} onChange={handleChange} className={inputCls} />
+            <select
+              name="clientId"
+              value={filtros.clientId ?? ""}
+              onChange={handleChange}
+              className={inputCls}
+            >
+              <option value="">Cliente</option>
+              {clients.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
 
-          <div className="grid grid-cols-3 gap-2">
-            <input name="day" placeholder="Día" value={filtros.day ?? ""} onChange={handleChange} className={inputCls} />
-            <input name="month" placeholder="Mes" value={filtros.month ?? ""} onChange={handleChange} className={inputCls} />
-            <input name="year" placeholder="Año" value={filtros.year ?? ""} onChange={handleChange} className={inputCls} />
+            <select
+              name="paymentMethodId"
+              value={filtros.paymentMethodId ?? ""}
+              onChange={handleChange}
+              className={inputCls}
+            >
+              <option value="">Método de pago</option>
+              {paymentMethods.map((m) => (
+                <option key={m.id} value={String(m.id)}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="paymentStatus"
+              value={filtros.paymentStatus ?? ""}
+              onChange={handleChange}
+              className={inputCls}
+            >
+              <option value="">Estado de pago</option>
+              <option value="PAGADA">Pagada</option>
+              <option value="PARCIAL">Parcial</option>
+              <option value="PENDIENTE">Pendiente</option>
+            </select>
+
+            {/* FECHAS */}
+            <div className="sm:col-span-2 lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Popover open={openStart} onOpenChange={setOpenStart}>
+                <PopoverTrigger asChild>
+                  <button className={`${inputCls} text-left`}>
+                    {startDate
+                      ? format(startDate, "dd MMM yyyy", { locale: es })
+                      : "Desde"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={(d) => {
+                      setDate("startDate", d);
+                      setOpenStart(false);
+                    }}
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover open={openEnd} onOpenChange={setOpenEnd}>
+                <PopoverTrigger asChild>
+                  <button className={`${inputCls} text-left`}>
+                    {endDate
+                      ? format(endDate, "dd MMM yyyy", { locale: es })
+                      : "Hasta"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={(d) => {
+                      setDate("endDate", d);
+                      setOpenEnd(false);
+                    }}
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {showWeeklyConsolidation && (
+              <div className="col-span-full w-full rounded-xl border border-blue-100 bg-blue-50 p-3 sm:p-4">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-blue-900">
+                      Periodo semanal para ticket consolidado
+                    </p>
+                    <p className="text-xs text-blue-700 leading-snug">
+                      El ticket semanal debe tomar ventas de martes a lunes.
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-slate-800 break-words">
+                      {periodoSemanalLabel}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full xl:w-auto">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full bg-white whitespace-nowrap"
+                      onClick={() => applySemanaMartesLunes(0)}
+                    >
+                      Semana actual
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full bg-white whitespace-nowrap"
+                      onClick={() => applySemanaMartesLunes(1)}
+                    >
+                      Semana anterior
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <select
-            name="active"
-            value={filtros.active ?? ""}
-            onChange={handleChange}
-            className={`${inputCls} lg:col-span-3`}
-          >
-            <option value="">Activo</option>
-            <option value="true">Sólo activos</option>
-            <option value="false">Sólo inactivos</option>
-          </select>
-
-          <div className="flex flex-col sm:flex-row gap-2 justify-end lg:col-span-3">
+          {/* ---------- BOTONES ACCIÓN ---------- */}
+          <div className="flex flex-col sm:flex-row gap-2 justify-end">
             <Button className="bg-blue-600 text-white w-full sm:w-auto" onClick={apply}>
-              Aplicar
+              Buscar
             </Button>
+
             <Button variant="outline" className="w-full sm:w-auto" onClick={clear}>
               Limpiar
             </Button>
-            <Button
-              variant="ghost"
-              className="w-full sm:w-auto"
-              onClick={() => setShowAdvanced(false)}
-            >
-              Ocultar avanzada
-            </Button>
+
+            {!showAdvanced && (
+              <Button
+                variant="ghost"
+                className="w-full sm:w-auto"
+                onClick={() => setShowAdvanced(true)}
+              >
+                Búsqueda avanzada
+              </Button>
+            )}
           </div>
+
+          {/* ---------- AVANZADO ---------- */}
+          {showAdvanced && (
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t pt-3">
+              <input
+                name="min"
+                placeholder="Monto mínimo"
+                value={filtros.min ?? ""}
+                onChange={handleChange}
+                className={inputCls}
+              />
+              <input
+                name="max"
+                placeholder="Monto máximo"
+                value={filtros.max ?? ""}
+                onChange={handleChange}
+                className={inputCls}
+              />
+
+              <div className="grid grid-cols-3 gap-2">
+                <input name="day" placeholder="Día" value={filtros.day ?? ""} onChange={handleChange} className={inputCls} />
+                <input name="month" placeholder="Mes" value={filtros.month ?? ""} onChange={handleChange} className={inputCls} />
+                <input name="year" placeholder="Año" value={filtros.year ?? ""} onChange={handleChange} className={inputCls} />
+              </div>
+
+              <select
+                name="active"
+                value={filtros.active ?? ""}
+                onChange={handleChange}
+                className={`${inputCls} lg:col-span-3`}
+              >
+                <option value="">Activo</option>
+                <option value="true">Sólo activos</option>
+                <option value="false">Sólo inactivos</option>
+              </select>
+
+              <div className="flex flex-col sm:flex-row gap-2 justify-end lg:col-span-3">
+                <Button className="bg-blue-600 text-white w-full sm:w-auto" onClick={apply}>
+                  Aplicar
+                </Button>
+                <Button variant="outline" className="w-full sm:w-auto" onClick={clear}>
+                  Limpiar
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full sm:w-auto"
+                  onClick={() => setShowAdvanced(false)}
+                >
+                  Ocultar avanzada
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
