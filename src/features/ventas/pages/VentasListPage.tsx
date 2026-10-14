@@ -28,17 +28,6 @@ import { toastSuccess } from "@/lib/toastSuccess";
 
 type SortKey = "id" | "clientName" | "saleDate" | "paymentMethodName" | "paymentStatus" | "totalPaid" | "pendingBalance" | "netProfit" | "userName";
 
-function useIsShortScreen(threshold = 700) {
-  const [isShort, setIsShort] = useState(false);
-  useEffect(() => {
-    const checkHeight = () => setIsShort(window.innerHeight < threshold);
-    checkHeight(); // Verificar al inicio
-    window.addEventListener("resize", checkHeight);
-    return () => window.removeEventListener("resize", checkHeight);
-  }, [threshold]);
-  return isShort;
-}
-
 export default function VentasListPage() {
   const [params, setParams] = useState<{ page: number; size: number }>({ page: 0, size: 10 });
   const [filtros, setFiltros] = useState<VentaSearchFiltro>({});
@@ -52,7 +41,6 @@ export default function VentasListPage() {
   const TIENDITA_VIRTUAL_BRANCH_IDS = [8, 10];
   const email: string | undefined = user?.email ?? user?.username ?? undefined;
 
-  const isShortScreen = useIsShortScreen(700);
   const [selectedVenta, setSelectedVenta] = useState<VentaItem | null>(null);
   const [openDetalle, setOpenDetalle] = useState(false);
   const [selectedVentaIds, setSelectedVentaIds] = useState<number[]>([]);
@@ -265,21 +253,20 @@ export default function VentasListPage() {
     // CONTENEDOR MAESTRO
     <div 
       className={`h-[calc(100vh-64px)] w-full bg-slate-100 relative custom-scrollbar ${
-        isShortScreen ? "block overflow-y-auto" : "flex flex-col overflow-hidden"
+        !isDesktop ? "block overflow-y-auto" : "flex flex-col overflow-hidden"
       }`}
     >
       
       {/* SECCIÓN SUPERIOR: Panel de Venta + Monitor Kanban */}
       <div 
-        className={`flex flex-col lg:flex-row w-full transition-all duration-300 ease-in-out ${
-          !isShortScreen && showHistorial ? 'lg:h-[45vh] shrink-0' : (!isShortScreen ? 'flex-1 min-h-0' : '')
+        className={`${!isDesktop && showHistorial ? 'hidden' : 'flex'} flex-col lg:flex-row w-full transition-all duration-300 ease-in-out ${
+          isDesktop && showHistorial ? 'lg:h-[45vh] shrink-0' : (isDesktop ? 'flex-1 min-h-0' : '')
         }`}
       >
         {/* Lado Izquierdo: Nueva Venta */}
-        {/* Usamos w-full para móvil, y controlamos el ancho con styles solo en lg (Desktop) */}
         <aside 
           className={`bg-white shadow-xl flex flex-col z-20 border-b lg:border-b-0 shrink-0 w-full lg:w-auto ${
-            !isShortScreen ? 'lg:h-full lg:overflow-y-auto custom-scrollbar' : ''
+            isDesktop ? 'h-full overflow-y-auto custom-scrollbar' : ''
           }`}
           style={ isDesktop ? { width: sidebarWidth, minWidth: MIN_SIDEBAR_WIDTH, maxWidth: MAX_SIDEBAR_WIDTH } : {} }
         >
@@ -292,24 +279,24 @@ export default function VentasListPage() {
         </aside>
 
         {/* ==================================================== */}
-        {/* DIVISOR ARRASTRABLE VISIBLE (SE ELIMINÓ LA CONDICIÓN !isShortScreen) */}
+        {/* DIVISOR ARRASTRABLE DELGADO (8px aprox) */}
         {/* ==================================================== */}
         <div
-          className="hidden lg:flex flex-col items-center justify-center w-2 cursor-col-resize bg-slate-300 border-x border-slate-400 hover:bg-blue-400 active:bg-blue-500 transition-colors z-30 shrink-0 group shadow-inner"
+          className="hidden lg:flex flex-col items-center justify-center w-2 cursor-col-resize bg-slate-200 border-x border-slate-300 hover:bg-blue-400 active:bg-blue-500 transition-colors z-30 shrink-0 group"
           onMouseDown={startResizing}
           title="Arrastra para ajustar el tamaño"
         >
-          {/* Puntos de agarre (Grip) visuales super marcados */}
-          <div className="flex flex-col gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-            <div className="w-1.5 h-1.5 bg-slate-700 rounded-full"></div>
-            <div className="w-1.5 h-1.5 bg-slate-700 rounded-full"></div>
-            <div className="w-1.5 h-1.5 bg-slate-700 rounded-full"></div>
+          {/* Puntos de agarre (Grip) visuales sutiles */}
+          <div className="flex flex-col gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+            <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
+            <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
+            <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
           </div>
         </div>
 
         {/* Lado Derecho: Tablero Kanban */}
         <main className={`flex-1 w-full flex flex-col bg-slate-50 lg:bg-transparent min-h-[200px] shrink-0 ${
-          !isShortScreen ? 'lg:min-h-0 lg:h-full lg:overflow-y-auto custom-scrollbar' : ''
+          isDesktop ? 'min-h-0 h-full overflow-y-auto custom-scrollbar' : ''
         } ${isResizing ? "pointer-events-none select-none" : ""}`}>
             <TableroKanban refreshTrigger={refreshKey} />
         </main>
@@ -330,7 +317,7 @@ export default function VentasListPage() {
       {/* SECCIÓN INFERIOR: Historial de Ventas */}
       {showHistorial && (
         <div className={`w-full bg-white p-4 sm:p-6 custom-scrollbar pb-24 lg:pb-6 relative shrink-0 ${
-           !isShortScreen ? "flex-1 lg:overflow-y-auto min-h-0" : ""
+           isDesktop ? "flex-1 overflow-y-auto min-h-0" : "min-h-full"
         }`}>
           
           {/* BOTÓN FLOTANTE CERRAR CON TEXTO (Solo Móvil) */}
