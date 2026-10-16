@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import { useComandasEnPreparacion, useActualizarEstadoOrden } from "@/hooks/useVentas";
 import { Button } from "@/components/ui/Button";
 
-// ✅ NUEVO COMPONENTE: Actualiza los minutos transcurridos en tiempo real
+// ✅ COMPONENTE: Actualiza los minutos transcurridos en tiempo real
 function TiempoTranscurrido({ saleDate }: { saleDate: string }) {
   const [minutos, setMinutos] = useState(() => {
     const diff = dayjs().diff(dayjs(saleDate), "minute");
@@ -73,7 +73,6 @@ export default function TableroKanban({ refreshTrigger }: { refreshTrigger: numb
               {/* Iteración de Tickets */}
               {comandasOrdenadas.map((comanda) => {
                 const horaCreacion = dayjs(comanda.saleDate);
-                // Cálculo estático inicial para el fondo rojo urgente
                 const minutosEsperaInicial = dayjs().diff(horaCreacion, 'minute');
                 const isUrgente = minutosEsperaInicial >= 30;
 
@@ -89,7 +88,6 @@ export default function TableroKanban({ refreshTrigger }: { refreshTrigger: numb
                       </div>
                       <div className="flex flex-col items-end text-xs">
                         <span>{horaCreacion.format('hh:mm A')}</span>
-                        {/* ✅ COMPONENTE EN VIVO */}
                         <TiempoTranscurrido saleDate={comanda.saleDate} />
                       </div>
                     </div>
@@ -105,24 +103,34 @@ export default function TableroKanban({ refreshTrigger }: { refreshTrigger: numb
                     <div className="p-3 flex-1 overflow-y-auto max-h-64 custom-scrollbar">
                       <div className="flex flex-col gap-3">
                         {comanda.details?.map((detalle, i) => {
-                          // ✅ Lógica de colores dinámicos
                           const lowerName = detalle.productName.toLowerCase();
                           const isVerde = lowerName.includes("verde");
                           const isRojo = lowerName.includes("rojo");
+                          // Identificamos si es un pan
+                          const isPan = lowerName.includes("pan");
                           
-                          const textTitleColor = isVerde ? "text-green-800" : isRojo ? "text-red-800" : "text-slate-900";
-                          const textExtraColor = isVerde ? "text-green-600" : isRojo ? "text-red-600" : "text-emerald-600";
+                          // ✅ Modificación de colores: Si es pan, el color será morado
+                          const textTitleColor = isPan ? "text-purple-800" : isVerde ? "text-green-800" : isRojo ? "text-red-800" : "text-slate-900";
+                          const textExtraColor = isPan ? "text-purple-600" : isVerde ? "text-green-600" : isRojo ? "text-red-600" : "text-emerald-600";
 
                           return (
                             <div key={i} className="flex flex-col">
-                              {/* Cantidad y Nombre */}
+                              {/* Cantidad, Nombre y Descripción */}
                               <div className="flex items-start gap-2">
                                 <span className="font-black text-lg min-w-[24px] text-slate-700">
                                   {detalle.quantity}x
                                 </span>
-                                <span className={`font-bold text-base uppercase leading-tight ${textTitleColor}`}>
-                                  {detalle.productName}
-                                </span>
+                                <div className="flex flex-col">
+                                  <span className={`font-bold text-base uppercase leading-tight ${textTitleColor}`}>
+                                    {detalle.productName}
+                                  </span>
+                                  {/* Mostrar descripción solo si es pan y tiene descripción */}
+                                  {isPan && detalle.description && (
+                                    <span className="text-sm text-orange-500 italic mt-1 leading-tight">
+                                      {detalle.description}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Extras (Heredan el color) */}

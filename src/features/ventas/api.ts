@@ -240,6 +240,7 @@ export interface VentaDetalleItem {
   comentarios?: string;
   extras?: VentaDetalleExtraItem[]; 
   notes?: string;
+  description?: string;
 }
 
 function buildVentaFilterPayload(

@@ -35,6 +35,7 @@ export default function AdvancedFiltersVentas({
     year: "",
     active: "",
     paymentStatus: "",
+    productName: "",
   });
 
   // NUEVO ESTADO: Controla si se muestra u oculta todo el panel de filtros
@@ -362,6 +363,13 @@ export default function AdvancedFiltersVentas({
           {/* ---------- AVANZADO ---------- */}
           {showAdvanced && (
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t pt-3">
+              <input
+                name="productName"
+                placeholder="Nombre del producto (ej. pan)"
+                value={filtros.productName ?? ""}
+                onChange={handleChange}
+                className={inputCls}
+              />
               <input
                 name="min"
                 placeholder="Monto mínimo"

@@ -566,16 +566,17 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
                   const lowerName = (p.name || "").toLowerCase();
                   const isVerde = lowerName.includes("verde");
                   const isRojo = lowerName.includes("rojo");
-                  
+                  const isPan = lowerName.includes("pan");
+
                   let itemClass = "";
                   let subTextClass = "";
 
                   if (isActive) {
-                    itemClass = isVerde ? "bg-green-600 text-white" : isRojo ? "bg-red-600 text-white" : "bg-blue-600 text-white";
+                    itemClass = isVerde ? "bg-green-600 text-white" : isRojo ? "bg-red-600 text-white" : isPan ? "bg-purple-600 text-white" : "bg-blue-600 text-white";
                     subTextClass = "text-white/80";
                   } else {
-                    itemClass = isVerde ? "bg-green-100 text-green-900 hover:bg-green-200" : isRojo ? "bg-red-100 text-red-900 hover:bg-red-200" : "bg-white text-slate-900 hover:bg-blue-50";
-                    subTextClass = isVerde ? "text-green-700" : isRojo ? "text-red-700" : "text-slate-500";
+                    itemClass = isVerde ? "bg-green-100 text-green-900 hover:bg-green-200" : isRojo ? "bg-red-100 text-red-900 hover:bg-red-200" : isPan ? "bg-purple-100 text-purple-900 hover:bg-purple-200" : "bg-white text-slate-900 hover:bg-blue-50";
+                    subTextClass = isVerde ? "text-green-700" : isRojo ? "text-red-700" : isPan ? "text-purple-700" : "text-slate-500";
                   }
 
                   return (
@@ -628,8 +629,9 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
                       const lowerName = (prod.name || "").toLowerCase();
                       const isVerde = lowerName.includes("verde");
                       const isRojo = lowerName.includes("rojo");
-                      const rowBgClass = isVerde ? "bg-green-50 border-green-200" : isRojo ? "bg-red-50 border-red-200" : "border-slate-200";
-                      const titleClass = isVerde ? "text-green-900" : isRojo ? "text-red-900" : "text-slate-800";
+                      const isPan = lowerName.includes("pan");
+                      const rowBgClass = isVerde ? "bg-green-50 border-green-200" : isRojo ? "bg-red-50 border-red-200" : isPan ? "bg-purple-50 border-purple-200" : "border-slate-200";
+                      const titleClass = isVerde ? "text-green-900" : isRojo ? "text-red-900": isPan ? "text-purple-900" : "text-slate-800";
                       const u = getUnidadUI(prod);
 
                       return (
@@ -705,6 +707,7 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
                           )}
                           
                           {/* Select de extras */}
+                        {/* Select de extras */}
                           <select
                             className="text-xs font-medium border border-slate-200 rounded p-1.5 w-full bg-white outline-none mt-1"
                             onChange={(e) => {
@@ -724,18 +727,28 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
                             {products
                               .filter((p) => {
                                 const nombre = (p.name || "").toLowerCase();
-                                return nombre.includes("extra") || nombre.includes("base");
+                                // ✅ Filtramos los productos que sean extras, bases O panes
+                                return nombre.includes("extra") || nombre.includes("base") || nombre.includes("pan");
                               })
                               .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
                               .map((p) => {
-                                const isBase = (p.name || "").toLowerCase().includes("base");
+                                const lowerNameExtra = (p.name || "").toLowerCase();
+                                const isBase = lowerNameExtra.includes("base");
+                                const isPan = lowerNameExtra.includes("pan");
+
                                 return (
                                   <option 
                                     key={p.id} 
                                     value={p.id}
-                                    className={isBase ? "text-blue-700 font-bold bg-blue-50" : "text-slate-700"}
+                                    className={
+                                      isBase 
+                                        ? "text-blue-700 font-bold bg-blue-50" 
+                                        : isPan 
+                                          ? "text-orange-600 font-bold bg-orange-50" 
+                                          : "text-slate-700"
+                                    }
                                   >
-                                    {isBase ? "🔹 " : ""}{p.name} (+${p.salePrice?.toFixed(2)})
+                                    {isBase ? "🔹 " : isPan ? "Extra " : ""}{p.name} (+${p.salePrice?.toFixed(2)})
                                   </option>
                                 );
                               })}
