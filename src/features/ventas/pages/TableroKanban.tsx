@@ -108,6 +108,7 @@ export default function TableroKanban({ refreshTrigger }: { refreshTrigger: numb
                           const isRojo = lowerName.includes("rojo");
                           // Identificamos si es un pan
                           const isPan = lowerName.includes("pan");
+                          const isPanExtra = lowerName.includes("pan extra");
                           
                           // ✅ Modificación de colores: Si es pan, el color será morado
                           const textTitleColor = isPan ? "text-purple-800" : isVerde ? "text-green-800" : isRojo ? "text-red-800" : "text-slate-900";
@@ -125,7 +126,7 @@ export default function TableroKanban({ refreshTrigger }: { refreshTrigger: numb
                                     {detalle.productName}
                                   </span>
                                   {/* Mostrar descripción solo si es pan y tiene descripción */}
-                                  {isPan && detalle.description && (
+                                  {isPanExtra && detalle.description && (
                                     <span className="text-sm text-orange-500 italic mt-1 leading-tight">
                                       {detalle.description}
                                     </span>

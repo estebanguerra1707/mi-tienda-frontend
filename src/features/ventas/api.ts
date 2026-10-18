@@ -158,6 +158,7 @@ export interface VentaSearchFiltro {
   size?: number;
   username?: string;
   paymentStatus?: PaymentStatus;
+  productNAme?: string;
 }
 
 
