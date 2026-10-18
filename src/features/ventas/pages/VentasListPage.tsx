@@ -203,6 +203,7 @@ export default function VentasListPage() {
       day: clean.day ? Number(clean.day) : undefined, month: clean.month ? Number(clean.month) : undefined, year: clean.year ? Number(clean.year) : undefined,
       active: clean.active === "true" ? true : clean.active === "false" ? false : undefined,
       username: isSuperAdmin ? cleanUsername : isVendor ? email : undefined,
+      productName: clean.productName,
     };
     clearSelectedVentas();
     setFiltros(newFiltros);

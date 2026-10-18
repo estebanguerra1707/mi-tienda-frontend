@@ -706,7 +706,6 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
                             </div>
                           )}
                           
-                          {/* Select de extras */}
                         {/* Select de extras */}
                           <select
                             className="text-xs font-medium border border-slate-200 rounded p-1.5 w-full bg-white outline-none mt-1"
@@ -727,14 +726,15 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
                             {products
                               .filter((p) => {
                                 const nombre = (p.name || "").toLowerCase();
-                                // ✅ Filtramos los productos que sean extras, bases O panes
-                                return nombre.includes("extra") || nombre.includes("base") || nombre.includes("pan");
+                                // ✅ 1. Filtramos estrictamente solo los que dicen "extra" o "base"
+                                return nombre.includes("extra") || nombre.includes("base");
                               })
                               .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
                               .map((p) => {
                                 const lowerNameExtra = (p.name || "").toLowerCase();
                                 const isBase = lowerNameExtra.includes("base");
-                                const isPan = lowerNameExtra.includes("pan");
+                                // ✅ 2. Pintamos de naranja solo si es un extra que además es pan
+                                const isPanExtra = lowerNameExtra.includes("pan") && lowerNameExtra.includes("extra");
 
                                 return (
                                   <option 
@@ -743,12 +743,13 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
                                     className={
                                       isBase 
                                         ? "text-blue-700 font-bold bg-blue-50" 
-                                        : isPan 
+                                        : isPanExtra 
                                           ? "text-orange-600 font-bold bg-orange-50" 
                                           : "text-slate-700"
                                     }
                                   >
-                                    {isBase ? "🔹 " : isPan ? "Extra " : ""}{p.name} (+${p.salePrice?.toFixed(2)})
+                                    {/* ✅ 3. Quitamos el "Extra " manual para que use el nombre limpio de tu BD */}
+                                    {isBase ? "🔹 " : ""}{p.name} (+${p.salePrice?.toFixed(2)})
                                   </option>
                                 );
                               })}

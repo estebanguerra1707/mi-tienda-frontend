@@ -158,7 +158,7 @@ export interface VentaSearchFiltro {
   size?: number;
   username?: string;
   paymentStatus?: PaymentStatus;
-  productNAme?: string;
+  productName?: string;
 }
 
 
@@ -178,6 +178,7 @@ interface VentaFilterPayloadBackend {
   consolidated?: boolean;
   username?: string;
   paymentStatus?: PaymentStatus;
+  productName?: string;
 }
 
 export interface VentaConsolidadaRequest {
@@ -270,6 +271,7 @@ function buildVentaFilterPayload(
     consolidated: filtros?.consolidated,
     username: filtros?.username,
     paymentStatus: filtros?.paymentStatus,
+    productName: filtros?.productName,
   };
   const cleanPayload = Object.fromEntries(
     Object.entries(rawPayload).filter(([, value]) =>
