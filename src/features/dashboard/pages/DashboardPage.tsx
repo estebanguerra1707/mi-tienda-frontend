@@ -198,7 +198,7 @@ const { data: dashboardData, isLoading: dashboardLoading, isError, error } = use
           </div>
 
          {/* ---------- NUEVA GRÁFICA DE VENTAS DIARIAS ---------- */}
-          {ventasGrafica.length > 0 && (
+         {ventasGrafica.length > 0 && (
             <VentasDiariasChart 
               data={ventasGrafica} 
               semanasAtras={semanasAtras}      
