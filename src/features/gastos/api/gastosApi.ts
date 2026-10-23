@@ -10,9 +10,19 @@ export interface GastoDTO {
 
 export type GastoRequestDTO = Omit<GastoDTO, "id" | "createdAt">;
 
+export interface SpringPage<T> {
+  content: T[];
+  totalPages: number;
+  totalElements: number;
+  number: number; // Página actual (0-indexed)
+  size: number;
+  first: boolean;
+  last: boolean;
+}
+
 export const gastosApi = {
-  getAll: async () => {
-    const { data } = await api.get<GastoDTO[]>("/gastos");
+  getAll: async (page = 0, size = 10) => {
+    const { data } = await api.get<SpringPage<GastoDTO>>(`/gastos?page=${page}&size=${size}`);
     return data;
   },
   create: async (gasto: GastoRequestDTO) => {

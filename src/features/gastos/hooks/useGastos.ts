@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { gastosApi, GastoRequestDTO } from "../api/gastosApi";
+import { gastosApi, GastoRequestDTO, SpringPage, GastoDTO } from "../api/gastosApi";
 
-export function useGastos() {
+export function useGastos(page: number = 0, size: number = 10) {
   const queryClient = useQueryClient();
 
-  const query = useQuery({
-    queryKey: ["gastos"],
-    queryFn: gastosApi.getAll,
+  const query = useQuery<SpringPage<GastoDTO>>({
+    queryKey: ["gastos", page, size],
+    queryFn: () => gastosApi.getAll(page, size),
+    placeholderData: (previousData) => previousData, // Reemplazo moderno para keepPreviousData en TanStack Query v5
   });
 
   const createMutation = useMutation({
