@@ -360,6 +360,9 @@ const confirmarVentaFinal = async () => {
     isSubmittingRef.current = true;
     setIsConfirming(true);
 
+    // ✅ 1. Cerramos el modal de confirmación DE INMEDIATO para que solo quede el Loader limpio
+    setShowResumenModal(false);
+
     const v = ventaFormSnapshot.current;
     const pagoReal = Number(v.cashGiven ?? 0);
     const payload = {
@@ -383,11 +386,12 @@ const confirmarVentaFinal = async () => {
     try {
       const ventaCreada = await mutateAsync(payload);
       setVentaIdCreada(ventaCreada.id);
-      setShowResumenModal(false);
       setShowSendEmailModal(true);
       resetAll();
       onCreated();
     } catch (error: unknown) {
+      // ✅ 2. Si hubo error en el backend, reabrimos el modal para que puedas reintentar
+      setShowResumenModal(true);
       const err = error as BackendError;
       const message =
         err?.response?.data?.message ??
