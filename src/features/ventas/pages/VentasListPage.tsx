@@ -530,6 +530,7 @@ function VentaCard(props: {
 }
 
 /* ------------------ Desktop Table ------------------ */
+/* ------------------ Desktop Table ------------------ */
 function VentasTable(props: {
   isLoading: boolean;
   rows: VentaItem[];
@@ -546,8 +547,12 @@ function VentasTable(props: {
   formatDate: (iso: string, withTime: boolean) => string;
 }) {
   const { isLoading, rows, selectedVentaIds, onToggleVentaSelection, puedeSeleccionarVentas, isSuperAdmin, isAdmin, toggleSort, Arrow, onOpen, onDeleted, formatMoney, formatDate } = props;
+  
+  // ✅ true tanto para ADMIN como para SUPER_ADMIN
   const showAdminColumns = isSuperAdmin || isAdmin;
-  const desktopColSpan = 7 + (puedeSeleccionarVentas ? 1 : 0) + (showAdminColumns ? 2 : 0) + (isSuperAdmin ? 1 : 0);
+  
+  // ✅ Ajustamos el colSpan sumando las 3 columnas de admin (Ganancia, Vendido por y Acciones)
+  const desktopColSpan = 7 + (puedeSeleccionarVentas ? 1 : 0) + (showAdminColumns ? 3 : 0);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -587,21 +592,22 @@ function VentasTable(props: {
                   Estado <Arrow k="paymentStatus" />
                 </button>
               </th>
-              {(isSuperAdmin || isAdmin) && (
+              {showAdminColumns && (
                 <th className="px-4 py-3 text-right">
                   <button onClick={() => toggleSort("netProfit")} className="flex items-center justify-end gap-1 font-semibold hover:text-blue-600 w-full">
                     Ganancia <Arrow k="netProfit" />
                   </button>
                 </th>
               )}
-              {(isSuperAdmin || isAdmin) && (
+              {showAdminColumns && (
                 <th className="px-4 py-3 text-center">
                   <button onClick={() => toggleSort("userName")} className="flex items-center gap-1 justify-center font-semibold hover:text-blue-600">
                     Vendido por <Arrow k="userName" />
                   </button>
                 </th>
               )}
-              {isSuperAdmin && <th className="px-4 py-3 font-semibold text-center">Acciones</th>}
+              {/* ✅ Ahora visible para ADMIN y SUPER_ADMIN */}
+              {showAdminColumns && <th className="px-4 py-3 font-semibold text-center">Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -640,9 +646,10 @@ function VentasTable(props: {
                       {v.paymentStatus}
                     </span>
                   </td>
-                  {(isSuperAdmin || isAdmin) && <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatMoney(v.netProfit ?? 0)}</td>}
-                  {(isSuperAdmin || isAdmin) && <td className="px-4 py-3 text-center">{v.userName}</td>}
-                  {isSuperAdmin && (
+                  {showAdminColumns && <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatMoney(v.netProfit ?? 0)}</td>}
+                  {showAdminColumns && <td className="px-4 py-3 text-center">{v.userName}</td>}
+                  {/* ✅ Botón de eliminar visible para ADMIN y SUPER_ADMIN */}
+                  {showAdminColumns && (
                     <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <DeleteVentaButton id={v.id} onDeleted={onDeleted} />
                     </td>
