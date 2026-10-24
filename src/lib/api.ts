@@ -17,20 +17,26 @@ interface FailedRequest {
 
 interface RetryAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
+  _mutationKey?: string; // 🔒 Para rastrear y liberar el candado anti-doble clic
 }
 
 // ======================================================================
-//   🟢 SISTEMA DE LOADING GLOBAL
+//   🟢 SISTEMA DE LOADING GLOBAL Y CANDADO ANTI-DOBLE CLIC
 // ======================================================================
 
 let activeRequests = 0;
+const pendingMutations = new Set<string>(); // 🔒 Guarda las mutaciones en curso
 
 const toggleLoading = (isLoading: boolean) => {
   window.dispatchEvent(new CustomEvent("globalLoading", { detail: isLoading }));
 };
 
 // Función inteligente para restar peticiones evitando el parpadeo
-const finishRequest = () => {
+const finishRequest = (mutationKey?: string) => {
+  if (mutationKey) {
+    pendingMutations.delete(mutationKey);
+  }
+
   activeRequests--;
   // Damos 50ms de gracia. Si hay un refresh token en progreso o peticiones
   // concurrentes, el contador subirá antes de que se ejecute el ocultamiento.
@@ -73,16 +79,35 @@ export const api = axios.create({
 });
 
 // ======================================================================
-//   1️⃣ INTERCEPTOR DE REQUEST  → manda accessToken automáticamente
+//   1️⃣ INTERCEPTOR DE REQUEST → manda accessToken y bloquea doble clic
 // ======================================================================
 
 api.interceptors.request.use(
-  (config) => {
-    // 🟢 MOSTRAR LOADER
-    if (activeRequests === 0) {
-      toggleLoading(true);
+  (config: RetryAxiosRequestConfig) => {
+    const method = config.method?.toUpperCase() || "";
+    const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+    const isSearchPost = config.url?.includes("/avanzado") || config.url?.includes("/refresh");
+
+    // 🔒 SOLO BLOQUEAMOS PANTALLA Y DOBLE CLIC EN OPERACIONES DE GUARDADO/EDICIÓN/BORRADO
+    if (isMutation && !isSearchPost && !config._retry) {
+      const mutationKey = `${method}:${config.url}`;
+
+      if (pendingMutations.has(mutationKey)) {
+        const controller = new AbortController();
+        config.signal = controller.signal;
+        controller.abort("Operación en curso, evitando duplicado.");
+        return config;
+      }
+
+      pendingMutations.add(mutationKey);
+      config._mutationKey = mutationKey;
+
+      // 🟢 MOSTRAR LOADER GLOBAL SOLO EN MUTACIONES
+      if (activeRequests === 0) {
+        toggleLoading(true);
+      }
+      activeRequests++;
     }
-    activeRequests++;
 
     const token = getAccessToken();
     if (token) {
@@ -92,7 +117,6 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    finishRequest(); // 🟢 OCULTAR SI FALLA AL INICIAR
     return Promise.reject(error);
   }
 );
@@ -113,22 +137,36 @@ const processQueue = (error: unknown, token: string | null = null): void => {
   failedQueue = [];
 };
 
+
 api.interceptors.response.use(
   (response) => {
-    finishRequest(); // 🟢 PETICIÓN EXITOSA, RESTAMOS AL CONTADOR
+    const originalRequest = response.config as RetryAxiosRequestConfig;
+    if (originalRequest?._mutationKey) {
+      finishRequest(originalRequest._mutationKey);
+    }
     return response;
   },
   async (error) => {
-    finishRequest(); // 🟢 FALLÓ LA PETICIÓN, RESTAMOS AL CONTADOR
-
     const originalRequest = error.config as RetryAxiosRequestConfig;
-    const status = error.response?.status;
 
-    // Si NO es 401 o ya intentamos refresh antes → nada que hacer
-    if (status !== 401 || originalRequest._retry) {
+    if (axios.isCancel(error)) {
       return Promise.reject(error);
     }
 
+    const status = error.response?.status;
+
+    if (status !== 401 || originalRequest?._retry) {
+      if (originalRequest?._mutationKey) {
+        finishRequest(originalRequest._mutationKey);
+      }
+      return Promise.reject(error);
+    }
+
+    if (originalRequest?._mutationKey) {
+      finishRequest(originalRequest._mutationKey);
+    }
+
+    originalRequest._retry = true;
     // Marcamos que este request ya se reintentó
     originalRequest._retry = true;
 
@@ -150,7 +188,6 @@ api.interceptors.response.use(
     isRefreshing = true;
     
     // 🟢 MANTENER EL LOADER ACTIVO DURANTE EL REFRESCO DEL TOKEN
-    // axios.post no pasa por el interceptor "api", así que sumamos manualmente
     activeRequests++; 
 
     try {

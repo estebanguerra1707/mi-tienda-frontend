@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useForm, useFieldArray, Resolver } from "react-hook-form";
 import { z, ZodSchema } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateVenta } from "@/hooks/useVentas";
@@ -22,6 +21,8 @@ import { ResumenVenta } from "@/types/catalogs";
 import { toastError } from "@/lib/toast";
 import BarcodeCameraScanner from "@/components/BarcodeCameraScanener";
 import { useDisableNumberWheel } from "@/hooks/useDisableNumberWheel";
+
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -130,7 +131,9 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
     [branches, selectedBranchId]
   );
   const usaInventarioPorDuenio = selectedBranch?.usaInventarioPorDuenio === true;
-  const [isConfirming] = useState(false);
+
+const isSubmittingRef = useRef(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const { data: productsRaw } = useProductsByBranch(
     selectedBranchId && selectedBranchId > 0 ? selectedBranchId : undefined
@@ -350,10 +353,14 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
     setShowResumenModal(true);
   };
 
-  const confirmarVentaFinal = async () => {
+const confirmarVentaFinal = async () => {
+    if (isSubmittingRef.current || isPending || isConfirming) return;
     if (!ventaFormSnapshot.current) return;
+
+    isSubmittingRef.current = true;
+    setIsConfirming(true);
+
     const v = ventaFormSnapshot.current;
-    
     const pagoReal = Number(v.cashGiven ?? 0);
     const payload = {
       clientId: v.clientId === 0 ? null : v.clientId,
@@ -385,7 +392,10 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
       const message =
         err?.response?.data?.message ??
         "Error inesperado al generar la venta";
-        toastError(message);
+      toastError(message);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsConfirming(false);
     }
   };
 
@@ -886,16 +896,31 @@ export default function PanelNuevaVenta({ onCreated }: { onCreated: () => void }
             </div>
         </div>
 
-        <Button
+         <LoadingButton
           type="button"
           onClick={handleSubmit(onSubmit)}
-          disabled={isPending || fields.length === 0}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-lg font-bold shadow-md transition"
+          isLoading={isPending || isConfirming}
+          loadingText="Procesando comanda..."
+          disabled={fields.length === 0}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-lg font-bold rounded-lg shadow-md transition"
         >
-          {isPending ? "Generando..." : "GENERAR COMANDA"}
-        </Button>
+          GENERAR COMANDA
+        </LoadingButton>
       </div>
 
+      {(isPending || isConfirming) && (
+        <div className="fixed inset-0 z-[30000] flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-[2px]">
+          <div className="bg-white px-6 py-5 rounded-2xl shadow-2xl flex flex-col items-center space-y-3">
+            <div className="relative flex items-center justify-center">
+              <div className="w-12 h-12 border-4 border-blue-100 rounded-full"></div>
+              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute"></div>
+            </div>
+            <p className="text-slate-800 font-bold text-sm animate-pulse">
+              Registrando comanda y descontando stock...
+            </p>
+          </div>
+        </div>
+      )}
       {/* Modales */}
       <ConfirmarVentaModal
         open={showResumenModal}
