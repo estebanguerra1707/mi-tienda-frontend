@@ -25,11 +25,14 @@ export default function DeleteVentaButton({ id, onDeleted }: Props) {
   const [open, setOpen] = useState(false);
   const deleteVenta = useDeleteVenta();
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Evitamos comportamientos predeterminados de propagación del diálogo
+    e.preventDefault();
+
     try {
       await deleteVenta.mutateAsync(id);
-      onDeleted();
-      setOpen(false);
+      setOpen(false); // Cerramos el modal primero
+      onDeleted();    // Refrescamos la tabla / refetch
     } catch (err) {
       console.error("Error eliminando venta", err);
     }
@@ -52,12 +55,13 @@ export default function DeleteVentaButton({ id, onDeleted }: Props) {
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setOpen(false)}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleteVenta.isPending}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
+            disabled={deleteVenta.isPending}
             className="bg-red-600 hover:bg-red-700 text-white"
           >
-            Eliminar
+            {deleteVenta.isPending ? "Eliminando..." : "Eliminar"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
