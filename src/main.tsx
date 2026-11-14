@@ -20,6 +20,7 @@ import ProtectedRoute from "@/routes/ProtectedRoute";
 import { Toaster } from "react-hot-toast";
 import "./index.css";
 import RoleIndexRedirect from "@/routes/RoleIndexRedirect";
+import { GlobalLoader } from "@/components/ui/GlobalLoader";
 
 
 const router = createBrowserRouter([
@@ -163,6 +164,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Providers>
       <RouterProvider router={router} />
+      <GlobalLoader />
       <Toaster position="top-right" />
     </Providers>
   </React.StrictMode>

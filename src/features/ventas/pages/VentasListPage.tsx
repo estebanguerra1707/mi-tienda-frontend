@@ -188,7 +188,7 @@ export default function VentasListPage() {
   const collator = useMemo(() => new Intl.Collator("es", { sensitivity: "base" }), []);
   const Arrow = ({ k }: { k: SortKey }) => localSort.key !== k ? <span className="opacity-40">↕︎</span> : localSort.dir === "asc" ? <>▲</> : <>▼</>;
 
-  const ventas = useSearchVentasPaginadas({ page: params.page, size: params.size, ...filtros });
+  const ventas = useSearchVentasPaginadas({ page: params.page, size: params.size, ...filtros }, { enabled: showHistorial });
   const detalleConsolidadoPorTicketQuery = useDetalleVentaConsolidadaPorTicket(selectedWeeklyTicketId);
 
   const onApplyFilters = (next: Record<string, string | undefined>) => {
@@ -273,7 +273,7 @@ export default function VentasListPage() {
         >
           <PanelNuevaVenta 
             onCreated={() => { 
-              ventas.refetch(); 
+              if (showHistorial) ventas.refetch(); 
               setRefreshKey((k) => k + 1); 
             }} 
           />
