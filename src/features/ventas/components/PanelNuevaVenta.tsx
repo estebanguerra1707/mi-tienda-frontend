@@ -1002,7 +1002,7 @@ const paymentMethods = useMemo<CatalogItem[]>(() => {
       <div className="flex flex-col h-full w-full bg-[#1e2226] text-white relative overflow-hidden select-none">
         {/* PANTALLA COMPLETA DE COBRO */}
         {showTouchCheckout && (
-          <div className="absolute inset-0 z-40 bg-[#2b3035] flex flex-col md:flex-row">
+          <div className="fixed inset-0 z-[9999] bg-[#2b3035] flex flex-col md:flex-row overscroll-contain">
             <div className="hidden md:flex md:w-[36%] border-r border-neutral-700 flex-col bg-[#23272b] p-4">
               <div className="text-base font-bold pb-3 border-b border-neutral-700">
                 {watch("referenceName") || `Ticket - ${dayjs().format("h:mm a")}`}
@@ -1167,7 +1167,7 @@ const paymentMethods = useMemo<CatalogItem[]>(() => {
 
         {/* PANTALLA FINAL DE CONFIRMACIÓN Y CAMBIO */}
         {showTouchReceiptSuccess && lastCompletedSummary && (
-          <div className="absolute inset-0 z-50 bg-[#2b3035] flex flex-col items-center justify-center p-6">
+          <div className="fixed inset-0 z-[9999] bg-[#2b3035] flex flex-col items-center justify-center p-6 overscroll-contain">
             <div className="max-w-md w-full space-y-8 text-center">
               <div className="grid grid-cols-2 gap-4 border-b border-neutral-700 pb-6">
                 <div>
@@ -1443,40 +1443,46 @@ const paymentMethods = useMemo<CatalogItem[]>(() => {
         </div>
 
         {/* DRAWER DESPLEGABLE DEL TICKET EN CELULAR */}
-        {mobileTicketDrawerOpen && (
-          <div className="md:hidden fixed inset-0 z-50 bg-black/75 flex flex-col justify-end">
-            <div className="h-[82vh] w-full bg-[#2b3035] rounded-t-2xl overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between px-4 py-2 bg-[#1e2226] border-b border-neutral-700">
-                <span className="text-xs font-bold text-neutral-400 uppercase">
-                  Detalle del Ticket
-                </span>
-                <button
-                  type="button"
+          {mobileTicketDrawerOpen && (
+                <div
+                  className="md:hidden fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xs flex flex-col justify-end overscroll-contain"
                   onClick={() => setMobileTicketDrawerOpen(false)}
-                  className="text-sm font-bold text-white px-2 py-1"
                 >
-                  ✕ Cerrar
-                </button>
-              </div>
-              <div className="flex-1 overflow-hidden">{renderTicketPanel()}</div>
-            </div>
-          </div>
-        )}
+                  <div
+                    className="h-[78vh] w-full bg-[#2b3035] rounded-t-2xl overflow-hidden flex flex-col shadow-2xl border-t border-neutral-600"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#1e2226] border-b border-neutral-700 shrink-0">
+                      <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
+                        Detalle del Ticket
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setMobileTicketDrawerOpen(false)}
+                        className="text-sm font-bold text-lime-400 bg-neutral-800 px-3 py-1 rounded-md"
+                      >
+                        ✕ Cerrar
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-hidden">{renderTicketPanel()}</div>
+                  </div>
+                </div>
+              )}
 
         {/* MODAL TÁCTIL DE MODIFICADORES / EXTRAS */}
-        {modifierModalOpen && activeProductForModal && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-[1px] flex items-center justify-center p-3">
-            <div className="bg-[#343a40] text-white w-full max-w-lg rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="flex items-center justify-between px-4 py-3.5 border-b border-neutral-600 bg-[#2b3035]">
+          {modifierModalOpen && activeProductForModal && (
+          <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overscroll-contain">
+            <div className="bg-[#343a40] text-white w-full max-w-lg rounded-xl shadow-2xl border border-neutral-600 overflow-hidden flex flex-col max-h-[80vh]">
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-neutral-600 bg-[#2b3035] shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <button
                     type="button"
                     onClick={() => setModifierModalOpen(false)}
-                    className="text-neutral-300 hover:text-white text-lg font-bold px-1"
+                    className="text-neutral-300 hover:text-white text-lg font-bold px-2 py-1"
                   >
                     ✕
                   </button>
-                  <h3 className="font-bold text-base sm:text-lg truncate">
+                  <h3 className="font-bold text-sm sm:text-base truncate">
                     {activeProductForModal.name} $
                     {(
                       Number(activeProductForModal.salePrice ?? 0) +
@@ -1490,7 +1496,7 @@ const paymentMethods = useMemo<CatalogItem[]>(() => {
                 <button
                   type="button"
                   onClick={handleSaveModifierModal}
-                  className="text-lime-400 hover:text-lime-300 font-extrabold text-sm uppercase tracking-wider px-2 py-1"
+                  className="bg-[#4caf50] hover:bg-[#43a047] text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider px-4 py-2 rounded-md shadow shrink-0 active:scale-95 transition"
                 >
                   GUARDAR
                 </button>
@@ -1586,7 +1592,7 @@ const paymentMethods = useMemo<CatalogItem[]>(() => {
 
         {/* MODAL GUARDAR TICKET ABIERTO */}
         {showSaveTicketModal && (
-          <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overscroll-contain">
             <div className="bg-[#343a40] text-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3.5 border-b border-neutral-600 bg-[#2b3035]">
                 <div className="flex items-center gap-3">
@@ -1639,7 +1645,7 @@ const paymentMethods = useMemo<CatalogItem[]>(() => {
 
         {/* MODAL LISTA DE TICKETS ABIERTOS */}
         {showOpenTicketsListModal && (
-          <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overscroll-contain">
             <div className="bg-[#343a40] text-white w-full max-w-lg rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
               <div className="flex items-center justify-between px-4 py-3.5 border-b border-neutral-600 bg-[#2b3035]">
                 <div className="flex items-center gap-3">

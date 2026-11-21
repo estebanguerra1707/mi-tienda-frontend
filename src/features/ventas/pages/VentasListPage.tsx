@@ -373,13 +373,13 @@ export default function VentasListPage() {
   return (
     // CONTENEDOR MAESTRO
     <div
-      className={`h-[calc(100vh-64px)] w-full bg-slate-100 relative custom-scrollbar flex flex-col ${
+      className={`h-[calc(100dvh-64px)] w-full bg-slate-100 relative custom-scrollbar flex flex-col overscroll-none ${
         !isDesktop && showHistorial ? "overflow-y-auto" : "overflow-hidden"
       }`}
     >
       {/* PESTAÑAS RÁPIDAS EN TABLET / CELULAR (<1024px) */}
       {!isDesktop && !showHistorial && (
-        <div className="flex items-center bg-[#181b1f] border-b border-neutral-800 p-1.5 gap-1.5 shrink-0 z-30">
+        <div className="flex items-center bg-[#181b1f] border-b border-neutral-800 p-1.5 gap-1.5 shrink-0 z-10">
           <button
             type="button"
             onClick={() => setMobileActiveTab("pos")}
