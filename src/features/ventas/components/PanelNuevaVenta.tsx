@@ -65,9 +65,8 @@ const schema = z.object({
           )
           .optional(),
         notes: z.string().optional(),
-        // Campos solo de UI para recordar la configuración por chilaquil al editar
+        // Solo de UI para recordar la configuración por chilaquil al editar
         comboSlots: z.array(comboSlotSchema).optional(),
-        comboEnvioId: z.number().nullable().optional(),
       })
     )
     .min(1, "Debe agregar al menos un producto"),
@@ -100,6 +99,7 @@ interface OpenTicketLocal {
   clientId: number;
   referenceName: string;
   details: VentaForm["details"];
+  ticketEnvioId?: number | null;
   total: number;
 }
 
@@ -209,6 +209,12 @@ const isComboProduct = (p: ProductItem): boolean => {
   );
 };
 
+const isChilaquilProduct = (p: ProductItem): boolean => {
+  if (isSweetProduct(p)) return false;
+  const text = `${p.name || ""} ${p.categoryName || ""}`.toLowerCase();
+  return text.includes("chilaquil") || text.includes("rellenit");
+};
+
 const hasIncludedProtein = (p: ProductItem): boolean => {
   const text = `${p.name || ""} ${p.description || ""}`.toLowerCase();
   return /\b(pollo|bistec|huevo|arrachera|chorizo|cecina|milanesa|costilla|cochinita|suadero)\b/i.test(
@@ -224,7 +230,6 @@ const hasIncludedSalsa = (p: ProductItem): boolean => {
 };
 
 const getComboChilaquilCount = (p: ProductItem): number => {
-  // Postres / Hotcakes siempre se manejan como 1 sola orden (nunca divididos en pestañas)
   if (isSweetProduct(p)) return 1;
 
   const text = `${p.name || ""} | ${p.description || ""}`.toLowerCase();
@@ -323,7 +328,7 @@ export default function PanelNuevaVenta({
   const isSuper = auth.hasRole?.("SUPER_ADMIN");
   const userBranchId = auth.user?.branchId ?? null;
 
-  // Estados originales
+  // Estados generales
   const [isCash, setIsCash] = useState(true);
   const [localCash, setLocalCash] = useState("");
   const [saleDateDisplay, setSaleDateDisplay] = useState("");
@@ -331,7 +336,6 @@ export default function PanelNuevaVenta({
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<ProductItem[]>([]);
   const [activeProductIndex, setActiveProductIndex] = useState(0);
-  const [totalVenta, setTotalVenta] = useState<number>(0);
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
   const [ventaIdCreada, setVentaIdCreada] = useState<number | null>(null);
 
@@ -395,7 +399,7 @@ export default function PanelNuevaVenta({
   >("Envío");
   const [mobileTicketDrawerOpen, setMobileTicketDrawerOpen] = useState(false);
 
-  // Modal Táctil de Extras / Modificadores (Soporta 1 o N chilaquiles por combo)
+  // Modal Táctil de Extras / Modificadores
   const [modifierModalOpen, setModifierModalOpen] = useState(false);
   const [activeProductForModal, setActiveProductForModal] =
     useState<ProductItem | null>(null);
@@ -406,7 +410,6 @@ export default function PanelNuevaVenta({
     createEmptySlot(),
   ]);
   const [activeSlotIdx, setActiveSlotIdx] = useState<number>(0);
-  const [modalEnvioId, setModalEnvioId] = useState<number | null>(null);
   const [tempQty, setTempQty] = useState<number>(1);
 
   // Flujo de Tickets Abiertos
@@ -490,8 +493,8 @@ export default function PanelNuevaVenta({
       });
   }, [products]);
 
-  // Subgrupos de Extras para la UI del modal táctil
-const groupedExtras = useMemo(() => {
+  // Subgrupos de Extras
+  const groupedExtras = useMemo(() => {
     const salsas: ProductItem[] = [];
     const bases: ProductItem[] = [];
     const envios: ProductItem[] = [];
@@ -544,7 +547,9 @@ const groupedExtras = useMemo(() => {
       const matchesCat = selectedCategory ? catName === selectedCategory : true;
       const matchesSearch = searchTerm.trim()
         ? (p.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (p.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (p.description || "")
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           (p.sku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
           (p.codigoBarras?.toString() ?? "").includes(searchTerm)
         : true;
@@ -576,11 +581,95 @@ const groupedExtras = useMemo(() => {
     },
   });
 
-  const { fields, remove, append, update } = useFieldArray({
+  const { fields, remove, append, update, replace } = useFieldArray({
     control,
     name: "details",
   });
   const details = watch("details");
+
+  const [ticketEnvioId, setTicketEnvioId] = useState<number | null>(null);
+
+  // Regla de envío gratis: cualquier combo O más de 1 orden de chilaquiles
+  const shippingRule = (() => {
+    let hasCombo = false;
+    let chilaquilOrders = 0;
+
+    (details ?? []).forEach((d) => {
+      if (!d) return;
+      const prod = products.find((p) => p.id === Number(d.productId));
+      if (!prod) return;
+      const qty = Number(d.quantity ?? 0);
+      if (qty <= 0) return;
+
+      if (isComboProduct(prod)) {
+        hasCombo = true;
+      } else if (isChilaquilProduct(prod)) {
+        chilaquilOrders += qty;
+      }
+    });
+
+    const isFree = hasCombo || chilaquilOrders > 1;
+    const reason = hasCombo
+      ? "Envío gratis por incluir combo"
+      : chilaquilOrders > 1
+      ? "Envío gratis en 2 o más chilaquiles"
+      : "";
+
+    return { hasCombo, chilaquilOrders, isFree, reason };
+  })();
+
+  // Producto de envío activo sobre el Ticket
+  const activeEnvioProduct =
+    !ticketEnvioId ||
+    fields.length === 0 ||
+    shippingRule.isFree ||
+    (isPosTouchView && orderType !== "Envío")
+      ? null
+      : groupedExtras.envios.find((e) => e.id === ticketEnvioId) ?? null;
+
+  // Limpiar automáticamente el envío si el ticket se vuelve envío gratis o cambia a recoger/comer dentro
+  useEffect(() => {
+    if (
+      ticketEnvioId !== null &&
+      (fields.length === 0 ||
+        shippingRule.isFree ||
+        (isPosTouchView && orderType !== "Envío"))
+    ) {
+      setTicketEnvioId(null);
+    }
+  }, [
+    ticketEnvioId,
+    fields.length,
+    shippingRule.isFree,
+    isPosTouchView,
+    orderType,
+  ]);
+
+  // Total en vivo (productos + extras + 1 envío de ticket si aplica)
+  const totalVenta = (() => {
+    let total = 0;
+    for (const d of details ?? []) {
+      if (!d) continue;
+      const prod = products.find((p) => p.id === Number(d.productId));
+      if (!prod) continue;
+      let precioUnitario = Number(prod.salePrice ?? 0);
+      if (d.extras && d.extras.length > 0) {
+        for (const ex of d.extras) {
+          if (!ex) continue;
+          const prodExtra = products.find(
+            (p) => p.id === Number(ex.productId)
+          );
+          if (prodExtra) precioUnitario += Number(prodExtra.salePrice ?? 0);
+        }
+      }
+      total += precioUnitario * Number(d.quantity ?? 0);
+    }
+    if (activeEnvioProduct) {
+      total += Number(activeEnvioProduct.salePrice ?? 0);
+    }
+    return Number(total.toFixed(2));
+  })();
+
   const cashGiven = watch("cashGiven") ?? 0;
   const [scanBuffer, setScanBuffer] = useState("");
   const [lastKeyTime, setLastKeyTime] = useState<number>(0);
@@ -635,7 +724,6 @@ const groupedExtras = useMemo(() => {
       setEditingDetailIndex(null);
       setModalSlots(Array.from({ length: slotCount }, () => createEmptySlot()));
       setActiveSlotIdx(0);
-      setModalEnvioId(null);
       setTempQty(u.min);
       setModifierModalOpen(true);
     } else {
@@ -672,21 +760,19 @@ const groupedExtras = useMemo(() => {
           note: s.note,
         }))
       );
-      setModalEnvioId(item.comboEnvioId ?? null);
     } else {
-      // Reconstruir configuración si fue agregado desde modo clásico o ticket guardado antiguo
       const initialSlots = Array.from({ length: slotCount }, () =>
         createEmptySlot()
       );
-      let foundEnvio: number | null = null;
 
       (item.extras ?? []).forEach((ex) => {
         const ep = products.find((p) => p.id === ex.productId);
         if (!ep) return;
         const n = (ep.name || "").toLowerCase();
         if (n.includes("envio") || n.includes("envío")) {
-          foundEnvio = ep.id;
-        } else if (n.includes("salsa")) {
+          return;
+        }
+        if (n.includes("salsa")) {
           initialSlots[0].salsaId = ep.id;
         } else if (n.includes("base")) {
           initialSlots[0].baseId = ep.id;
@@ -700,7 +786,6 @@ const groupedExtras = useMemo(() => {
       }
 
       setModalSlots(initialSlots);
-      setModalEnvioId(foundEnvio);
     }
 
     setModifierModalOpen(true);
@@ -736,7 +821,7 @@ const groupedExtras = useMemo(() => {
     }));
   };
 
-  // Calcula el precio unitario en vivo dentro del modal (Producto + todos los slots + envío)
+  // Precio unitario en vivo dentro del modal
   const modalUnitPrice = useMemo(() => {
     if (!activeProductForModal) return 0;
     let total = Number(activeProductForModal.salePrice ?? 0);
@@ -756,13 +841,8 @@ const groupedExtras = useMemo(() => {
       });
     });
 
-    if (modalEnvioId) {
-      const p = products.find((x) => x.id === modalEnvioId);
-      if (p) total += Number(p.salePrice ?? 0);
-    }
-
     return total;
-  }, [activeProductForModal, modalSlots, modalEnvioId, products]);
+  }, [activeProductForModal, modalSlots, products]);
 
   const handleSaveModifierModal = async () => {
     if (!activeProductForModal) return;
@@ -798,23 +878,18 @@ const groupedExtras = useMemo(() => {
       }
     });
 
-    if (modalEnvioId) {
-      allExtras.push({ productId: modalEnvioId });
-    }
-
     const finalNotes =
       modalSlots.length >= 2
         ? slotSummaries.join(" | ")
         : modalSlots[0]?.note.trim() ?? "";
 
-   const detailValue = {
+    const detailValue = {
       productId: activeProductForModal.id,
       quantity: isComboProduct(activeProductForModal) ? 1 : tempQty,
       extras: allExtras,
       notes: finalNotes,
       ownerType: usaInventarioPorDuenio ? ("PROPIO" as const) : undefined,
       comboSlots: modalSlots,
-      comboEnvioId: modalEnvioId,
     };
 
     if (editingDetailIndex !== null) {
@@ -829,10 +904,9 @@ const groupedExtras = useMemo(() => {
     await trigger("details");
   };
 
-const syncClassicComboDetail = async (
+  const syncClassicComboDetail = async (
     detailIndex: number,
-    nextSlots: ChilaquilSlot[],
-    nextEnvioId: number | null
+    nextSlots: ChilaquilSlot[]
   ) => {
     const allExtras: { productId: number }[] = [];
     const slotSummaries: string[] = [];
@@ -865,19 +939,12 @@ const syncClassicComboDetail = async (
       }
     });
 
-    if (nextEnvioId) {
-      allExtras.push({ productId: nextEnvioId });
-    }
-
     const finalNotes =
       nextSlots.length >= 2
         ? slotSummaries.join(" | ")
         : nextSlots[0]?.note.trim() ?? "";
 
     setValue(`details.${detailIndex}.comboSlots`, nextSlots, {
-      shouldDirty: true,
-    });
-    setValue(`details.${detailIndex}.comboEnvioId`, nextEnvioId, {
       shouldDirty: true,
     });
     setValue(`details.${detailIndex}.extras`, allExtras, {
@@ -906,7 +973,7 @@ const syncClassicComboDetail = async (
 
     append({
       productId: product.id,
-      quantity: u.min,
+      quantity: isComboProduct(product) ? 1 : u.min,
       extras: [],
       notes: "",
       ownerType: usaInventarioPorDuenio ? "PROPIO" : undefined,
@@ -914,7 +981,6 @@ const syncClassicComboDetail = async (
         !esBebida && availableExtras.length > 0
           ? Array.from({ length: slotCount }, () => createEmptySlot())
           : undefined,
-      comboEnvioId: null,
     });
 
     setSearchTerm("");
@@ -922,6 +988,7 @@ const syncClassicComboDetail = async (
     setActiveProductIndex(0);
     await trigger("details");
   };
+
   const handleBarcodeScan = async (code: string) => {
     if (!code || !products.length) return;
 
@@ -958,36 +1025,6 @@ const syncClassicComboDetail = async (
   }, []);
 
   useEffect(() => {
-    if (!products.length) return;
-    const subscription = watch((value) => {
-      const dets = value?.details ?? [];
-      let total = 0;
-      for (const d of dets) {
-        if (!d) continue;
-        const prod = products.find((p) => p.id === Number(d.productId));
-        if (prod) {
-          let precioUnitarioBase = Number(prod.salePrice ?? 0);
-          if (d.extras && d.extras.length > 0) {
-            for (const ex of d.extras) {
-              if (ex != null) {
-                const prodExtra = products.find(
-                  (p) => p.id === Number(ex.productId)
-                );
-                if (prodExtra) {
-                  precioUnitarioBase += Number(prodExtra.salePrice ?? 0);
-                }
-              }
-            }
-          }
-          total += precioUnitarioBase * Number(d.quantity ?? 0);
-        }
-      }
-      setTotalVenta(Number(total.toFixed(2)));
-    });
-    return () => subscription.unsubscribe();
-  }, [products, watch]);
-
-  useEffect(() => {
     if (!products || !searchTerm.trim()) {
       setFilteredProducts([]);
       return;
@@ -997,6 +1034,7 @@ const syncClassicComboDetail = async (
       const nombre = (p.name || "").toLowerCase();
       return (
         nombre.includes(term) ||
+        (p.description || "").toLowerCase().includes(term) ||
         (p.codigoBarras?.toString() ?? "").includes(term) ||
         (p.barcode?.toString() ?? "").includes(term) ||
         (p.sku?.toLowerCase() ?? "").includes(term)
@@ -1029,6 +1067,7 @@ const syncClassicComboDetail = async (
     const newTicket: OpenTicketLocal = {
       id: `ticket-${Date.now()}`,
       name: ticketNameInput.trim(),
+      ticketEnvioId: activeEnvioProduct?.id ?? null,
       comment: ticketCommentInput.trim(),
       orderType,
       createdAt: dayjs().format("h:mm a"),
@@ -1048,8 +1087,9 @@ const syncClassicComboDetail = async (
   const handleLoadOpenTicket = (t: OpenTicketLocal) => {
     setValue("clientId", t.clientId);
     setValue("referenceName", t.referenceName);
-    setValue("details", t.details, { shouldValidate: true });
+    replace(t.details ?? []);
     setOrderType(t.orderType);
+    setTicketEnvioId(t.ticketEnvioId ?? null);
     persistOpenTickets(openTickets.filter((item) => item.id !== t.id));
     setShowOpenTicketsListModal(false);
   };
@@ -1149,6 +1189,16 @@ const syncClassicComboDetail = async (
       };
     });
 
+    if (activeEnvioProduct) {
+      productosResumen.push({
+        name: `🛵 ${activeEnvioProduct.name}`,
+        quantity: 1,
+        price: Number(activeEnvioProduct.salePrice ?? 0),
+        unitAbbr: "envío",
+        unitName: null,
+      });
+    }
+
     setResumenVenta({
       cliente:
         clients?.find((c) => c.id === values.clientId)?.name ??
@@ -1175,6 +1225,34 @@ const syncClassicComboDetail = async (
     const v = ventaFormSnapshot.current;
     const pagoReal = Number(v.cashGiven ?? 0);
     const cambioReal = v.changeAmount ?? 0;
+    const mappedDetails = v.details.map((d) => ({
+      productId: d.productId,
+      quantity: d.quantity,
+      extras: [...(d.extras ?? [])],
+      notes: d.notes ?? "",
+      ...(usaInventarioPorDuenio
+        ? { ownerType: d.ownerType ?? "PROPIO" }
+        : {}),
+    }));
+
+    if (activeEnvioProduct) {
+      const singleQtyIdx = mappedDetails.findIndex(
+        (d) => Number(d.quantity) === 1
+      );
+      if (singleQtyIdx >= 0) {
+        mappedDetails[singleQtyIdx].extras.push({
+          productId: activeEnvioProduct.id,
+        });
+      } else {
+        mappedDetails.push({
+          productId: activeEnvioProduct.id,
+          quantity: 1,
+          extras: [],
+          notes: "Envío a domicilio",
+          ...(usaInventarioPorDuenio ? { ownerType: "PROPIO" as const } : {}),
+        });
+      }
+    }
 
     const payload = {
       clientId: v.clientId === 0 ? null : v.clientId,
@@ -1186,15 +1264,7 @@ const syncClassicComboDetail = async (
       changeAmount: cambioReal,
       branchId: selectedBranchId ?? userBranchId ?? 0,
       emailList: [],
-      details: v.details.map((d) => ({
-        productId: d.productId,
-        quantity: d.quantity,
-        extras: d.extras ?? [],
-        notes: d.notes ?? "",
-        ...(usaInventarioPorDuenio
-          ? { ownerType: d.ownerType ?? "PROPIO" }
-          : {}),
-      })),
+      details: mappedDetails,
     };
 
     try {
@@ -1249,7 +1319,7 @@ const syncClassicComboDetail = async (
     setFilteredProducts([]);
     setIsCash(true);
     setLocalCash("");
-    setTotalVenta(0);
+    setTicketEnvioId(null);
     setMobileTicketDrawerOpen(false);
   }, [reset, isSuper, userBranchId, paymentMethods]);
 
@@ -1275,7 +1345,7 @@ const syncClassicComboDetail = async (
     );
   }, [filteredProducts.length]);
 
-const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
+  const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
   const isModalSweet = activeProductForModal
     ? isSweetProduct(activeProductForModal)
     : false;
@@ -1294,8 +1364,6 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
     ? groupedExtras.sweetToppings
     : groupedExtras.savoryToppings;
 
-
-    
   // Sub-render del Panel de Ticket
   const renderTicketPanel = () => (
     <div className="flex flex-col h-full bg-[#2b3035] text-white select-none">
@@ -1407,15 +1475,6 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                           {line}
                         </div>
                       ))}
-                      {item?.comboEnvioId && (
-                        <div className="text-[11px] text-sky-300 font-semibold">
-                          🛵{" "}
-                          {
-                            products.find((p) => p.id === item.comboEnvioId)
-                              ?.name
-                          }
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <>
@@ -1452,6 +1511,69 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
           })
         )}
       </div>
+
+      {/* ENVÍO SOBRE EL TICKET */}
+      {fields.length > 0 &&
+        orderType === "Envío" &&
+        groupedExtras.envios.length > 0 && (
+          <div className="border-t border-neutral-700 bg-[#262a2e] px-4 py-2.5">
+            {shippingRule.isFree ? (
+              <div className="flex items-center justify-between bg-emerald-950/70 border border-emerald-500/50 rounded-md px-2.5 py-2">
+                <div>
+                  <div className="text-xs font-extrabold text-emerald-300">
+                    🛵 Envío GRATIS
+                  </div>
+                  <div className="text-[10px] text-emerald-200/80">
+                    {shippingRule.reason}
+                  </div>
+                </div>
+                <span className="text-xs font-black text-emerald-300">$0</span>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wide">
+                    🛵 Envío (orden individual)
+                  </span>
+                  {activeEnvioProduct && (
+                    <span className="text-xs font-extrabold text-sky-300">
+                      +${Number(activeEnvioProduct.salePrice ?? 0).toFixed(0)}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {groupedExtras.envios.map((envio) => {
+                    const isSelected = ticketEnvioId === envio.id;
+                    return (
+                      <button
+                        key={envio.id}
+                        type="button"
+                        onClick={() =>
+                          setTicketEnvioId(isSelected ? null : envio.id)
+                        }
+                        className={`px-2 py-1.5 rounded border text-left flex items-center justify-between transition active:scale-[0.98] ${
+                          isSelected
+                            ? "bg-sky-600 border-sky-300 text-white font-bold shadow"
+                            : "bg-neutral-800 border-neutral-600 text-neutral-200 hover:bg-neutral-700"
+                        }`}
+                      >
+                        <span className="text-[10px] leading-tight truncate pr-1">
+                          {envio.name.replace(
+                            /^extra\s+env[ií]o\s+a\s+domicilio\s*/i,
+                            ""
+                          )}
+                        </span>
+                        <span className="text-[11px] font-bold shrink-0">
+                          +${Number(envio.salePrice ?? 0).toFixed(0)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       {/* Total y Botones Inferiores Verdes */}
       <div className="border-t border-neutral-700 bg-[#23272b] p-4 space-y-3">
@@ -1557,6 +1679,16 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                       </div>
                     );
                   })}
+                  {activeEnvioProduct && (
+                    <div className="py-2.5 flex justify-between text-sm text-sky-300">
+                      <div className="font-semibold">
+                        🛵 {activeEnvioProduct.name}
+                      </div>
+                      <div className="font-bold">
+                        +${Number(activeEnvioProduct.salePrice ?? 0).toFixed(2)}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="pt-3 border-t border-neutral-700 flex justify-between text-lg font-bold">
                   <span>Total</span>
@@ -1768,6 +1900,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                       const id = Number(e.target.value);
                       setSelectedBranchId(id);
                       setSelectedCategory(null);
+                      setTicketEnvioId(null);
                       setValue("details", []);
                       setExtraProducts([]);
                     }}
@@ -2071,7 +2204,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
             </div>
           )}
 
-        {/* MODAL TÁCTIL DE MODIFICADORES / EXTRAS (1 o múltiples Chilaquiles en Combo) */}
+        {/* MODAL TÁCTIL DE MODIFICADORES / EXTRAS */}
         {modifierModalOpen &&
           activeProductForModal &&
           renderInPortal(
@@ -2161,9 +2294,8 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                 )}
 
                 {/* Cuerpo Scrolleable del Modal */}
-              {/* Cuerpo Scrolleable del Modal */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar">
-                  {/* 1. SALSA (Solo productos salados / chilaquiles) */}
+                  {/* 1. SALSA */}
                   {showModalSalsa && (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-lime-400 uppercase tracking-wide flex items-center justify-between">
@@ -2213,7 +2345,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                     </div>
                   )}
 
-                  {/* 2. PROTEÍNA BASE (Solo productos salados / chilaquiles) */}
+                  {/* 2. PROTEÍNA BASE */}
                   {showModalProtein && (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-lime-400 uppercase tracking-wide flex items-center justify-between">
@@ -2254,7 +2386,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                     </div>
                   )}
 
-                  {/* 3. EXTRAS / TOPPINGS (Filtrados: dulces para postres, salados para chilaquiles) */}
+                  {/* 3. EXTRAS / TOPPINGS */}
                   {modalToppings.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-lime-400 uppercase tracking-wide">
@@ -2321,49 +2453,11 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                     />
                   </div>
 
-                  {/* 4. ENVÍO A DOMICILIO */}
-                  {groupedExtras.envios.length > 0 && (
-                    <div className="space-y-2 pt-3 border-t border-neutral-600">
-                      <div className="text-xs font-bold text-sky-400 uppercase tracking-wide">
-                        🛵 Envío a domicilio (opcional)
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {groupedExtras.envios.map((envio) => {
-                          const isSelected = modalEnvioId === envio.id;
-                          return (
-                            <button
-                              key={envio.id}
-                              type="button"
-                              onClick={() =>
-                                setModalEnvioId(isSelected ? null : envio.id)
-                              }
-                              className={`p-2.5 rounded-lg border text-left flex items-center justify-between transition active:scale-[0.98] ${
-                                isSelected
-                                  ? "bg-sky-600 border-sky-300 text-white font-bold shadow"
-                                  : "bg-[#3f464d] border-neutral-500 text-neutral-100 hover:bg-neutral-600"
-                              }`}
-                            >
-                              <span className="text-[11px] leading-tight pr-2">
-                                {envio.name.replace(
-                                  /^extra\s+env[ií]o\s+a\s+domicilio\s*/i,
-                                  "Envío "
-                                )}
-                              </span>
-                              <span className="text-xs font-bold shrink-0">
-                                +${Number(envio.salePrice ?? 0).toFixed(0)}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 5. CANTIDAD (Oculta en combos para personalizar cada uno por separado) */}
+                  {/* Cantidad (oculta en combos) */}
                   {isModalCombo ? (
                     <div className="pt-2 border-t border-neutral-600 text-[11px] text-neutral-400 italic">
                       Cada combo se agrega por separado (1x) para poder
-                      personalizarlo distinto y no duplicar el envío.
+                      personalizarlo distinto.
                     </div>
                   ) : (
                     <div className="space-y-2 pt-3 border-t border-neutral-600">
@@ -2622,6 +2716,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                 onChange={(e) => {
                   const id = Number(e.target.value);
                   setSelectedBranchId(id);
+                  setTicketEnvioId(null);
                   setValue("details", []);
                   setFilteredProducts([]);
                   setExtraProducts([]);
@@ -2706,7 +2801,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
               </button>
             </div>
 
-          {filteredProducts.length > 0 && (
+            {filteredProducts.length > 0 && (
               <div className="absolute z-20 bg-white border rounded shadow-lg w-full mt-1 max-h-60 overflow-y-auto">
                 {filteredProducts.map((p, index) => {
                   const isActive = index === activeProductIndex;
@@ -2793,7 +2888,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
             </p>
           )}
 
-        <div className="border-t pt-3 space-y-3">
+          <div className="border-t pt-3 space-y-3">
             {fields.length === 0 ? (
               <div className="text-gray-500 text-sm italic py-4 text-center bg-gray-50 rounded-lg border border-dashed">
                 Agrega productos para comenzar la venta.
@@ -2817,9 +2912,13 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                 const isSweet = isSweetProduct(prod);
                 const isCombo = isComboProduct(prod);
                 const showSalsaSelect =
-                !isSweet && !hasIncludedSalsa(prod) && groupedExtras.salsas.length > 0;
-              const showProteinSelect =
-                !isSweet && !hasIncludedProtein(prod) && groupedExtras.bases.length > 0;
+                  !isSweet &&
+                  !hasIncludedSalsa(prod) &&
+                  groupedExtras.salsas.length > 0;
+                const showProteinSelect =
+                  !isSweet &&
+                  !hasIncludedProtein(prod) &&
+                  groupedExtras.bases.length > 0;
                 const comboCount = getComboChilaquilCount(prod);
                 const usaSelectoresOrdenados =
                   !esBebida && availableExtras.length > 0;
@@ -2836,7 +2935,6 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                         createEmptySlot()
                       )
                   : [];
-                const currentEnvioId = details[i]?.comboEnvioId ?? null;
 
                 // Para productos/combos individuales, la tarjeta adopta el color de la salsa elegida
                 const singleSalsaName =
@@ -2953,9 +3051,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                       </div>
                     </div>
 
-                    {/* ===================================================
-                        SELECTORES ORDENADOS (Chilaquiles, Combos o Postres)
-                       =================================================== */}
+                    {/* SELECTORES ORDENADOS (Chilaquiles, Combos o Postres) */}
                     {usaSelectoresOrdenados ? (
                       <div className="space-y-2.5 mt-1">
                         {currentSlots.map((slot, sIdx) => {
@@ -2981,11 +3077,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                             const nextSlots = currentSlots.map((s, idx) =>
                               idx === sIdx ? updater(s) : s
                             );
-                            syncClassicComboDetail(
-                              i,
-                              nextSlots,
-                              currentEnvioId
-                            );
+                            syncClassicComboDetail(i, nextSlots);
                           };
 
                           const isMulti = comboCount >= 2;
@@ -3010,11 +3102,13 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                                 </div>
                               )}
 
-                              {/* Salsa y Proteína: ocultos para Hotcakes / Postres */}
+                              {/* Salsa y Proteína */}
                               {(showSalsaSelect || showProteinSelect) && (
                                 <div
                                   className={`grid grid-cols-1 ${
-                                    showSalsaSelect && showProteinSelect ? "sm:grid-cols-2" : ""
+                                    showSalsaSelect && showProteinSelect
+                                      ? "sm:grid-cols-2"
+                                      : ""
                                   } gap-1.5`}
                                 >
                                   {showSalsaSelect && (
@@ -3034,7 +3128,9 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                                         <option key={salsa.id} value={salsa.id}>
                                           {salsa.name.replace(/^extra\s+/i, "")}
                                           {Number(salsa.salePrice ?? 0) > 0
-                                            ? ` (+$${Number(salsa.salePrice).toFixed(2)})`
+                                            ? ` (+$${Number(
+                                                salsa.salePrice
+                                              ).toFixed(2)})`
                                             : ""}
                                         </option>
                                       ))}
@@ -3056,7 +3152,11 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                                       <option value={0}>🥩 Proteína...</option>
                                       {groupedExtras.bases.map((base) => (
                                         <option key={base.id} value={base.id}>
-                                          {base.name} (+${Number(base.salePrice ?? 0).toFixed(2)})
+                                          {base.name} (+$
+                                          {Number(base.salePrice ?? 0).toFixed(
+                                            2
+                                          )}
+                                          )
                                         </option>
                                       ))}
                                     </select>
@@ -3104,7 +3204,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                                 </div>
                               )}
 
-                              {/* Toppings filtrados (dulces para postres, salados para chilaquiles) */}
+                              {/* Toppings filtrados */}
                               {itemToppings.length > 0 && (
                                 <select
                                   defaultValue="0"
@@ -3163,32 +3263,6 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                             </div>
                           );
                         })}
-
-                        {/* Envío a domicilio (una sola vez por platillo/combo) */}
-                        {groupedExtras.envios.length > 0 && (
-                          <select
-                            value={currentEnvioId ?? 0}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              syncClassicComboDetail(
-                                i,
-                                currentSlots,
-                                val > 0 ? val : null
-                              );
-                            }}
-                            className="text-xs font-semibold border border-sky-200 rounded p-1.5 w-full bg-sky-50/70 text-sky-900 outline-none"
-                          >
-                            <option value={0}>
-                              🛵 Envío a domicilio (opcional)...
-                            </option>
-                            {groupedExtras.envios.map((envio) => (
-                              <option key={envio.id} value={envio.id}>
-                                {envio.name} (+$
-                                {Number(envio.salePrice ?? 0).toFixed(2)})
-                              </option>
-                            ))}
-                          </select>
-                        )}
                       </div>
                     ) : (
                       /* Bebidas: solo nota opcional */
@@ -3204,6 +3278,45 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
               })
             )}
           </div>
+
+          {/* ENVÍO A DOMICILIO A NIVEL TICKET (MODO CLÁSICO) */}
+          {fields.length > 0 && groupedExtras.envios.length > 0 && (
+            <div className="rounded-lg border p-3 bg-slate-50">
+              {shippingRule.isFree ? (
+                <div className="flex items-center justify-between text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+                  <div>
+                    <div className="text-xs font-extrabold">🛵 Envío GRATIS</div>
+                    <div className="text-[11px] text-emerald-700">
+                      {shippingRule.reason}
+                    </div>
+                  </div>
+                  <span className="text-sm font-black">$0.00</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs font-bold text-sky-800">
+                    🛵 Envío a domicilio (orden individual)
+                  </Label>
+                  <select
+                    value={ticketEnvioId ?? 0}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setTicketEnvioId(val > 0 ? val : null);
+                    }}
+                    className="border border-sky-200 rounded px-2 py-2 w-full text-sm bg-white text-sky-950 font-medium"
+                  >
+                    <option value={0}>Sin envío ($0.00)</option>
+                    {groupedExtras.envios.map((envio) => (
+                      <option key={envio.id} value={envio.id}>
+                        {envio.name} (+$
+                        {Number(envio.salePrice ?? 0).toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-2 flex flex-col gap-2">
             <Label>Cliente</Label>
