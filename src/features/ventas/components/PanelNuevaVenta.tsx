@@ -155,12 +155,66 @@ const getProductImageUrl = (p: ProductItem): string | null => {
   return ext.imageUrl || ext.imagenUrl || ext.imagen || null;
 };
 
-// Detecta cuántos chilaquiles trae un combo a partir de su nombre y descripción
-const getComboChilaquilCount = (p: ProductItem): number => {
-  const text = `${p.name || ""} ${p.description || ""}`.toLowerCase();
-  const numMatch = text.match(
-    /(\d+)\s*(?:chilaquil\w*|rellenit\w*|orden\w*|platillo\w*)/i
+const isSweetProduct = (p: ProductItem): boolean => {
+  const text = `${p.name || ""} ${p.categoryName || ""} ${
+    p.description || ""
+  }`.toLowerCase();
+  return (
+    text.includes("hotcake") ||
+    text.includes("hot cake") ||
+    text.includes("postre") ||
+    text.includes("pan") ||
+    text.includes("waffle") ||
+    text.includes("crepa")
   );
+};
+
+const isSweetExtra = (p: ProductItem): boolean => {
+  const cat = (p.categoryName || "").toLowerCase();
+  if (
+    cat.includes("postre") ||
+    cat.includes("dulce") ||
+    cat.includes("hotcake")
+  ) {
+    return true;
+  }
+  const n = (p.name || "").toLowerCase();
+  return (
+    n.includes("avellana") ||
+    n.includes("nutella") ||
+    n.includes("durazno") ||
+    n.includes("fresa") ||
+    n.includes("lechera") ||
+    n.includes("mermelada") ||
+    n.includes("cajeta") ||
+    n.includes("chocolate") ||
+    n.includes("platano") ||
+    n.includes("plátano") ||
+    n.includes("chantilly") ||
+    n.includes("nuez") ||
+    n.includes("pan extra")
+  );
+};
+
+const isComboProduct = (p: ProductItem): boolean => {
+  if (isSweetProduct(p)) return false;
+  const n = (p.name || "").toLowerCase();
+  return (
+    n.includes("combo") ||
+    n.includes("duo") ||
+    n.includes("dúo") ||
+    n.includes("pareja") ||
+    n.includes("trio") ||
+    n.includes("trío")
+  );
+};
+
+const getComboChilaquilCount = (p: ProductItem): number => {
+  // Postres / Hotcakes siempre se manejan como 1 sola orden (nunca divididos en pestañas)
+  if (isSweetProduct(p)) return 1;
+
+  const text = `${p.name || ""} | ${p.description || ""}`.toLowerCase();
+  const numMatch = text.match(/(\d+)\s*(?:chilaquil\w*|rellenit\w*)/i);
   if (numMatch) {
     const parsed = parseInt(numMatch[1], 10);
     if (parsed >= 2 && parsed <= 10) return parsed;
@@ -175,7 +229,13 @@ const getComboChilaquilCount = (p: ProductItem): number => {
 const getProductVisuals = (p: ProductItem) => {
   const n = (p.name || "").toLowerCase();
 
-  if (n.includes("combo") || n.includes("duo") || n.includes("dúo")) {
+  if (n.includes("hotcake") || n.includes("hot cake")) {
+    return {
+      tone: "from-amber-600 to-orange-900 border-amber-400/80",
+      icon: "🥞",
+    };
+  }
+  if (isComboProduct(p)) {
     return {
       tone: "from-orange-600 to-amber-800 border-amber-400/80",
       icon: "🍱",
@@ -211,7 +271,7 @@ const getProductVisuals = (p: ProductItem) => {
       icon: "🧃",
     };
   }
-  if (n.includes("pan") || n.includes("postre") || n.includes("hot cake")) {
+  if (n.includes("pan") || n.includes("postre") || n.includes("crepa")) {
     return {
       tone: "from-purple-600 to-purple-900 border-purple-500/80",
       icon: "🥐",
@@ -417,11 +477,12 @@ export default function PanelNuevaVenta({
   }, [products]);
 
   // Subgrupos de Extras para la UI del modal táctil
-  const groupedExtras = useMemo(() => {
+const groupedExtras = useMemo(() => {
     const salsas: ProductItem[] = [];
     const bases: ProductItem[] = [];
     const envios: ProductItem[] = [];
-    const toppings: ProductItem[] = [];
+    const savoryToppings: ProductItem[] = [];
+    const sweetToppings: ProductItem[] = [];
 
     availableExtras.forEach((item) => {
       const n = (item.name || "").toLowerCase();
@@ -431,12 +492,14 @@ export default function PanelNuevaVenta({
         bases.push(item);
       } else if (n.includes("envio") || n.includes("envío")) {
         envios.push(item);
+      } else if (isSweetExtra(item)) {
+        sweetToppings.push(item);
       } else {
-        toppings.push(item);
+        savoryToppings.push(item);
       }
     });
 
-    return { salsas, bases, envios, toppings };
+    return { salsas, bases, envios, savoryToppings, sweetToppings };
   }, [availableExtras]);
 
   // Agrupación dinámica de Categorías
@@ -730,9 +793,9 @@ export default function PanelNuevaVenta({
         ? slotSummaries.join(" | ")
         : modalSlots[0]?.note.trim() ?? "";
 
-    const detailValue = {
+   const detailValue = {
       productId: activeProductForModal.id,
-      quantity: tempQty,
+      quantity: isComboProduct(activeProductForModal) ? 1 : tempQty,
       extras: allExtras,
       notes: finalNotes,
       ownerType: usaInventarioPorDuenio ? ("PROPIO" as const) : undefined,
@@ -1198,7 +1261,17 @@ const syncClassicComboDetail = async (
     );
   }, [filteredProducts.length]);
 
-  const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
+const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
+  const isModalSweet = activeProductForModal
+    ? isSweetProduct(activeProductForModal)
+    : false;
+  const isModalCombo = activeProductForModal
+    ? isComboProduct(activeProductForModal)
+    : false;
+  const modalToppings = isModalSweet
+    ? groupedExtras.sweetToppings
+    : groupedExtras.savoryToppings;
+
 
   // Sub-render del Panel de Ticket
   const renderTicketPanel = () => (
@@ -2065,9 +2138,10 @@ const syncClassicComboDetail = async (
                 )}
 
                 {/* Cuerpo Scrolleable del Modal */}
+              {/* Cuerpo Scrolleable del Modal */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar">
-                  {/* 1. SALSA (Libre elección por chilaquil) */}
-                  {groupedExtras.salsas.length > 0 && (
+                  {/* 1. SALSA (Solo productos salados / chilaquiles) */}
+                  {!isModalSweet && groupedExtras.salsas.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-lime-400 uppercase tracking-wide flex items-center justify-between">
                         <span>
@@ -2116,8 +2190,8 @@ const syncClassicComboDetail = async (
                     </div>
                   )}
 
-                  {/* 2. PROTEÍNA BASE (Libre elección por chilaquil) */}
-                  {groupedExtras.bases.length > 0 && (
+                  {/* 2. PROTEÍNA BASE (Solo productos salados / chilaquiles) */}
+                  {!isModalSweet && groupedExtras.bases.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-lime-400 uppercase tracking-wide flex items-center justify-between">
                         <span>
@@ -2157,17 +2231,20 @@ const syncClassicComboDetail = async (
                     </div>
                   )}
 
-                  {/* 3. EXTRAS / TOPPINGS (Selección múltiple por chilaquil) */}
-                  {groupedExtras.toppings.length > 0 && (
+                  {/* 3. EXTRAS / TOPPINGS (Filtrados: dulces para postres, salados para chilaquiles) */}
+                  {modalToppings.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-lime-400 uppercase tracking-wide">
-                        🧀 Extras{" "}
-                        {modalSlots.length >= 2
-                          ? `(Chilaquil ${activeSlotIdx + 1})`
-                          : ""}
+                        {isModalSweet
+                          ? "🍓 Toppings y Extras"
+                          : `🧀 Extras ${
+                              modalSlots.length >= 2
+                                ? `(Chilaquil ${activeSlotIdx + 1})`
+                                : ""
+                            }`}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        {groupedExtras.toppings.map((extra) => {
+                        {modalToppings.map((extra) => {
                           const isSelected = activeSlot.extraIds.includes(
                             extra.id
                           );
@@ -2195,7 +2272,7 @@ const syncClassicComboDetail = async (
                     </div>
                   )}
 
-                  {/* Comentario del chilaquil actual */}
+                  {/* Comentario */}
                   <div className="space-y-1.5 pt-1">
                     <div className="text-xs font-bold text-lime-400 uppercase tracking-wide">
                       Comentario{" "}
@@ -2205,7 +2282,11 @@ const syncClassicComboDetail = async (
                     </div>
                     <input
                       type="text"
-                      placeholder="Ej. Sin cebolla, bien dorados, poca crema..."
+                      placeholder={
+                        isModalSweet
+                          ? "Ej. Con lechera, mermelada de fresa aparte..."
+                          : "Ej. Sin cebolla, bien dorados, poca crema..."
+                      }
                       value={activeSlot.note}
                       onChange={(e) =>
                         updateActiveSlot((slot) => ({
@@ -2217,7 +2298,7 @@ const syncClassicComboDetail = async (
                     />
                   </div>
 
-                  {/* 4. ENVÍO A DOMICILIO (Compartido para toda la orden/combo) */}
+                  {/* 4. ENVÍO A DOMICILIO */}
                   {groupedExtras.envios.length > 0 && (
                     <div className="space-y-2 pt-3 border-t border-neutral-600">
                       <div className="text-xs font-bold text-sky-400 uppercase tracking-wide">
@@ -2255,46 +2336,58 @@ const syncClassicComboDetail = async (
                     </div>
                   )}
 
-                  {/* Cantidad */}
-                  <div className="space-y-2 pt-3 border-t border-neutral-600">
-                    <div className="text-xs font-bold text-lime-400 uppercase tracking-wide">
-                      Cantidad
+                  {/* 5. CANTIDAD (Oculta en combos para personalizar cada uno por separado) */}
+                  {isModalCombo ? (
+                    <div className="pt-2 border-t border-neutral-600 text-[11px] text-neutral-400 italic">
+                      Cada combo se agrega por separado (1x) para poder
+                      personalizarlo distinto y no duplicar el envío.
                     </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const u = getUnidadUI(activeProductForModal);
-                          setTempQty((prev) =>
-                            Math.max(u.min, Number((prev - u.step).toFixed(2)))
-                          );
-                        }}
-                        className="w-12 h-11 rounded bg-[#3f464d] hover:bg-neutral-600 border border-neutral-500 text-xl font-bold flex items-center justify-center"
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        value={tempQty}
-                        onChange={(e) =>
-                          setTempQty(Math.max(0.1, Number(e.target.value) || 1))
-                        }
-                        className="flex-1 bg-transparent border-b border-neutral-500 text-center text-lg font-bold py-1.5 outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const u = getUnidadUI(activeProductForModal);
-                          setTempQty((prev) =>
-                            Number((prev + u.step).toFixed(2))
-                          );
-                        }}
-                        className="w-12 h-11 rounded bg-[#3f464d] hover:bg-neutral-600 border border-neutral-500 text-xl font-bold flex items-center justify-center"
-                      >
-                        +
-                      </button>
+                  ) : (
+                    <div className="space-y-2 pt-3 border-t border-neutral-600">
+                      <div className="text-xs font-bold text-lime-400 uppercase tracking-wide">
+                        Cantidad
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const u = getUnidadUI(activeProductForModal);
+                            setTempQty((prev) =>
+                              Math.max(
+                                u.min,
+                                Number((prev - u.step).toFixed(2))
+                              )
+                            );
+                          }}
+                          className="w-12 h-11 rounded bg-[#3f464d] hover:bg-neutral-600 border border-neutral-500 text-xl font-bold flex items-center justify-center"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          value={tempQty}
+                          onChange={(e) =>
+                            setTempQty(
+                              Math.max(0.1, Number(e.target.value) || 1)
+                            )
+                          }
+                          className="flex-1 bg-transparent border-b border-neutral-500 text-center text-lg font-bold py-1.5 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const u = getUnidadUI(activeProductForModal);
+                            setTempQty((prev) =>
+                              Number((prev + u.step).toFixed(2))
+                            );
+                          }}
+                          className="w-12 h-11 rounded bg-[#3f464d] hover:bg-neutral-600 border border-neutral-500 text-xl font-bold flex items-center justify-center"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2598,10 +2691,7 @@ const syncClassicComboDetail = async (
                   const isVerde = lowerName.includes("verde");
                   const isRojo = lowerName.includes("rojo");
                   const isPan = lowerName.includes("pan");
-                  const isCombo =
-                    lowerName.includes("combo") ||
-                    lowerName.includes("duo") ||
-                    lowerName.includes("dúo");
+                  const isCombo = isComboProduct(p);
                   const comboCount = getComboChilaquilCount(p);
 
                   let itemClass = "";
@@ -2701,9 +2791,15 @@ const syncClassicComboDetail = async (
                 const esBebida = getProductCategoryName(prod)
                   .toLowerCase()
                   .includes("bebida");
+                const isSweet = isSweetProduct(prod);
+                const isCombo = isComboProduct(prod);
                 const comboCount = getComboChilaquilCount(prod);
                 const usaSelectoresOrdenados =
                   !esBebida && availableExtras.length > 0;
+
+                const itemToppings = isSweet
+                  ? groupedExtras.sweetToppings
+                  : groupedExtras.savoryToppings;
 
                 const currentSlots: ChilaquilSlot[] = usaSelectoresOrdenados
                   ? details[i]?.comboSlots &&
@@ -2717,7 +2813,7 @@ const syncClassicComboDetail = async (
 
                 // Para productos/combos individuales, la tarjeta adopta el color de la salsa elegida
                 const singleSalsaName =
-                  comboCount === 1 && currentSlots[0]?.salsaId
+                  !isSweet && comboCount === 1 && currentSlots[0]?.salsaId
                     ? (
                         products.find((p) => p.id === currentSlots[0].salsaId)
                           ?.name ?? ""
@@ -2725,24 +2821,22 @@ const syncClassicComboDetail = async (
                     : "";
 
                 const isVerde =
-                  lowerName.includes("verde") ||
-                  singleSalsaName.includes("verde");
+                  !isSweet &&
+                  (lowerName.includes("verde") ||
+                    singleSalsaName.includes("verde"));
                 const isRojo =
-                  lowerName.includes("rojo") ||
-                  singleSalsaName.includes("roja") ||
-                  singleSalsaName.includes("rojo");
+                  !isSweet &&
+                  (lowerName.includes("rojo") ||
+                    singleSalsaName.includes("roja") ||
+                    singleSalsaName.includes("rojo"));
                 const isCombinada = singleSalsaName.includes("combinada");
                 const isPan = lowerName.includes("pan");
-                const isCombo =
-                  lowerName.includes("combo") ||
-                  lowerName.includes("duo") ||
-                  lowerName.includes("dúo");
 
                 const rowBgClass = isVerde
                   ? "bg-green-50 border-green-300"
                   : isRojo
                   ? "bg-red-50 border-red-300"
-                  : isPan
+                  : isPan || isSweet
                   ? "bg-purple-50 border-purple-200"
                   : isCombinada || isCombo
                   ? "bg-amber-50/80 border-amber-300"
@@ -2752,7 +2846,7 @@ const syncClassicComboDetail = async (
                   ? "text-green-900"
                   : isRojo
                   ? "text-red-900"
-                  : isPan
+                  : isPan || isSweet
                   ? "text-purple-900"
                   : isCombinada || isCombo
                   ? "text-amber-950"
@@ -2793,18 +2887,24 @@ const syncClassicComboDetail = async (
                       )}
                     </div>
 
-                    {/* Cantidad y Precio unitario con extras */}
+                    {/* Cantidad (bloqueada a 1 en combos) y Precio unitario con extras */}
                     <div className="flex items-center justify-between mt-1">
-                      <div className="flex items-center gap-1 w-24">
+                      <div className="flex items-center gap-2">
                         <Input
                           type="number"
                           data-no-wheel="true"
                           min={u.min}
                           step={u.step}
-                          className="h-8 text-sm bg-white"
+                          disabled={isCombo}
+                          className={`h-8 text-sm w-20 ${
+                            isCombo
+                              ? "bg-slate-100 text-slate-500 cursor-not-allowed"
+                              : "bg-white"
+                          }`}
                           {...register(`details.${i}.quantity`, {
                             valueAsNumber: true,
                             onChange: async (e) => {
+                              if (isCombo) return;
                               const raw = (e.target as HTMLInputElement).value;
                               const n = raw === "" ? 0 : Number(raw);
                               setValue(`details.${i}.quantity`, n, {
@@ -2815,6 +2915,11 @@ const syncClassicComboDetail = async (
                             },
                           })}
                         />
+                        {isCombo && (
+                          <span className="text-[11px] text-slate-500 italic">
+                            1x por combo
+                          </span>
+                        )}
                       </div>
                       <div className="font-semibold text-slate-800 text-right">
                         ${precioMostrar.toFixed(2)}
@@ -2822,7 +2927,7 @@ const syncClassicComboDetail = async (
                     </div>
 
                     {/* ===================================================
-                        SELECTORES ORDENADOS (1 Chilaquil o Combo de 2+)
+                        SELECTORES ORDENADOS (Chilaquiles, Combos o Postres)
                        =================================================== */}
                     {usaSelectoresOrdenados ? (
                       <div className="space-y-2.5 mt-1">
@@ -2878,57 +2983,61 @@ const syncClassicComboDetail = async (
                                 </div>
                               )}
 
-                              {/* Selectores de Salsa y Proteína en 2 columnas */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                {groupedExtras.salsas.length > 0 && (
-                                  <select
-                                    value={slot.salsaId ?? 0}
-                                    onChange={(e) => {
-                                      const val = Number(e.target.value);
-                                      updateThisSlot((s) => ({
-                                        ...s,
-                                        salsaId: val > 0 ? val : null,
-                                      }));
-                                    }}
-                                    className="text-xs font-medium border border-slate-300 rounded p-1.5 bg-white text-slate-800 outline-none"
-                                  >
-                                    <option value={0}>🌶️ Salsa...</option>
-                                    {groupedExtras.salsas.map((salsa) => (
-                                      <option key={salsa.id} value={salsa.id}>
-                                        {salsa.name.replace(/^extra\s+/i, "")}
-                                        {Number(salsa.salePrice ?? 0) > 0
-                                          ? ` (+$${Number(
-                                              salsa.salePrice
-                                            ).toFixed(2)})`
-                                          : ""}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
+                              {/* Salsa y Proteína: ocultos para Hotcakes / Postres */}
+                              {!isSweet && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                  {groupedExtras.salsas.length > 0 && (
+                                    <select
+                                      value={slot.salsaId ?? 0}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value);
+                                        updateThisSlot((s) => ({
+                                          ...s,
+                                          salsaId: val > 0 ? val : null,
+                                        }));
+                                      }}
+                                      className="text-xs font-medium border border-slate-300 rounded p-1.5 bg-white text-slate-800 outline-none"
+                                    >
+                                      <option value={0}>🌶️ Salsa...</option>
+                                      {groupedExtras.salsas.map((salsa) => (
+                                        <option key={salsa.id} value={salsa.id}>
+                                          {salsa.name.replace(/^extra\s+/i, "")}
+                                          {Number(salsa.salePrice ?? 0) > 0
+                                            ? ` (+$${Number(
+                                                salsa.salePrice
+                                              ).toFixed(2)})`
+                                            : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
 
-                                {groupedExtras.bases.length > 0 && (
-                                  <select
-                                    value={slot.baseId ?? 0}
-                                    onChange={(e) => {
-                                      const val = Number(e.target.value);
-                                      updateThisSlot((s) => ({
-                                        ...s,
-                                        baseId: val > 0 ? val : null,
-                                      }));
-                                    }}
-                                    className="text-xs font-medium border border-slate-300 rounded p-1.5 bg-white text-blue-800 outline-none"
-                                  >
-                                    <option value={0}>🥩 Proteína...</option>
-                                    {groupedExtras.bases.map((base) => (
-                                      <option key={base.id} value={base.id}>
-                                        {base.name} (+$
-                                        {Number(base.salePrice ?? 0).toFixed(2)}
-                                        )
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-                              </div>
+                                  {groupedExtras.bases.length > 0 && (
+                                    <select
+                                      value={slot.baseId ?? 0}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value);
+                                        updateThisSlot((s) => ({
+                                          ...s,
+                                          baseId: val > 0 ? val : null,
+                                        }));
+                                      }}
+                                      className="text-xs font-medium border border-slate-300 rounded p-1.5 bg-white text-blue-800 outline-none"
+                                    >
+                                      <option value={0}>🥩 Proteína...</option>
+                                      {groupedExtras.bases.map((base) => (
+                                        <option key={base.id} value={base.id}>
+                                          {base.name} (+$
+                                          {Number(base.salePrice ?? 0).toFixed(
+                                            2
+                                          )}
+                                          )
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Lista de extras agregados */}
                               {slot.extraIds.length > 0 && (
@@ -2970,8 +3079,8 @@ const syncClassicComboDetail = async (
                                 </div>
                               )}
 
-                              {/* Selector para añadir toppings */}
-                              {groupedExtras.toppings.length > 0 && (
+                              {/* Toppings filtrados (dulces para postres, salados para chilaquiles) */}
+                              {itemToppings.length > 0 && (
                                 <select
                                   defaultValue="0"
                                   onChange={(e) => {
@@ -2987,13 +3096,15 @@ const syncClassicComboDetail = async (
                                   className="text-xs font-medium border border-slate-200 rounded p-1.5 w-full bg-white outline-none"
                                 >
                                   <option value="0">
-                                    {isMulti
+                                    {isSweet
+                                      ? "🍓 Añadir topping / extra..."
+                                      : isMulti
                                       ? `➕ Añadir extra a Chilaquil ${
                                           sIdx + 1
                                         }...`
                                       : "➕ Añadir extra..."}
                                   </option>
-                                  {groupedExtras.toppings.map((extra) => (
+                                  {itemToppings.map((extra) => (
                                     <option key={extra.id} value={extra.id}>
                                       {extra.name} (+$
                                       {Number(extra.salePrice ?? 0).toFixed(2)})
@@ -3014,7 +3125,9 @@ const syncClassicComboDetail = async (
                                   }));
                                 }}
                                 placeholder={
-                                  isMulti
+                                  isSweet
+                                    ? "Notas (ej. Con lechera, mermelada aparte)"
+                                    : isMulti
                                     ? `Nota Chilaquil ${
                                         sIdx + 1
                                       } (ej. Sin cebolla)`
@@ -3053,7 +3166,7 @@ const syncClassicComboDetail = async (
                         )}
                       </div>
                     ) : (
-                      /* Bebidas: solo nota opcional para mantener la tarjeta limpia */
+                      /* Bebidas: solo nota opcional */
                       <Input
                         type="text"
                         placeholder="Notas (ej. Sin azúcar, bien frío)"
