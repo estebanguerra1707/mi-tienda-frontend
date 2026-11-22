@@ -515,7 +515,9 @@ export default function PanelNuevaVenta({
         savoryToppings.push(item);
       }
     });
-
+    envios.sort(
+          (a, b) => Number(a.salePrice ?? 0) - Number(b.salePrice ?? 0)
+        );
     return { salsas, bases, envios, savoryToppings, sweetToppings };
   }, [availableExtras]);
 
