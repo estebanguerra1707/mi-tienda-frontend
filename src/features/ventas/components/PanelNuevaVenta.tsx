@@ -197,7 +197,6 @@ const isSweetExtra = (p: ProductItem): boolean => {
 };
 
 const isComboProduct = (p: ProductItem): boolean => {
-  if (isSweetProduct(p)) return false;
   const n = (p.name || "").toLowerCase();
   return (
     n.includes("combo") ||
@@ -209,11 +208,7 @@ const isComboProduct = (p: ProductItem): boolean => {
   );
 };
 
-const isChilaquilProduct = (p: ProductItem): boolean => {
-  if (isSweetProduct(p)) return false;
-  const text = `${p.name || ""} ${p.categoryName || ""}`.toLowerCase();
-  return text.includes("chilaquil") || text.includes("rellenit");
-};
+
 
 const hasIncludedProtein = (p: ProductItem): boolean => {
   const text = `${p.name || ""} ${p.description || ""}`.toLowerCase();
@@ -592,9 +587,10 @@ export default function PanelNuevaVenta({
   const [ticketEnvioId, setTicketEnvioId] = useState<number | null>(null);
 
   // Regla de envío gratis: cualquier combo O más de 1 orden de chilaquiles
+ // Regla de envío gratis: cualquier combo O 2 o más platillos (sin contar bebidas sueltas)
   const shippingRule = (() => {
     let hasCombo = false;
-    let chilaquilOrders = 0;
+    let mainDishOrders = 0;
 
     (details ?? []).forEach((d) => {
       if (!d) return;
@@ -603,21 +599,25 @@ export default function PanelNuevaVenta({
       const qty = Number(d.quantity ?? 0);
       if (qty <= 0) return;
 
+      const esBebida = getProductCategoryName(prod)
+        .toLowerCase()
+        .includes("bebida");
+
       if (isComboProduct(prod)) {
         hasCombo = true;
-      } else if (isChilaquilProduct(prod)) {
-        chilaquilOrders += qty;
+      } else if (!esBebida) {
+        mainDishOrders += qty;
       }
     });
 
-    const isFree = hasCombo || chilaquilOrders > 1;
+    const isFree = hasCombo || mainDishOrders > 1;
     const reason = hasCombo
       ? "Envío gratis por incluir combo"
-      : chilaquilOrders > 1
-      ? "Envío gratis en 2 o más chilaquiles"
+      : mainDishOrders > 1
+      ? "Envío gratis en 2 o más platillos"
       : "";
 
-    return { hasCombo, chilaquilOrders, isFree, reason };
+    return { hasCombo, mainDishOrders, isFree, reason };
   })();
 
   // Producto de envío activo sobre el Ticket
@@ -3018,30 +3018,31 @@ export default function PanelNuevaVenta({
                     <div className="flex items-center justify-between mt-1">
                       <div className="flex items-center gap-2">
                         <Input
-                          type="number"
-                          data-no-wheel="true"
-                          min={u.min}
-                          step={u.step}
-                          disabled={isCombo}
-                          className={`h-8 text-sm w-20 ${
-                            isCombo
-                              ? "bg-slate-100 text-slate-500 cursor-not-allowed"
-                              : "bg-white"
-                          }`}
-                          {...register(`details.${i}.quantity`, {
-                            valueAsNumber: true,
-                            onChange: async (e) => {
-                              if (isCombo) return;
-                              const raw = (e.target as HTMLInputElement).value;
-                              const n = raw === "" ? 0 : Number(raw);
-                              setValue(`details.${i}.quantity`, n, {
-                                shouldValidate: true,
-                                shouldDirty: true,
-                              });
-                              await trigger("details");
-                            },
-                          })}
-                        />
+                            type="number"
+                            data-no-wheel="true"
+                            min={u.min}
+                            step={u.step}
+                            readOnly={isCombo}
+                            tabIndex={isCombo ? -1 : undefined}
+                            className={`h-8 text-sm w-20 ${
+                              isCombo
+                                ? "bg-slate-100 text-slate-500 cursor-not-allowed pointer-events-none"
+                                : "bg-white"
+                            }`}
+                            {...register(`details.${i}.quantity`, {
+                              valueAsNumber: true,
+                              onChange: async (e) => {
+                                if (isCombo) return;
+                                const raw = (e.target as HTMLInputElement).value;
+                                const n = raw === "" ? 0 : Number(raw);
+                                setValue(`details.${i}.quantity`, n, {
+                                  shouldValidate: true,
+                                  shouldDirty: true,
+                                });
+                                await trigger("details");
+                              },
+                            })}
+                          />
                         {isCombo && (
                           <span className="text-[11px] text-slate-500 italic">
                             1x por combo
