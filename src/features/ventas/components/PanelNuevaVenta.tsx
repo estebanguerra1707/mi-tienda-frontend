@@ -209,6 +209,20 @@ const isComboProduct = (p: ProductItem): boolean => {
   );
 };
 
+const hasIncludedProtein = (p: ProductItem): boolean => {
+  const text = `${p.name || ""} ${p.description || ""}`.toLowerCase();
+  return /\b(pollo|bistec|huevo|arrachera|chorizo|cecina|milanesa|costilla|cochinita|suadero)\b/i.test(
+    text
+  );
+};
+
+const hasIncludedSalsa = (p: ProductItem): boolean => {
+  const text = `${p.name || ""} ${p.description || ""}`.toLowerCase();
+  return /\b(verdes?|rojos?|rojas?|combinados?|combinadas?|divorciados?|mole|habanero|morita)\b/i.test(
+    text
+  );
+};
+
 const getComboChilaquilCount = (p: ProductItem): number => {
   // Postres / Hotcakes siempre se manejan como 1 sola orden (nunca divididos en pestañas)
   if (isSweetProduct(p)) return 1;
@@ -1268,11 +1282,20 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
   const isModalCombo = activeProductForModal
     ? isComboProduct(activeProductForModal)
     : false;
+  const showModalSalsa =
+    !isModalSweet &&
+    !(activeProductForModal && hasIncludedSalsa(activeProductForModal)) &&
+    groupedExtras.salsas.length > 0;
+  const showModalProtein =
+    !isModalSweet &&
+    !(activeProductForModal && hasIncludedProtein(activeProductForModal)) &&
+    groupedExtras.bases.length > 0;
   const modalToppings = isModalSweet
     ? groupedExtras.sweetToppings
     : groupedExtras.savoryToppings;
 
 
+    
   // Sub-render del Panel de Ticket
   const renderTicketPanel = () => (
     <div className="flex flex-col h-full bg-[#2b3035] text-white select-none">
@@ -2141,7 +2164,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
               {/* Cuerpo Scrolleable del Modal */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar">
                   {/* 1. SALSA (Solo productos salados / chilaquiles) */}
-                  {!isModalSweet && groupedExtras.salsas.length > 0 && (
+                  {showModalSalsa && (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-lime-400 uppercase tracking-wide flex items-center justify-between">
                         <span>
@@ -2191,7 +2214,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                   )}
 
                   {/* 2. PROTEÍNA BASE (Solo productos salados / chilaquiles) */}
-                  {!isModalSweet && groupedExtras.bases.length > 0 && (
+                  {showModalProtein && (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-lime-400 uppercase tracking-wide flex items-center justify-between">
                         <span>
@@ -2793,6 +2816,10 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                   .includes("bebida");
                 const isSweet = isSweetProduct(prod);
                 const isCombo = isComboProduct(prod);
+                const showSalsaSelect =
+                !isSweet && !hasIncludedSalsa(prod) && groupedExtras.salsas.length > 0;
+              const showProteinSelect =
+                !isSweet && !hasIncludedProtein(prod) && groupedExtras.bases.length > 0;
                 const comboCount = getComboChilaquilCount(prod);
                 const usaSelectoresOrdenados =
                   !esBebida && availableExtras.length > 0;
@@ -2984,9 +3011,13 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                               )}
 
                               {/* Salsa y Proteína: ocultos para Hotcakes / Postres */}
-                              {!isSweet && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                  {groupedExtras.salsas.length > 0 && (
+                              {(showSalsaSelect || showProteinSelect) && (
+                                <div
+                                  className={`grid grid-cols-1 ${
+                                    showSalsaSelect && showProteinSelect ? "sm:grid-cols-2" : ""
+                                  } gap-1.5`}
+                                >
+                                  {showSalsaSelect && (
                                     <select
                                       value={slot.salsaId ?? 0}
                                       onChange={(e) => {
@@ -3003,16 +3034,14 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                                         <option key={salsa.id} value={salsa.id}>
                                           {salsa.name.replace(/^extra\s+/i, "")}
                                           {Number(salsa.salePrice ?? 0) > 0
-                                            ? ` (+$${Number(
-                                                salsa.salePrice
-                                              ).toFixed(2)})`
+                                            ? ` (+$${Number(salsa.salePrice).toFixed(2)})`
                                             : ""}
                                         </option>
                                       ))}
                                     </select>
                                   )}
 
-                                  {groupedExtras.bases.length > 0 && (
+                                  {showProteinSelect && (
                                     <select
                                       value={slot.baseId ?? 0}
                                       onChange={(e) => {
@@ -3027,11 +3056,7 @@ const activeSlot = modalSlots[activeSlotIdx] ?? createEmptySlot();
                                       <option value={0}>🥩 Proteína...</option>
                                       {groupedExtras.bases.map((base) => (
                                         <option key={base.id} value={base.id}>
-                                          {base.name} (+$
-                                          {Number(base.salePrice ?? 0).toFixed(
-                                            2
-                                          )}
-                                          )
+                                          {base.name} (+${Number(base.salePrice ?? 0).toFixed(2)})
                                         </option>
                                       ))}
                                     </select>
