@@ -422,7 +422,7 @@ export default function VentasListPage() {
       >
         {/* Lado Izquierdo: Nueva Venta (POS Touch) */}
         <aside
-          className={`bg-[#1e2226] shadow-xl flex-col z-20 border-b lg:border-b-0 shrink-0 w-full lg:w-auto h-full overflow-hidden ${
+          className={`bg-[#1e2226] shadow-xl flex-col border-b lg:border-b-0 shrink-0 w-full lg:w-auto h-full overflow-hidden ${
             !isDesktop && mobileActiveTab !== "pos" ? "hidden" : "flex"
           }`}
           style={
@@ -445,7 +445,7 @@ export default function VentasListPage() {
 
         {/* DIVISOR ARRASTRABLE DELGADO (PC) */}
         <div
-          className="hidden lg:flex flex-col items-center justify-center w-2 cursor-col-resize bg-slate-800 border-x border-slate-700 hover:bg-lime-500 active:bg-lime-600 transition-colors z-30 shrink-0 group"
+          className="hidden lg:flex flex-col items-center justify-center w-2 cursor-col-resize bg-slate-800 border-x border-slate-700 hover:bg-lime-500 active:bg-lime-600 transition-colors z-10 shrink-0 group"
           onMouseDown={startResizing}
           title="Arrastra para ajustar el tamaño"
         >
